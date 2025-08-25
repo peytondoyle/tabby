@@ -1,0 +1,31 @@
+@theme {
+  --color-brand: #2F6BFF;
+  --color-ink: #0B0F13;
+  --color-ink-dim: #556071;
+  --color-paper: #F6F7F8;
+  --color-card: #FFFFFF;
+  --color-line: #E6E8EC;
+  --color-accent: #12B886;
+  --color-danger: #EF4444;
+
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+
+  --shadow-soft: 0 10px 20px rgba(11,15,19,.06), 0 2px 6px rgba(11,15,19,.05);
+  --shadow-pop: 0 14px 28px rgba(47,107,255,.16);
+
+  --font-sans: Inter, ui-sans-serif, system-ui;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-paper: #0E1116;
+    --color-card: #12161D;
+    --color-ink: #E8EDF5;
+    --color-ink-dim: #A3AEC2;
+    --color-line: #1F2630;
+    --shadow-soft: 0 10px 20px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.2);
+  }
+}

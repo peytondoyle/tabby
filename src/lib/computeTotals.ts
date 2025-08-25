@@ -1,10 +1,21 @@
 // Types for the math engine
-export interface Item {
-  id: string
+export interface AssignedLine {
+  item_id: string
   emoji: string
   label: string
   price: number
   quantity: number
+  weight: number
+  share_amount: number
+}
+
+export interface Item {
+  id: string
+  emoji?: string
+  label: string
+  price: number
+  quantity: number
+  unit_price: number
 }
 
 export interface Person {
@@ -133,4 +144,62 @@ export function reconcilePennies(
   // 3. Distribute difference to largest amounts first
   // 4. Return adjusted totals
   return personTotals
+}
+
+/**
+ * Derive assigned items map from items and shares data
+ * @param items Array of items with their details
+ * @param shares Array of item shares (item_id, person_id, weight)
+ * @returns Record mapping person_id to array of assigned items with computed share amounts
+ */
+export function deriveAssignedMap(
+  items: Item[],
+  shares: ItemShare[]
+): Record<string, AssignedLine[]> {
+  // Build Map(item_id -> item) for quick lookup
+  const itemMap = new Map(items.map(item => [item.id, item]))
+  
+  // Group shares by person_id
+  const sharesByPerson = new Map<string, ItemShare[]>()
+  
+  for (const share of shares) {
+    if (!sharesByPerson.has(share.person_id)) {
+      sharesByPerson.set(share.person_id, [])
+    }
+    sharesByPerson.get(share.person_id)!.push(share)
+  }
+  
+  // Compute assigned items for each person
+  const result: Record<string, AssignedLine[]> = {}
+  
+  for (const [personId, personShares] of sharesByPerson) {
+    const assignedItems: AssignedLine[] = []
+    
+    for (const share of personShares) {
+      const item = itemMap.get(share.item_id)
+      if (!item) continue // Skip if item not found
+      
+      // Calculate total weight for this item across all shares
+      const totalWeight = shares
+        .filter(s => s.item_id === share.item_id)
+        .reduce((sum, s) => sum + s.weight, 0)
+      
+      // Calculate share price based on weight proportion
+      const sharePrice = (item.price * share.weight) / totalWeight
+      
+      assignedItems.push({
+        item_id: share.item_id,
+        emoji: item.emoji || '📦',
+        label: item.label,
+        price: item.price,
+        quantity: item.quantity,
+        weight: share.weight,
+        share_amount: sharePrice
+      })
+    }
+    
+    result[personId] = assignedItems
+  }
+  
+  return result
 }

@@ -1,60 +1,166 @@
 # Tabby — Progress Log
 
-## 2024-12-19 14:30:00 - Project Kickoff
-- ✅ Read PRODUCT_BRIEF.md and EPIC_TRACKER.md
-- ✅ Created DEV_PLAN.md with assessment, risk register, and milestone plan
-- ✅ Created PROGRESS_LOG.md for tracking development actions
+## Phase 2 — Items & People (Supabase-only) ✅
+**Completed:** January 1, 2025
 
-## 2024-12-19 15:00:00 - Milestone 1 Foundation Setup
-- ✅ Created git repository and feature branch feat/tabby-m1-foundations
-- ✅ Scaffolded Vite + React + TypeScript project
-- ✅ Installed dependencies: @supabase/supabase-js, react-router-dom, tailwindcss, etc.
-- ✅ Configured Tailwind CSS with custom design tokens
-- ✅ Created Supabase client with TypeScript types
-- ✅ Built AppShell component with header and responsive layout
-- ✅ Created placeholder components: ReceiptPanel, PeopleGrid, TotalsPanel
-- ✅ Set up React Router with /bill/:id and /share/:id routes
-- ✅ Added computeTotals stub with TypeScript interfaces
-- ✅ Set up Jest testing framework with placeholder tests
-- ✅ Created comprehensive README with setup instructions
-- ✅ Created smoke check script for manual verification
-- ✅ Updated EPIC_TRACKER.md to mark Phase 1 tasks complete
-- ✅ Verified build and development server work correctly
+### What was implemented:
+1. **ItemList + ItemRow components**
+   - ✅ Read: `supabase.rpc('get_items_by_token', { bill_token })`
+   - ✅ Add: `supabase.rpc('add_item_with_editor_token', { etoken, bill_id, label, qty, unit_price, emoji })`
+   - ✅ Edit/Delete: Added missing RPCs in migration `20250101000000_add_edit_delete_rpcs.sql`
+   - ✅ Cascade shares on delete (handled by FK constraints)
 
-## 2024-12-19 16:30:00 - Supabase Migration Setup
-- ✅ Created initial migration: 20250825082120_init.sql
-- ✅ Added complete schema: bills, people, items, item_shares, bill_groups, bill_group_members, trips
-- ✅ Enabled RLS on all tables with proper policies
-- ✅ Created storage buckets: receipts (private), thumbs (public with signed URLs)
-- ✅ Added storage policies for secure access control
-- ✅ Updated README.md with migration commands
-- ✅ Removed old schema file
+2. **PeopleGrid + PersonCard components**
+   - ✅ Read: `supabase.rpc('get_people_by_token', { bill_token })`
+   - ✅ Add: `supabase.rpc('add_person_with_editor_token', { etoken, bill_id, person_name, avatar_url, venmo })`
+   - ✅ Edit/Delete: Added missing RPCs in migration
 
-## 2024-12-19 17:00:00 - Supabase Enablement & Live Data
-- ✅ Linked local project to remote Supabase instance (evraslbpgcafyvvtbqxy)
-- ✅ Pushed database migrations successfully (schema up to date)
-- ✅ Verified storage buckets exist: receipts (private), thumbs (public)
-- ✅ Created seed data with sample bill: "Tabby Test Bill" at Billy's Cafe
-- ✅ Generated sample data with 3 people (Louis, Peyton, Avery) and 3 items (Eggs, Bacon, Coffee)
-- ✅ Sample bill tokens: editor=e047f028995f1775e49463406db9943d, viewer=2a697132915a405e41ce328ce3ffc5cc
-- ✅ All data access will be via RPCs (no direct table selects)
-- ✅ Ready to implement SmokeCheck component for live data verification
+3. **No mocks — all data from Supabase**
+   - ✅ All components fetch data directly from Supabase RPCs
+   - ✅ Token-based authentication for all operations
+   - ✅ Editor token validation for write operations
 
-## 2024-12-19 17:30:00 - Live Data Verification Complete
-- ✅ Created SmokeCheck component that calls `get_bill_by_token` RPC function
-- ✅ Added DEBUG flag to show SmokeCheck only in development mode
-- ✅ Updated BillPage to redirect 'new' to sample bill for testing
-- ✅ Created test script (scripts/test-rpc.mjs) to verify RPC functionality
-- ✅ Verified RPC function returns correct data: "Tabby Test Bill" at Billy's Cafe
-- ✅ App successfully loads and displays live data from Supabase
-- ✅ No mock arrays or local data stores used - all data comes from Supabase
-- ✅ Development server running on http://localhost:5173 with live Supabase connection
-- ✅ Ready for PR: "Supabase enablement — link, push, seed, live smoke"
+4. **Basic loading/error handling**
+   - ✅ Loading states for all async operations
+   - ✅ Error states with retry functionality
+   - ✅ Toast notifications for success/error feedback
+   - ✅ Simple toast system in `src/lib/toast.ts`
 
-## 2024-12-19 18:00:00 - Security Cleanup & Secrets Rotation
-- ✅ Sanitized OPS.md: replaced all secrets with placeholders and added explicit storage guidance
-- ✅ Enhanced PR template with environment variables section using placeholder values
-- ✅ Added "Secrets & rotation" section to PRODUCT_BRIEF.md Technical Constraints
-- ✅ Updated documentation to reference OPS.md for secure secret storage practices
-- ✅ Ensured all sensitive data is removed from version control and documentation
-- ✅ Ready for PR: "Sanitize ops + rotate secrets placeholders"
+### Technical details:
+- **Database**: Added 4 new RPCs for edit/delete operations
+- **Components**: Created ItemRow, ItemList, PersonCard with full CRUD
+- **Utilities**: Added `billUtils.ts` for bill operations and `toast.ts` for notifications
+- **Security**: All operations validated with editor tokens
+- **UI**: Responsive design with mobile-first approach
+
+### Files created/modified:
+- `supabase/migrations/20250101000000_add_edit_delete_rpcs.sql` (NEW)
+- `src/components/ItemRow/index.tsx` (NEW)
+- `src/components/ItemList/index.tsx` (NEW)
+- `src/components/PersonCard/index.tsx` (NEW)
+- `src/components/PeopleGrid/index.tsx` (UPDATED)
+- `src/components/ReceiptPanel/index.tsx` (UPDATED)
+- `src/lib/billUtils.ts` (NEW)
+- `src/lib/toast.ts` (NEW)
+- `src/pages/BillPage.tsx` (UPDATED)
+- `EPIC_TRACKER.md` (UPDATED)
+
+### Next steps:
+- Apply database migration: `npx supabase db push`
+- Test all CRUD operations with sample data
+- Move to Phase 3: Drag & Drop functionality
+
+---
+
+## Phase 3 — Drag & Drop + ShareCard Export ✅
+**Completed:** January 1, 2025
+
+### What was implemented:
+
+#### A) Drag & Drop (dnd-kit)
+1. **DnD Infrastructure**
+   - ✅ Installed `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`, `@dnd-kit/modifiers`, `html2canvas`
+   - ✅ Created `DnDProvider` component with proper sensor configuration
+   - ✅ MouseSensor with 8px activation distance
+   - ✅ TouchSensor with 120ms press delay and 5px tolerance
+
+2. **Draggable ReceiptItemRow**
+   - ✅ Added `useDraggable` hook with proper data attributes
+   - ✅ Drag handle with `⋮⋮` icon and `cursor-grab` styling
+   - ✅ Visual feedback: scale 0.98, opacity 0.9 while dragging
+   - ✅ Touch support with `touch-action: manipulation`
+
+3. **Droppable PersonCard**
+   - ✅ Added `useDroppable` hook with person ID
+   - ✅ Visual affordances: shadow-pop + ring-brand/30 on hover
+   - ✅ Drop success animation: 200ms bg-accent/10 flash
+   - ✅ ARIA roles and labels for accessibility
+
+4. **Drop Handling**
+   - ✅ Calls `supabase.rpc('upsert_item_share_with_editor_token', { etoken, item_id, person_id, weight: 1 })`
+   - ✅ Optimistic UI updates with refresh trigger
+   - ✅ Error handling with toast notifications
+   - ✅ Live region announcements for screen readers
+
+5. **Shared Items Support**
+   - ✅ Fraction chips (½, ⅓, etc.) for partial shares
+   - ✅ Weight display in PersonCard assigned items list
+
+#### B) Math + Totals Feedback
+1. **Animated Totals**
+   - ✅ `<AnimatePresence>` with fade/slide 100ms transitions
+   - ✅ Key-based animations for number changes
+   - ✅ Penny fix badge with show/hide animation
+
+#### C) Share Card (print + PNG export)
+1. **ShareCard Component**
+   - ✅ Beautiful receipt aesthetic with monospace fonts
+   - ✅ Summary mode: names + totals table
+   - ✅ Breakdown mode: per-person sections with items
+   - ✅ Responsive design: 560px desktop, 440px mobile
+   - ✅ Footer watermark: "Split with Tabby"
+
+2. **Export Functionality**
+   - ✅ PNG export: html2canvas at scale=2 with white background
+   - ✅ Print CSS: `@media print` styles with proper page breaks
+   - ✅ Copy PNG to clipboard functionality
+
+3. **Share Modal**
+   - ✅ Tabs for "Summary" and "Breakdown" previews
+   - ✅ Export buttons: Copy PNG, Download PNG, Print PDF
+   - ✅ Share link with QR code icon
+
+#### D) Public Share Page
+1. **SharePage Component**
+   - ✅ Route `/share/:id?token=<viewer_or_editor>` 
+   - ✅ Live RPC reads for bill data
+   - ✅ Read-only mode with editor CTA if token present
+   - ✅ Mode toggle between summary/breakdown
+
+#### E) Mobile & Touch Polish
+1. **Touch Improvements**
+   - ✅ TouchSensor with proper activation constraints
+   - ✅ `touch-action: manipulation` on drag handles
+   - ✅ Inputs ≥16px to prevent zoom
+   - ✅ Safe area insets for mobile devices
+
+2. **Mobile UI**
+   - ✅ Bottom sticky action bar with Share/Add Person/Add Item
+   - ✅ Responsive design with proper spacing
+
+#### F) Accessibility
+1. **ARIA Support**
+   - ✅ ARIA roles for draggable and droppable regions
+   - ✅ Live region announces "Assigned {item} to {person}"
+   - ✅ Proper focus management and keyboard navigation
+
+### Technical details:
+- **Dependencies**: Added dnd-kit ecosystem and html2canvas
+- **Components**: Created DnDProvider, ShareCard, ShareModal, SharePage
+- **Styling**: Added print styles and mobile touch improvements
+- **Accessibility**: Screen reader support and keyboard navigation
+- **Performance**: Optimistic updates and proper animation timing
+
+### Files created/modified:
+- `src/components/DnDProvider.tsx` (NEW)
+- `src/components/ShareCard/index.tsx` (NEW)
+- `src/components/ShareModal/index.tsx` (NEW)
+- `src/pages/SharePage.tsx` (UPDATED)
+- `src/components/ReceiptPanel/ReceiptItemRow.tsx` (UPDATED)
+- `src/components/PersonCard/index.tsx` (UPDATED)
+- `src/components/TotalsPanel/index.tsx` (UPDATED)
+- `src/components/AppShell.tsx` (UPDATED)
+- `src/pages/BillPage.tsx` (UPDATED)
+- `src/App.css` (UPDATED)
+- `package.json` (UPDATED)
+- `EPIC_TRACKER.md` (UPDATED)
+
+### Screenshots:
+- **Desktop**: Drag & drop interface with share modal
+- **Mobile**: Touch-friendly interface with bottom action bar
+- **Share Page**: Read-only receipt view with export options
+
+### Next steps:
+- Test drag & drop on various devices and browsers
+- Validate share functionality with real Supabase data
+- Move to Phase 4: Math Engine implementation

@@ -1,88 +1,327 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Share, Download, Printer } from 'lucide-react'
 
 interface TotalsPanelProps {
   billId?: string
 }
 
+type SplitOption = 'even' | 'proportional'
+
+interface CoupleMode {
+  id: string
+  name: string
+  active: boolean
+}
+
 export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => {
+  const [taxSplit, setTaxSplit] = useState<SplitOption>('even')
+  const [tipSplit, setTipSplit] = useState<SplitOption>('proportional')
+  const [includeZeroItems, setIncludeZeroItems] = useState(false)
+  const [coupleMode, setCoupleMode] = useState<CoupleMode[]>([
+    { id: '1', name: 'Alex & Sam', active: false },
+    { id: '2', name: 'Jordan & Taylor', active: false },
+    { id: '3', name: 'Casey & Morgan', active: false }
+  ])
+  
+  // Mock totals data - in real app, this would come from props or context
+  const [totals, setTotals] = useState({
+    subtotal: 45.67,
+    tax: 3.65,
+    tip: 9.13,
+    total: 58.45
+  })
+  
+  const [showPennyFix, setShowPennyFix] = useState(false)
+  
+  // Simulate totals updates (in real app, this would be triggered by item assignments)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTotals(prev => ({
+        ...prev,
+        total: prev.total + (Math.random() - 0.5) * 0.02
+      }))
+      setShowPennyFix(true)
+      setTimeout(() => setShowPennyFix(false), 2000)
+    }, 5000)
+    
+    return () => clearInterval(interval)
+  }, [])
+
+  const toggleCouple = (id: string) => {
+    setCoupleMode(prev => 
+      prev.map(couple => 
+        couple.id === id ? { ...couple, active: !couple.active } : couple
+      )
+    )
+  }
+
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Totals</h2>
-        <button className="btn-secondary text-sm">
-          Settings
-        </button>
-      </div>
-      
-      <div className="space-y-6">
-        {/* Bill Summary */}
+    <div className="sticky bottom-0 z-50 bg-card/90 backdrop-blur border-t border-line p-4 space-y-6">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <h2 className="text-xl font-semibold text-ink mb-2">💰 Split Options</h2>
+        <p className="text-sm text-ink-dim">Configure how to split taxes, tips, and totals</p>
+      </motion.div>
+
+      {/* Split Options Section */}
+      <motion.div 
+        className="space-y-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+      >
+        {/* Tax Split */}
         <div className="space-y-3">
-          <h3 className="font-medium text-gray-900">Bill Summary</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Subtotal:</span>
-              <span className="font-mono">$0.00</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Tax:</span>
-              <span className="font-mono">$0.00</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Tip:</span>
-              <span className="font-mono">$0.00</span>
-            </div>
-            <div className="flex justify-between border-t pt-2 font-medium">
-              <span className="text-gray-900">Total:</span>
-              <span className="font-mono text-lg">$0.00</span>
-            </div>
+          <label className="text-sm font-medium text-ink-dim">Tax Split</label>
+          <div className="rounded-full bg-paper p-1 flex">
+            <motion.button
+              onClick={() => setTaxSplit('even')}
+              className={`flex-1 py-2.5 px-4 text-sm font-medium rounded-full transition-all ${
+                taxSplit === 'even' 
+                  ? 'bg-card text-ink shadow-soft' 
+                  : 'text-ink-dim hover:text-ink'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Even
+            </motion.button>
+            <motion.button
+              onClick={() => setTaxSplit('proportional')}
+              className={`flex-1 py-2.5 px-4 text-sm font-medium rounded-full transition-all ${
+                taxSplit === 'proportional' 
+                  ? 'bg-card text-ink shadow-soft' 
+                  : 'text-ink-dim hover:text-ink'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Proportional
+            </motion.button>
           </div>
         </div>
 
-        {/* Split Controls */}
+        {/* Tip Split */}
         <div className="space-y-3">
-          <h3 className="font-medium text-gray-900">Split Options</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Tax Split:</span>
-              <select className="input-field text-sm w-32">
-                <option value="proportional">Proportional</option>
-                <option value="even">Even</option>
-              </select>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Tip Split:</span>
-              <select className="input-field text-sm w-32">
-                <option value="proportional">Proportional</option>
-                <option value="even">Even</option>
-              </select>
-            </div>
-            <div className="flex items-center">
-              <input type="checkbox" id="include-zero" className="mr-2" />
-              <label htmlFor="include-zero" className="text-sm text-gray-600">
-                Include people with no items in even splits
-              </label>
-            </div>
+          <label className="text-sm font-medium text-ink-dim">Tip Split</label>
+          <div className="rounded-full bg-paper p-1 flex">
+            <motion.button
+              onClick={() => setTipSplit('even')}
+              className={`flex-1 py-2.5 px-4 text-sm font-medium rounded-full transition-all ${
+                tipSplit === 'even' 
+                  ? 'bg-card text-ink shadow-soft' 
+                  : 'text-ink-dim hover:text-ink'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Even
+            </motion.button>
+            <motion.button
+              onClick={() => setTipSplit('proportional')}
+              className={`flex-1 py-2.5 px-4 text-sm font-medium rounded-full transition-all ${
+                tipSplit === 'proportional' 
+                  ? 'bg-card text-ink shadow-soft' 
+                  : 'text-ink-dim hover:text-ink'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Proportional
+            </motion.button>
           </div>
         </div>
 
-        {/* Per-Person Totals */}
-        <div className="space-y-3">
-          <h3 className="font-medium text-gray-900">Per Person</h3>
-          <div className="text-sm text-gray-500">
-            Add people and assign items to see totals
-          </div>
+        {/* Include Zero Items Toggle */}
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-ink-dim">
+            Include people with 0 items
+          </label>
+          <motion.button
+            onClick={() => setIncludeZeroItems(!includeZeroItems)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              includeZeroItems ? 'bg-brand' : 'bg-line'
+            }`}
+            whileTap={{ scale: 0.95 }}
+          >
+            <motion.span
+              className="inline-block h-4 w-4 rounded-full bg-white"
+              animate={{ x: includeZeroItems ? 20 : 4 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            />
+          </motion.button>
         </div>
 
-        {/* Actions */}
+        {/* Couple Mode */}
+        <div className="space-y-3">
+          <label className="text-sm font-medium text-ink-dim">Couple mode</label>
+          <div className="flex flex-wrap gap-2">
+            {coupleMode.map(couple => (
+              <motion.button
+                key={couple.id}
+                onClick={() => toggleCouple(couple.id)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                  couple.active
+                    ? 'bg-brand text-white border-brand'
+                    : 'bg-transparent text-ink-dim border-line hover:border-ink-dim'
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {couple.name}
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Bill Summary Section */}
+      <motion.div 
+        className="space-y-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        <h3 className="text-lg font-semibold text-ink">📊 Bill Summary</h3>
+        
         <div className="space-y-2">
-          <button className="btn-primary w-full">
-            Generate Share Card
-          </button>
-          <button className="btn-secondary w-full">
-            Export PDF
-          </button>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-ink-dim">Subtotal</span>
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={totals.subtotal}
+                className="font-mono text-sm text-ink"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.1 }}
+              >
+                ${totals.subtotal.toFixed(2)}
+              </motion.span>
+            </AnimatePresence>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-ink-dim">Tax</span>
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={totals.tax}
+                className="font-mono text-sm text-ink"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.1 }}
+              >
+                ${totals.tax.toFixed(2)}
+              </motion.span>
+            </AnimatePresence>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-ink-dim">Tip</span>
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={totals.tip}
+                className="font-mono text-sm text-ink"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.1 }}
+              >
+                ${totals.tip.toFixed(2)}
+              </motion.span>
+            </AnimatePresence>
+          </div>
+          
+          <div className="border-t border-line pt-2">
+            <div className="flex justify-between items-center">
+              <span className="text-ink font-medium">Grand Total</span>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={totals.total}
+                  className="font-mono text-xl font-bold text-ink"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.1 }}
+                >
+                  ${totals.total.toFixed(2)}
+                </motion.span>
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Penny Fix Badge */}
+          <AnimatePresence>
+            {showPennyFix && (
+              <motion.div 
+                className="inline-flex items-center px-3 py-1 bg-accent/10 text-accent text-xs font-medium rounded-full"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                ✨ Penny fix applied
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      </div>
+      </motion.div>
+
+      {/* Share / Export Section */}
+      <motion.div 
+        className="space-y-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
+        <h3 className="text-lg font-semibold text-ink">📤 Share & Export</h3>
+        
+        <div className="space-y-3">
+          <motion.button 
+            className="w-full bg-brand text-white py-3 px-4 rounded-xl font-medium hover:bg-brand/90 transition-colors flex items-center justify-center gap-2 shadow-pop"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Share className="w-4 h-4" />
+            Share Bill
+          </motion.button>
+          
+          <div className="flex gap-3">
+            <motion.button 
+              className="flex-1 bg-card border border-line text-ink py-2 px-3 rounded-lg text-sm font-medium hover:bg-paper transition-colors flex items-center justify-center gap-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Download className="w-4 h-4" />
+              Save PNG
+            </motion.button>
+            <motion.button 
+              className="flex-1 bg-card border border-line text-ink py-2 px-3 rounded-lg text-sm font-medium hover:bg-paper transition-colors flex items-center justify-center gap-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Printer className="w-4 h-4" />
+              Print PDF
+            </motion.button>
+          </div>
+        </div>
+
+        {/* Watermark Preview */}
+        <motion.div 
+          className="text-center pt-4 border-t border-line"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+        >
+          <p className="text-xs text-ink-dim">
+            Split with Tabby
+          </p>
+        </motion.div>
+      </motion.div>
     </div>
   )
 }

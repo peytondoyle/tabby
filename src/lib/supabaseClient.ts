@@ -1,13 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Check if we have proper Supabase credentials
+const hasValidCredentials = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env file.')
-}
+// Only create client if we have valid credentials
+export const supabase = hasValidCredentials 
+  ? createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Helper function to check if Supabase is available
+export const isSupabaseAvailable = () => !!supabase
 
 // Database types (to be generated from schema)
 export interface Database {

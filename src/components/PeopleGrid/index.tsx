@@ -1,40 +1,348 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
+import { getBillByToken } from '@/lib/billUtils'
+import { showError, showSuccess } from '@/lib/toast'
+import { PersonCard } from '../PersonCard'
+import { deriveAssignedMap } from '@/lib/computeTotals'
 
 interface PeopleGridProps {
-  billId?: string
+  billToken?: string
 }
 
-export const PeopleGrid: React.FC<PeopleGridProps> = ({ billId: _billId }) => {
-  return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">People</h2>
-        <button className="btn-primary text-sm">
-          Add Person
-        </button>
-      </div>
-      
-      <div className="space-y-4">
-        {/* TODO: People cards grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-gray-100 rounded-lg p-6 text-center">
-            <div className="w-12 h-12 bg-gray-300 rounded-full mx-auto mb-3 flex items-center justify-center">
-              <span className="text-gray-500 text-lg">👤</span>
-            </div>
-            <p className="text-sm text-gray-500">
-              No people yet
-            </p>
-          </div>
-        </div>
+interface Person {
+  id: string
+  name: string
+  avatar_url?: string
+  venmo_handle?: string
+  is_archived: boolean
+}
 
-        {/* TODO: Groups section */}
-        <div className="space-y-2">
-          <h3 className="font-medium text-gray-900">Groups</h3>
-          <div className="text-sm text-gray-500">
-            Create groups to combine totals (e.g., couples)
+export const PeopleGrid: React.FC<PeopleGridProps> = ({ billToken }) => {
+  const queryClient = useQueryClient()
+  const [isAdding, setIsAdding] = useState(false)
+  const [newPerson, setNewPerson] = useState({
+    name: '',
+    avatar_url: '',
+    venmo: ''
+  })
+
+  // React Query hooks
+  const { data: people = [], isLoading: peopleLoading, error: peopleError } = useQuery({
+    queryKey: ['people', billToken],
+    queryFn: async () => {
+      if (!isSupabaseAvailable()) {
+        console.warn('Supabase not available - using mock people data')
+        return [
+          {
+            id: 'person-1',
+            name: 'Alice',
+            avatar_url: '👩',
+            venmo_handle: 'alice-smith',
+            is_archived: false
+          },
+          {
+            id: 'person-2',
+            name: 'Bob',
+            avatar_url: '👨',
+            venmo_handle: 'bob-jones',
+            is_archived: false
+          },
+          {
+            id: 'person-3',
+            name: 'Charlie',
+            avatar_url: '🧑',
+            venmo_handle: 'charlie-brown',
+            is_archived: false
+          }
+        ]
+      }
+
+      const { data, error } = await supabase!.rpc('get_people_by_token', {
+        bill_token: billToken!
+      })
+
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!billToken
+  })
+
+  const { data: items = [] } = useQuery({
+    queryKey: ['items', billToken],
+    queryFn: async () => {
+      if (!isSupabaseAvailable()) {
+        console.warn('Supabase not available - using mock items data')
+        return [
+          {
+            id: 'item-1',
+            emoji: '☕',
+            label: 'Cappuccino',
+            price: 4.50,
+            quantity: 1,
+            unit_price: 4.50
+          },
+          {
+            id: 'item-2',
+            emoji: '🥐',
+            label: 'Croissant',
+            price: 3.25,
+            quantity: 1,
+            unit_price: 3.25
+          },
+          {
+            id: 'item-3',
+            emoji: '🥗',
+            label: 'Caesar Salad',
+            price: 12.99,
+            quantity: 1,
+            unit_price: 12.99
+          }
+        ]
+      }
+
+      const { data, error } = await supabase!.rpc('get_items_by_token', {
+        bill_token: billToken!
+      })
+
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!billToken
+  })
+
+  const { data: shares = [] } = useQuery({
+    queryKey: ['shares', billToken],
+    queryFn: async () => {
+      if (!isSupabaseAvailable()) {
+        console.warn('Supabase not available - using mock shares data')
+        return [
+          { item_id: 'item-1', person_id: 'person-1', weight: 1 },
+          { item_id: 'item-2', person_id: 'person-2', weight: 1 },
+          { item_id: 'item-3', person_id: 'person-1', weight: 0.5 },
+          { item_id: 'item-3', person_id: 'person-2', weight: 0.5 }
+        ]
+      }
+
+      const { data, error } = await supabase!.rpc('get_item_shares_by_token', {
+        bill_token: billToken!
+      })
+
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!billToken
+  })
+
+  // Get editor token from bill data
+  const { data: bill } = useQuery({
+    queryKey: ['bill', billToken],
+    queryFn: async () => {
+      if (!isSupabaseAvailable()) {
+        return {
+          editor_token: 'mock-editor-token'
+        }
+      }
+      return await getBillByToken(billToken!)
+    },
+    enabled: !!billToken
+  })
+
+  // Compute assigned items for each person
+  const assignedByPerson = deriveAssignedMap(items, shares)
+
+  // Add person mutation
+  const addPersonMutation = useMutation({
+    mutationFn: async (personData: { name: string; avatar_url: string; venmo: string }) => {
+      if (!isSupabaseAvailable()) {
+        console.warn('Supabase not available - mocking person addition')
+        return { id: 'new-person', ...personData, is_archived: false }
+      }
+
+      const { data, error } = await supabase!.rpc('add_person_with_editor_token', {
+        etoken: bill?.editor_token || '',
+        bill_id: (bill as any)?.id || '',
+        person_name: personData.name,
+        avatar_url: personData.avatar_url || null,
+        venmo: personData.venmo || null
+      })
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['people', billToken] })
+      setIsAdding(false)
+      setNewPerson({ name: '', avatar_url: '', venmo: '' })
+      showSuccess('Person added successfully')
+    },
+    onError: (error) => {
+      console.error('Error adding person:', error)
+      showError('Failed to add person')
+    }
+  })
+
+  const handleAddPerson = async () => {
+    if (!newPerson.name.trim()) return
+    
+    addPersonMutation.mutate(newPerson)
+  }
+
+  const handleAddPersonClick = () => {
+    setIsAdding(true)
+  }
+
+  const handleCancelAdd = () => {
+    setIsAdding(false)
+    setNewPerson({ name: '', avatar_url: '', venmo: '' })
+  }
+
+  if (peopleLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-ink">People</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 bg-card rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (peopleError) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-ink">People</h2>
+        </div>
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="text-sm text-red-700">
+            Error loading people: {peopleError instanceof Error ? peopleError.message : 'Unknown error'}
           </div>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-ink">People</h2>
+      </div>
+
+      {/* Add Person Form */}
+      <AnimatePresence>
+        {isAdding && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-card rounded-2xl p-4 border border-line"
+          >
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Name"
+                value={newPerson.name}
+                onChange={(e) => setNewPerson(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3 py-2 bg-paper border border-line rounded-lg text-ink placeholder:text-ink-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+              />
+              <input
+                type="text"
+                placeholder="Avatar (emoji)"
+                value={newPerson.avatar_url}
+                onChange={(e) => setNewPerson(prev => ({ ...prev, avatar_url: e.target.value }))}
+                className="w-full px-3 py-2 bg-paper border border-line rounded-lg text-ink placeholder:text-ink-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+              />
+              <input
+                type="text"
+                placeholder="Venmo handle"
+                value={newPerson.venmo}
+                onChange={(e) => setNewPerson(prev => ({ ...prev, venmo: e.target.value }))}
+                className="w-full px-3 py-2 bg-paper border border-line rounded-lg text-ink placeholder:text-ink-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddPerson}
+                  disabled={addPersonMutation.isPending}
+                  className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand/90 disabled:opacity-50 transition-colors"
+                >
+                  {addPersonMutation.isPending ? 'Adding...' : 'Add Person'}
+                </button>
+                <button
+                  onClick={handleCancelAdd}
+                  className="px-4 py-2 bg-paper text-ink rounded-lg border border-line hover:bg-paper/80 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* People cards grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-fr">
+        <AnimatePresence>
+          {people.map((person: Person, index: number) => (
+            <motion.div
+              key={person.id}
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: -20 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <PersonCard
+                person={person}
+                editorToken={bill?.editor_token || ''}
+                onUpdate={() => queryClient.invalidateQueries({ queryKey: ['people', billToken] })}
+                assignedItems={assignedByPerson[person.id] || []}
+              />
+            </motion.div>
+          ))}
+          
+          {/* Add Person ghost card */}
+          {bill?.editor_token && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: people.length * 0.1 }}
+            >
+              <PersonCard
+                person={{
+                  id: '',
+                  name: '',
+                  avatar_url: '',
+                  venmo_handle: '',
+                  is_archived: false
+                }}
+                editorToken=""
+                onUpdate={() => {}}
+                isAddPerson={true}
+                onAddPerson={handleAddPersonClick}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {people.length === 0 && !isAdding && (
+        <div className="text-center py-8 text-ink-dim">
+          <p>No people added yet. Click the + card to add someone!</p>
+        </div>
+      )}
+
+      {/* DEBUG: Temporary debug output */}
+      <details className="mt-4 p-4 bg-gray-100 rounded-lg">
+        <summary className="cursor-pointer font-mono text-sm">DEBUG: First 5 shares</summary>
+        <pre className="mt-2 text-xs overflow-auto">
+          {JSON.stringify(shares.slice(0, 5), null, 2)}
+        </pre>
+      </details>
     </div>
   )
 }

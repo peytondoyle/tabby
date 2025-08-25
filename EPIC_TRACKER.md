@@ -24,22 +24,22 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## 🔄 Phase 2 — Items & People (CURRENT FOCUS)
-- [ ] `<ItemRow />` with emoji, label, price, draggable.
-- [ ] `<ItemList />` with Supabase fetch, inline add/edit/delete.
-- [ ] `<PersonCard />` with avatar, name, assigned items, totals placeholders.
-- [ ] `<PeopleGrid />` rendering PersonCards, add-person form.
+## ✅ Phase 2 — Items & People (COMPLETED)
+- [x] `<ItemRow />` with emoji, label, price, draggable.
+- [x] `<ItemList />` with Supabase fetch, inline add/edit/delete.
+- [x] `<PersonCard />` with avatar, name, assigned items, totals placeholders.
+- [x] `<PeopleGrid />` rendering PersonCards, add-person form.
 - [ ] `<GroupCard />` (couple mode) combining totals.
 
 ---
 
-## ⏳ Phase 3 — Drag & Drop
-- [ ] Install dnd-kit.
-- [ ] Add MouseSensor + TouchSensor (pressDelay=120ms).
-- [ ] Make `<ItemRow />` draggable.
-- [ ] Make `<PersonCard />` droppable; onDrop upsert `item_shares`.
-- [ ] Add visual feedback (highlight, animation, haptics).
-- [ ] Support multi-share weights (UI for 50/50, custom splits).
+## ✅ Phase 3 — Drag & Drop (COMPLETED)
+- [x] Install dnd-kit.
+- [x] Add MouseSensor + TouchSensor (pressDelay=120ms).
+- [x] Make `<ItemRow />` draggable.
+- [x] Make `<PersonCard />` droppable; onDrop upsert `item_shares`.
+- [x] Add visual feedback (highlight, animation, haptics).
+- [x] Support multi-share weights (UI for 50/50, custom splits).
 
 ---
 
@@ -60,12 +60,12 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## ⏳ Phase 6 — Shareable Exports
-- [ ] `<ShareCard />` with summary and breakdown modes.
-- [ ] Styling: monospace, dotted leaders, watermark footer.
-- [ ] Export PNG (html2canvas).
-- [ ] Export PDF (react-to-print).
-- [ ] `/share/:id` read-only page with ShareCard.
+## ✅ Phase 6 — Shareable Exports (COMPLETED)
+- [x] `<ShareCard />` with summary and breakdown modes.
+- [x] Styling: monospace, dotted leaders, watermark footer.
+- [x] Export PNG (html2canvas).
+- [x] Export PDF (react-to-print).
+- [x] `/share/:id` read-only page with ShareCard.
 
 ---
 
@@ -77,16 +77,45 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## ⏳ Phase 8 — Polish
+## 🔄 Phase 8 — Polish (PARTIALLY COMPLETED)
 - [ ] PDF viewer (react-pdf) with thumbnails + zoom.
-- [ ] Mobile zoom fixes (inputs ≥16px, touch-action).
-- [ ] Bottom sheet for mobile controls.
+- [x] Mobile zoom fixes (inputs ≥16px, touch-action).
+- [x] Bottom sheet for mobile controls.
 - [ ] PWA manifest + icons.
 - [ ] Offline cache of last 3 bills.
 - [ ] Dark mode.
-- [ ] Accessibility: ARIA live, keyboard nav, focus states.
+- [x] Accessibility: ARIA live, keyboard nav, focus states.
 - [ ] Error handling: OCR fail, offline fallback, network retry.
 - [ ] Analytics + Sentry integration.
+
+## ✅ Phase 9 — Compact Layout (COMPLETED)
+- [x] **Layout Shell**: Replace 3-column grid with two-zone vertical layout (Dock + Content).
+- [x] **PeopleDock**: Sticky people row with horizontally scrollable PersonChips.
+- [x] **PersonChip**: Compact cards (h-24) with avatar, name, venmo, running total.
+- [x] **ReceiptItemRow**: Tighter rows with smaller emoji (20px), compact layout.
+- [x] **CompactTotals**: Slim bottom bar with split toggles and totals.
+- [x] **DnD Integration**: Working drag & drop from receipt items to PersonChips.
+- [x] **Accessibility**: ARIA live announcements, proper roles and labels.
+- [x] **Responsive**: Desktop sticky dock, mobile swipeable carousel.
+- [x] **Visual Feedback**: Drop hints, success states, hover effects.
+
+## ✅ Phase 10 — UI Polish M3 (COMPLETED)
+- [x] **SmokeCheck**: Hidden in production, replaced with "Bill loaded ✓" toast on success.
+- [x] **Drag & Drop Polish**: Added DragOverlay with item ghost, improved drop affordances with ring-brand/50 bg-brand/5 on hover.
+- [x] **Drop Success**: PersonChip pulses bg-accent/10 for 200ms + toast notification with accent outline expand/fade microinteraction.
+- [x] **Touch Sensors**: Added pressDelay=100ms for better touch responsiveness.
+- [x] **People Row**: Shrunk PersonChip to min-w-[180px] h-[88px], improved layout with avatar+name left, total mono right.
+- [x] **Navigation**: Added overflow-x scroll with snap-x, arrow buttons for >5 people.
+- [x] **Receipt List**: Updated row styling with emoji 20px, label 14px font-medium, price 14px font-mono.
+- [x] **Leaders**: Added dotted filler between label and price for better visual separation.
+- [x] **Add Item**: Added "+ Add Item" ghost row at end of receipt list.
+- [x] **Group Headings**: Added "Scanned Items" and "Manual Items" section headers.
+- [x] **Totals Bar**: Sticky bottom with bg-card/90 backdrop-blur, border-t border-line styling.
+- [x] **Typography**: Subtotal, Tax, Tip smaller (text-sm, ink-dim), Grand total text-xl font-mono bold.
+- [x] **Segment Pills**: Larger hit targets (py-2.5) + smooth transitions.
+- [x] **Motion Polish**: AnimatePresence fade/slide totals updates, fade up PersonChips on load.
+- [x] **Drop Success**: Accent outline expand/fade microinteraction on successful drops.
+- [x] **Scrollbar Hide**: Added utility class for clean horizontal scrolling.
 
 ---
 

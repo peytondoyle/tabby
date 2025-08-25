@@ -2,6 +2,14 @@
 
 A delightful, trustworthy, and fast restaurant bill splitting app. Upload receipts, assign items to people via drag-and-drop, and generate fair totals with tax/tip split options.
 
+## Development
+
+```bash
+npm run dev
+```
+
+The development server runs on `http://localhost:5173` with strict port binding.
+
 ## Docs Map
 
 - **[PRODUCT_BRIEF.md](PRODUCT_BRIEF.md)** - Requirements and acceptance criteria
