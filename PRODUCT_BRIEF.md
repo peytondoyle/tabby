@@ -98,17 +98,21 @@ Users should be able to scan a receipt (photo or PDF), confirm items, assign the
 
 ---
 
-## 6. Acceptance Criteria
+## 6. Technical Constraints
+All data access MUST use Supabase; no local mocks or in-memory stand-ins permitted. Builds should fail if env is missing.
+
+## 7. Acceptance Criteria
 - Σ per-person totals = receipt total exactly (after rounding fix).
 - OCR detects ≥90% of priced lines on common receipts.
 - Share cards export correctly (PNG ≤300KB typical).
 - Venmo links open successfully on iOS/Android/Desktop.
 - Mobile Safari: no accidental zoom on input or DnD.
 - Viewer cannot modify bill; Editor can.
+- All tables must have RLS enabled; storage buckets are private with signed URLs.
 
 ---
 
-## 7. Success Metrics
+## 8. Success Metrics
 - Time to first assignment < 60s (p75).
 - ≥70% receipts parse with confidence ≥0.75 without major edits.
 - Export/share used in >50% of multi-person bills.
