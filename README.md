@@ -40,29 +40,56 @@ npm install
 
 ### 2. Environment Setup
 
-Create a `.env` file in the project root:
+Copy the example environment file and fill in your values:
 
 ```bash
-# Supabase Configuration
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+cp .env.example .env
 ```
+
+**Required environment variables:**
+- `VITE_SUPABASE_URL` - Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Your Supabase anon/public key
+- `SUPABASE_DB_PASSWORD` - Database password for CLI operations
+- `SUPABASE_PROJECT_REF` - Project reference ID
 
 **Where to find these values:**
 1. Go to your [Supabase Dashboard](https://supabase.com/dashboard)
 2. Select your project
 3. Go to Settings → API
 4. Copy the "Project URL" and "anon public" key
+5. Go to Settings → Database for the password
+6. The project reference is in the URL: `https://supabase.com/dashboard/project/[PROJECT_REF]`
 
-### 3. Database Setup
+### 3. Preflight Check
 
-Run the database migrations in your Supabase project:
+Validate your environment setup:
 
-1. Go to your Supabase Dashboard → SQL Editor
-2. Copy and paste the contents of `supabase/migrations/001_initial_schema.sql`
-3. Execute the migration
+```bash
+npm run preflight
+```
 
-### 4. Start Development
+This will check that all required environment variables are set and exit with an error if any are missing.
+
+### 4. Supabase Setup
+
+Install and configure the Supabase CLI:
+
+```bash
+# Install Supabase CLI
+npm install -g supabase
+
+# Link to your project
+supabase link --project-ref $SUPABASE_PROJECT_REF
+
+# Apply database migrations
+supabase db push
+
+# Create storage buckets
+supabase storage create receipts --private
+supabase storage create thumbs --public
+```
+
+### 5. Start Development
 
 ```bash
 npm run dev
@@ -72,6 +99,7 @@ The app will be available at `http://localhost:5173`
 
 ## Available Scripts
 
+- `npm run preflight` - Validate environment variables
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
@@ -157,6 +185,8 @@ npm run build
 |----------|-------------|----------|
 | `VITE_SUPABASE_URL` | Your Supabase project URL | Yes |
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase anon/public key | Yes |
+| `SUPABASE_DB_PASSWORD` | Database password for CLI operations | Yes |
+| `SUPABASE_PROJECT_REF` | Project reference ID | Yes |
 
 ## Contributing
 

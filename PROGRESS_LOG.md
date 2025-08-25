@@ -14,7 +14,6 @@
 - ✅ Built AppShell component with header and responsive layout
 - ✅ Created placeholder components: ReceiptPanel, PeopleGrid, TotalsPanel
 - ✅ Set up React Router with /bill/:id and /share/:id routes
-- ✅ Created database schema migration with all required tables
 - ✅ Added computeTotals stub with TypeScript interfaces
 - ✅ Set up Jest testing framework with placeholder tests
 - ✅ Created comprehensive README with setup instructions
@@ -26,7 +25,6 @@
 - [x] Create new branch: feat/tabby-m1-foundations
 - [x] Scaffold Vite + React + TypeScript + Tailwind project
 - [x] Set up Supabase client and environment configuration
-- [x] Create database schema migrations
 - [x] Build AppShell with routing and layout components
 - [x] Add placeholder components for ReceiptPanel, PeopleGrid, TotalsPanel
 - [x] Create computeTotals stub and test placeholder

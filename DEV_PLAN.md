@@ -103,44 +103,34 @@ Tabby is a restaurant bill splitting app that enables users to scan receipts, as
 - Venmo integration
 - Share page routing
 
-## Day 1-2 Work Plan
+## Environment Setup
 
-### Day 1: Foundation Setup
-**Files to Create:**
-- `package.json` - Dependencies and scripts
-- `vite.config.ts` - Vite configuration
-- `tailwind.config.ts` - Tailwind theme
-- `tsconfig.json` - TypeScript config
-- `index.html` - Entry point
-- `src/main.tsx` - React entry
-- `src/App.tsx` - Root component
-- `src/lib/supabaseClient.ts` - Supabase client
-- `src/components/AppShell.tsx` - Main layout
-- `src/pages/BillPage.tsx` - Editor route
-- `src/pages/SharePage.tsx` - Viewer route
-- `src/styles/tokens.css` - Design tokens
-- `README.md` - Setup instructions
-- `PROGRESS_LOG.md` - Development log
+### Required Environment Variables
+- `VITE_SUPABASE_URL` - Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Your Supabase anon/public key
+- `SUPABASE_DB_PASSWORD` - Database password for CLI operations
+- `SUPABASE_PROJECT_REF` - Project reference ID
 
-**Files to Edit:**
-- `EPIC_TRACKER.md` - Update Phase 1 status
+### Supabase CLI Commands
+```bash
+# Install Supabase CLI
+npm install -g supabase
 
-### Day 2: Schema & Components
-**Files to Create:**
-- `supabase/migrations/` - Database schema
-- `src/components/ReceiptPanel/index.tsx` - Placeholder
-- `src/components/PeopleGrid/index.tsx` - Placeholder
-- `src/components/TotalsPanel/index.tsx` - Placeholder
-- `src/lib/computeTotals.ts` - Math engine stub
-- `tests/computeTotals.test.ts` - Test placeholder
-- `scripts/smoke-check.md` - Manual verification steps
+# Link to your project
+supabase link --project-ref $SUPABASE_PROJECT_REF
 
-**Key Deliverables:**
-- Running app with routing
-- Supabase client initialized
-- Database schema ready
-- Basic layout rendering
-- Development environment documented
+# Apply migrations
+supabase db push
+
+# Create storage buckets
+supabase storage create receipts --private
+supabase storage create thumbs --public
+```
+
+### Preflight Validation
+The `scripts/preflight.mjs` script validates all required environment variables before the app starts. This ensures builds fail fast if the environment is not properly configured.
+
+For detailed task breakdown and progress tracking, see [EPIC_TRACKER.md](EPIC_TRACKER.md).
 
 ## Assumptions & Decisions
 

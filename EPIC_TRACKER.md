@@ -5,6 +5,16 @@ Each task is atomic, testable, and composable.
 
 ---
 
+## ✅ Phase 0 — Supabase Setup & Environment
+- [ ] **Environment**: Create `.env.example` and validate required variables.
+- [ ] **Preflight**: Add `scripts/preflight.mjs` to check env vars on startup.
+- [ ] **Supabase CLI**: Install and configure `supabase/config.toml`.
+- [ ] **Project Link**: Link local project to remote Supabase instance.
+- [ ] **Migrations**: Create and apply database schema migrations.
+- [ ] **RLS Policies**: Enable Row Level Security on all tables.
+- [ ] **Storage Buckets**: Create `receipts` (private) and `thumbs` (signed) buckets.
+- [ ] **Seeds**: Add sample data for development/testing.
+
 ## ✅ Phase 1 — Foundations & Core Data
 - [x] **Schema**: Create Supabase migrations for `bills`, `people`, `items`, `item_shares`, `bill_groups`, `bill_group_members`, `trips`.
 - [x] **Scaffold**: Vite + React + TypeScript + Tailwind.
@@ -92,6 +102,15 @@ Each task is atomic, testable, and composable.
 - [ ] **Block I — Desktop/Mobile:** “Add react-pdf viewer, mobile zoom fixes, bottom sheet controls…”
 
 ---
+
+## 📋 Definition of Ready
+Before starting Phase 2, ensure:
+- [ ] Supabase project is linked and accessible
+- [ ] All environment variables are validated by preflight script
+- [ ] Database migrations are applied and RLS policies are active
+- [ ] Storage buckets are created with proper permissions
+- [ ] Can perform basic CRUD operations on all tables
+- [ ] No local mocks or in-memory data stores are used
 
 ## 🗂️ Tracking Format
 - `[ ]` Not started  
