@@ -19,7 +19,7 @@ Users should be able to scan a receipt (photo or PDF), confirm items, assign the
 ---
 
 ## 3. Non-Goals (v1)
-- Automated collection or Venmo “paid” status.
+- Automated collection or Venmo "paid" status.
 - Complex tax exemptions per item.
 - Multi-currency in a single bill.
 - Enterprise-grade permission management.
@@ -50,7 +50,7 @@ Users should be able to scan a receipt (photo or PDF), confirm items, assign the
 ### Drag & Drop
 - dnd-kit with mouse + touch sensors.
 - Drag item → drop on person.
-- Shared item indicator (“½ Burger”).
+- Shared item indicator ("½ Burger").
 
 ### Split Math
 - Toggle **tax/tip split** between proportional vs even.
@@ -66,7 +66,7 @@ Users should be able to scan a receipt (photo or PDF), confirm items, assign the
 - Two modes: summary (names + totals), breakdown (items per person).
 - Monospace receipt styling, dotted leaders.
 - Export via html2canvas (PNG) and react-to-print (PDF).
-- Add footer watermark (“Split with Tabby”).
+- Add footer watermark ("Split with Tabby").
 - Optionally embed QR codes for Venmo.
 
 ### Payments
@@ -119,3 +119,6 @@ All data access MUST use Supabase; no local mocks or in-memory stand-ins permitt
 - 0 reported math mismatches.
 
 ---
+
+## 9. Implementation Tracking
+For detailed task breakdown and progress tracking, see [EPIC_TRACKER.md](EPIC_TRACKER.md).

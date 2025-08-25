@@ -1,40 +1,34 @@
 # Tabby — Development Plan
 
-## Assessment & Scope
+## Core Technical Decisions
 
-### Project Summary
-Tabby is a restaurant bill splitting app that enables users to scan receipts, assign items to people via drag-and-drop, and generate fair totals with tax/tip split options. The app focuses on speed, trustworthiness, and shareability without requiring authentication.
-
-### Key Constraints
-- **No authentication required** - uses editor/viewer tokens for permissions
-- **Mobile-first responsive design** - must work on iOS Safari without zoom issues
-- **Real-time math accuracy** - totals must always reconcile to receipt total
-- **Fast workflow** - complete process in <2 minutes
-- **Cross-platform** - desktop PDF workflow + mobile drag-drop
-
-### Core Technical Decisions
-
-#### Database Schema
+### Database Schema
 - **Link Model**: Editor/viewer tokens stored in `bills` table
 - **Item Sharing**: `item_shares` junction table with weights for proportional splits
 - **Groups**: `bill_groups` + `bill_group_members` for temporary couple/group views
 - **Storage**: Supabase Storage for receipts with auto-cleanup
 
-#### Tax/Tip Split Logic
+### Tax/Tip Split Logic
 - **Proportional**: Split based on item totals
 - **Even**: Split equally among all people (with toggle for zero-item people)
 - **Penny Reconciliation**: Algorithm to distribute rounding differences fairly
 
-#### Couples View Implementation
+### Couples View Implementation
 - **View Layer Only**: Groups don't change item ownership, just display combined totals
 - **Temporary**: Groups can be created/destroyed without affecting underlying data
 - **Ghosted Individuals**: Show individual people as "ghosted" when in group view
 
-#### Mobile DnD Strategy
+### Mobile DnD Strategy
 - **dnd-kit**: Primary drag-drop library with touch sensor (120ms press delay)
 - **Touch Actions**: `touch-action: manipulation` to prevent zoom during drag
 - **Haptic Feedback**: Vibration on successful drops
 - **Visual Feedback**: Highlight states, animations, drop zones
+
+### RPC Security Model
+- **Token-based access**: Editor/viewer tokens for bill-level permissions
+- **Bill-scoped RPCs**: All data access controlled by bill ownership
+- **No direct table access**: All operations go through RPC functions
+- **Storage isolation**: Files protected by same access controls as data
 
 ## Risk Register
 
@@ -67,13 +61,13 @@ Tabby is a restaurant bill splitting app that enables users to scan receipts, as
 
 ## Milestone Plan (6 Steps)
 
-### Milestone 1: Foundations (Current)
+### Milestone 1: Foundations (Complete)
 - Scaffold Vite + React + TypeScript + Tailwind
 - Supabase schema migrations
 - App shell with routing
 - Basic layout components
 
-### Milestone 2: Items & People
+### Milestone 2: Items & People (Current)
 - ItemRow and ItemList components
 - PersonCard and PeopleGrid components
 - Add/edit/delete functionality
@@ -147,9 +141,3 @@ For detailed task breakdown and progress tracking, see [EPIC_TRACKER.md](EPIC_TR
 3. **Testing**: Jest + React Testing Library
 4. **Build Tool**: Vite for fast development
 5. **Deployment**: Vercel for frontend, Supabase for backend
-
-### Next Steps After M1
-- Implement ItemRow/ItemList components with CRUD operations
-- Add PersonCard/PeopleGrid with avatar and name management
-- Integrate dnd-kit for drag-and-drop functionality
-- Build computeTotals math engine with comprehensive tests

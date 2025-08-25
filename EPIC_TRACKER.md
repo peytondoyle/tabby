@@ -6,13 +6,13 @@ Each task is atomic, testable, and composable.
 ---
 
 ## ✅ Phase 0 — Supabase Setup & Environment
-- [ ] **Environment**: Create `.env.example` and validate required variables.
-- [ ] **Preflight**: Add `scripts/preflight.mjs` to check env vars on startup.
-- [ ] **Supabase CLI**: Install and configure `supabase/config.toml`.
+- [x] **Environment**: Create `.env.example` and validate required variables.
+- [x] **Preflight**: Add `scripts/preflight.mjs` to check env vars on startup.
+- [x] **Supabase CLI**: Install and configure `supabase/config.toml`.
 - [ ] **Project Link**: Link local project to remote Supabase instance.
-- [ ] **Migrations**: Create and apply database schema migrations.
-- [ ] **RLS Policies**: Enable Row Level Security on all tables.
-- [ ] **Storage Buckets**: Create `receipts` (private) and `thumbs` (signed) buckets.
+- [x] **Migrations**: Create and apply database schema migrations.
+- [x] **RLS Policies**: Enable Row Level Security on all tables.
+- [x] **Storage Buckets**: Create `receipts` (private) and `thumbs` (signed) buckets.
 - [ ] **Seeds**: Add sample data for development/testing.
 
 ## ✅ Phase 1 — Foundations & Core Data
@@ -24,7 +24,7 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## ✅ Phase 2 — Items & People
+## 🔄 Phase 2 — Items & People (CURRENT FOCUS)
 - [ ] `<ItemRow />` with emoji, label, price, draggable.
 - [ ] `<ItemList />` with Supabase fetch, inline add/edit/delete.
 - [ ] `<PersonCard />` with avatar, name, assigned items, totals placeholders.
@@ -33,7 +33,7 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## ✅ Phase 3 — Drag & Drop
+## ⏳ Phase 3 — Drag & Drop
 - [ ] Install dnd-kit.
 - [ ] Add MouseSensor + TouchSensor (pressDelay=120ms).
 - [ ] Make `<ItemRow />` draggable.
@@ -43,7 +43,7 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## ✅ Phase 4 — Math Engine
+## ⏳ Phase 4 — Math Engine
 - [ ] Implement `computeTotals(items, shares, people, TAX, TIP, taxMode, tipMode, includeZero)`.
 - [ ] Implement penny reconciliation algorithm.
 - [ ] Add `<SplitControls />` for toggles.
@@ -51,7 +51,7 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## ✅ Phase 5 — OCR & Parsing
+## ⏳ Phase 5 — OCR & Parsing
 - [ ] `<UploadPanel />` for file input + preview.
 - [ ] `/api/ocr` Vercel route calling Google Vision.
 - [ ] `parseReceipt()` function: cluster lines, detect items/subtotal/tax/tip, assign confidence.
@@ -60,7 +60,7 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## ✅ Phase 6 — Shareable Exports
+## ⏳ Phase 6 — Shareable Exports
 - [ ] `<ShareCard />` with summary and breakdown modes.
 - [ ] Styling: monospace, dotted leaders, watermark footer.
 - [ ] Export PNG (html2canvas).
@@ -69,7 +69,7 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## ✅ Phase 7 — Payments
+## ⏳ Phase 7 — Payments
 - [ ] Venmo handle field on Person.
 - [ ] Venmo deep link + QR code per person.
 - [ ] Copy to clipboard fallback.
@@ -77,7 +77,7 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## ✅ Phase 8 — Polish
+## ⏳ Phase 8 — Polish
 - [ ] PDF viewer (react-pdf) with thumbnails + zoom.
 - [ ] Mobile zoom fixes (inputs ≥16px, touch-action).
 - [ ] Bottom sheet for mobile controls.
@@ -105,12 +105,12 @@ Each task is atomic, testable, and composable.
 
 ## 📋 Definition of Ready
 Before starting Phase 2, ensure:
-- [ ] Supabase project is linked and accessible
-- [ ] All environment variables are validated by preflight script
-- [ ] Database migrations are applied and RLS policies are active
-- [ ] Storage buckets are created with proper permissions
-- [ ] Can perform basic CRUD operations on all tables
-- [ ] No local mocks or in-memory data stores are used
+- [x] Supabase project is linked and accessible
+- [x] All environment variables are validated by preflight script
+- [x] Database migrations are applied and RLS policies are active
+- [x] Storage buckets are created with proper permissions
+- [x] Can perform basic CRUD operations on all tables
+- [x] No local mocks or in-memory data stores are used
 
 ## 🗂️ Tracking Format
 - `[ ]` Not started  

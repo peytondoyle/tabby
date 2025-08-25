@@ -21,13 +21,32 @@
 - ✅ Updated EPIC_TRACKER.md to mark Phase 1 tasks complete
 - ✅ Verified build and development server work correctly
 
-## Next Actions
-- [x] Create new branch: feat/tabby-m1-foundations
-- [x] Scaffold Vite + React + TypeScript + Tailwind project
-- [x] Set up Supabase client and environment configuration
-- [x] Build AppShell with routing and layout components
-- [x] Add placeholder components for ReceiptPanel, PeopleGrid, TotalsPanel
-- [x] Create computeTotals stub and test placeholder
-- [x] Write README with setup instructions
-- [x] Create smoke check script
-- [x] Update EPIC_TRACKER.md with completed tasks
+## 2024-12-19 16:30:00 - Supabase Migration Setup
+- ✅ Created initial migration: 20250825082120_init.sql
+- ✅ Added complete schema: bills, people, items, item_shares, bill_groups, bill_group_members, trips
+- ✅ Enabled RLS on all tables with proper policies
+- ✅ Created storage buckets: receipts (private), thumbs (public with signed URLs)
+- ✅ Added storage policies for secure access control
+- ✅ Updated README.md with migration commands
+- ✅ Removed old schema file
+
+## 2024-12-19 17:00:00 - Supabase Enablement & Live Data
+- ✅ Linked local project to remote Supabase instance (evraslbpgcafyvvtbqxy)
+- ✅ Pushed database migrations successfully (schema up to date)
+- ✅ Verified storage buckets exist: receipts (private), thumbs (public)
+- ✅ Created seed data with sample bill: "Tabby Test Bill" at Billy's Cafe
+- ✅ Generated sample data with 3 people (Louis, Peyton, Avery) and 3 items (Eggs, Bacon, Coffee)
+- ✅ Sample bill tokens: editor=e047f028995f1775e49463406db9943d, viewer=2a697132915a405e41ce328ce3ffc5cc
+- ✅ All data access will be via RPCs (no direct table selects)
+- ✅ Ready to implement SmokeCheck component for live data verification
+
+## 2024-12-19 17:30:00 - Live Data Verification Complete
+- ✅ Created SmokeCheck component that calls `get_bill_by_token` RPC function
+- ✅ Added DEBUG flag to show SmokeCheck only in development mode
+- ✅ Updated BillPage to redirect 'new' to sample bill for testing
+- ✅ Created test script (scripts/test-rpc.mjs) to verify RPC functionality
+- ✅ Verified RPC function returns correct data: "Tabby Test Bill" at Billy's Cafe
+- ✅ App successfully loads and displays live data from Supabase
+- ✅ No mock arrays or local data stores used - all data comes from Supabase
+- ✅ Development server running on http://localhost:5173 with live Supabase connection
+- ✅ Ready for PR: "Supabase enablement — link, push, seed, live smoke"

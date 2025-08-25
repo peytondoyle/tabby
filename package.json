@@ -10,7 +10,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "db:link": "supabase link --project-ref $SUPABASE_PROJECT_REF",
+    "db:push": "supabase db push",
+    "db:new": "supabase migration new",
+    "db:seed": "supabase db seed"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.56.0",
