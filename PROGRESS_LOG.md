@@ -50,3 +50,11 @@
 - ✅ No mock arrays or local data stores used - all data comes from Supabase
 - ✅ Development server running on http://localhost:5173 with live Supabase connection
 - ✅ Ready for PR: "Supabase enablement — link, push, seed, live smoke"
+
+## 2024-12-19 18:00:00 - Security Cleanup & Secrets Rotation
+- ✅ Sanitized OPS.md: replaced all secrets with placeholders and added explicit storage guidance
+- ✅ Enhanced PR template with environment variables section using placeholder values
+- ✅ Added "Secrets & rotation" section to PRODUCT_BRIEF.md Technical Constraints
+- ✅ Updated documentation to reference OPS.md for secure secret storage practices
+- ✅ Ensured all sensitive data is removed from version control and documentation
+- ✅ Ready for PR: "Sanitize ops + rotate secrets placeholders"

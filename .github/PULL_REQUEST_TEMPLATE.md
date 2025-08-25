@@ -3,6 +3,14 @@
 ## Overview
 Brief description of what this PR accomplishes and why it's needed.
 
+## Summary
+High-level summary of the changes and their impact.
+
+## Commands Executed
+```bash
+# List any important commands that were run
+```
+
 ## Changes Made
 
 ### New Files Created
@@ -34,6 +42,13 @@ Brief description of what this PR accomplishes and why it's needed.
 ### Automated Testing
 - [ ] Unit tests pass
 - [ ] Integration tests pass
+
+## Environment Variables Required
+```bash
+# List required environment variables (use placeholders for secrets)
+VITE_SUPABASE_URL=https://xxxxxxxxxxxxxxxxxxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
 
 ## Breaking Changes
 - List any breaking changes or note "None"

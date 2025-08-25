@@ -101,6 +101,12 @@ Users should be able to scan a receipt (photo or PDF), confirm items, assign the
 ## 6. Technical Constraints
 All data access MUST use Supabase; no local mocks or in-memory stand-ins permitted. Builds should fail if env is missing.
 
+### Secrets & Rotation
+- All secrets must be stored in GitHub Secrets (CI/CD) or 1Password (local development)
+- Never commit secrets to git repositories
+- Use placeholder values in documentation (see [OPS.md](OPS.md) for secure storage guidance)
+- Rotate secrets regularly and update all environments simultaneously
+
 ## 7. Acceptance Criteria
 - Σ per-person totals = receipt total exactly (after rounding fix).
 - OCR detects ≥90% of priced lines on common receipts.
