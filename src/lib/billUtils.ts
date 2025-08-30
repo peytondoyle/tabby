@@ -21,21 +21,6 @@ export interface Bill {
 }
 
 export const getBillByToken = async (token: string): Promise<Bill | null> => {
-  console.log('=== GET BILL BY TOKEN ===')
-  console.log('getBillByToken called with token:', token)
-  console.log('Supabase available?', isSupabaseAvailable())
-  
-  // Debug localStorage contents for scanned bills
-  if (token.startsWith('scanned-')) {
-    console.log('This is a scanned bill token')
-    console.log('localStorage keys containing "bill":', Object.keys(localStorage).filter(k => k.includes('bill')))
-    
-    // Let's see what's in localStorage for this exact token
-    const exactKey = `bill-${token}`
-    const stored = localStorage.getItem(exactKey)
-    console.log(`Looking for key: ${exactKey}`)
-    console.log(`Raw stored data:`, stored)
-  }
   
   // Always check localStorage first for scanned bills (they start with "scanned-")
   if (token.startsWith('scanned-')) {

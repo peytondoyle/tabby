@@ -75,26 +75,16 @@ export const usePeopleQuery = (billToken: string) => ({
 export const useItemsQuery = (billToken: string) => ({
   queryKey: ['items', billToken],
   queryFn: async () => {
-    console.log('=== ITEMS QUERY ===')
-    console.log('useItemsQuery called with token:', billToken)
-    
     // Handle scanned bills from localStorage
     if (billToken.startsWith('scanned-')) {
-      console.log('Loading items for scanned bill from localStorage')
       const stored = localStorage.getItem(`bill-${billToken}`)
-      console.log('Stored data found:', !!stored)
-      
       if (stored) {
         try {
           const billData = JSON.parse(stored)
-          console.log('Parsed bill data:', billData)
-          console.log('Items from bill:', billData.items)
           return billData.items || []
         } catch (error) {
           console.error('Error parsing stored bill items:', error)
         }
-      } else {
-        console.warn('No stored data found for scanned bill')
       }
       return []
     }
