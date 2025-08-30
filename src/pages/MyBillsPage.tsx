@@ -5,18 +5,10 @@ import { useNavigate } from 'react-router-dom'
 import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
 import { ReceiptScanner } from '@/components/ReceiptScanner'
 import { getCurrentDate } from '@/lib/receiptScanning'
+import { fetchBills, type BillSummary } from '@/lib/bills'
 
-interface Bill {
-  id: string
-  token: string
-  title: string
-  place?: string
-  date: string
-  created_at: string
-  item_count?: number
-  total_amount?: number
-  people_count?: number
-}
+// Use BillSummary as the main type for bills
+type Bill = BillSummary
 
 interface NewBillModalProps {
   isOpen: boolean
@@ -121,17 +113,14 @@ export const MyBillsPage: React.FC = () => {
   const [showReceiptScanner, setShowReceiptScanner] = useState(false)
   const [billToDelete, setBillToDelete] = useState<Bill | null>(null)
 
-  // Query to fetch all bills
+  // Query to fetch all bills using the centralized fetchBills utility
   const { data: bills = [], isLoading } = useQuery({
     queryKey: ['my-bills'],
     queryFn: async () => {
       if (!isSupabaseAvailable()) {
         // Load bills from localStorage (for scanned receipts) and include mock bills
         const localBillsJson = localStorage.getItem('local-bills')
-        console.log('Raw localStorage local-bills:', localBillsJson)
-        
         const localBills = JSON.parse(localBillsJson || '[]')
-        console.log('Parsed local bills:', localBills)
         
         const mockBills = [
           {
@@ -147,37 +136,13 @@ export const MyBillsPage: React.FC = () => {
           }
         ]
         
-        // Combine local bills (scanned) with mock bills
+        // Combine local bills (scanned) with mock bills  
         const allBills = [...localBills, ...mockBills]
-        
-        console.log('All bills to display:', allBills)
         return allBills
       }
 
-      // Real Supabase query using RPC function
-      try {
-        const { data, error } = await supabase!.rpc('list_bills')
-
-        if (error) {
-          console.warn('Supabase RPC error, falling back to localStorage:', error)
-          // Fall back to localStorage if RPC doesn't exist
-          const localBillsJson = localStorage.getItem('local-bills')
-          const localBills = JSON.parse(localBillsJson || '[]')
-          return localBills
-        }
-
-        return (data || []).map(bill => ({
-          ...bill,
-          token: bill.editor_token, // Map editor_token to token for compatibility
-          total_amount: (bill.subtotal || 0) + (bill.sales_tax || 0) + (bill.tip || 0)
-        }))
-      } catch (error) {
-        console.warn('Supabase query failed, using localStorage fallback:', error)
-        // Fall back to localStorage on any error
-        const localBillsJson = localStorage.getItem('local-bills')
-        const localBills = JSON.parse(localBillsJson || '[]')
-        return localBills
-      }
+      // Use the centralized fetchBills utility
+      return await fetchBills(supabase!)
     }
   })
 
@@ -213,17 +178,11 @@ export const MyBillsPage: React.FC = () => {
   }
 
   const handleBillCreated = (billToken: string) => {
-    console.log('=== HANDLING BILL CREATED ===')
-    console.log('handleBillCreated called with token:', billToken)
-    console.log('About to invalidate queries and navigate to:', `/bill/${billToken}`)
-    
-    // Force query refresh
+    // Force query refresh to get updated bills list from RPC
     queryClient.invalidateQueries({ queryKey: ['my-bills'] })
-    console.log('✅ Queries invalidated')
     
     // Small delay to ensure localStorage is written before navigation
     setTimeout(() => {
-      console.log('✅ Navigating to:', `/bill/${billToken}`)
       navigate(`/bill/${billToken}`)
     }, 100)
   }

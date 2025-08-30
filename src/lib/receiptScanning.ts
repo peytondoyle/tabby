@@ -293,10 +293,6 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, edit
   // Create a unique token for the scanned bill
   const newToken = 'scanned-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)
   
-  console.log('=== STARTING BILL CREATION ===')
-  console.log('Creating new scanned bill with token:', newToken)
-  console.log('Receipt data:', receiptData)
-  
   // Store the complete bill data in localStorage  
   const billData = {
     id: newToken,
@@ -327,20 +323,13 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, edit
     viewer_token: newToken + '_viewer'
   }
   
-  console.log('Bill data to store:', billData)
-  
   // Store the bill data
   localStorage.setItem(`bill-${newToken}`, JSON.stringify(billData))
-  console.log('✅ Stored bill in localStorage as:', `bill-${newToken}`)
   
   // Also add it to a bills list for the My Bills page
   const existingBills = JSON.parse(localStorage.getItem('local-bills') || '[]')
   existingBills.unshift(billData) // Add to beginning so it shows first
   localStorage.setItem('local-bills', JSON.stringify(existingBills))
-  console.log('✅ Updated bills list in localStorage')
-  
-  console.log('=== BILL CREATION COMPLETED ===')
-  console.log('Returning token:', newToken)
   
   return newToken
   
