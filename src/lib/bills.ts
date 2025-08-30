@@ -5,8 +5,8 @@ export type BillSummary = {
   token: string
   title: string | null
   place: string | null
-  date: string | null
-  created_at: string
+  date: string | null   // YYYY-MM-DD
+  created_at: string    // ISO string
   item_count: number
   people_count: number
   total_amount: number
@@ -42,11 +42,14 @@ function loadBillsFromLocalStorage(): BillSummary[] {
  */
 export async function fetchBills(client: SupabaseClient): Promise<BillSummary[]> {
   const { data, error } = await client.rpc('list_bills')
-  
   if (error) {
     console.warn('[Tabby] list_bills RPC failed, using local fallback:', error)
     return loadBillsFromLocalStorage()
   }
-  
-  return (data ?? []) as BillSummary[]
+  return (data ?? []).map((b: any) => ({
+    ...b,
+    item_count: Number(b.item_count ?? 0),
+    people_count: Number(b.people_count ?? 0),
+    total_amount: Number(b.total_amount ?? 0),
+  })) as BillSummary[]
 }
