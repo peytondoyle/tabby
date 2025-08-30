@@ -14,7 +14,8 @@
     "db:link": "supabase link --project-ref $SUPABASE_PROJECT_REF",
     "db:push": "supabase db push",
     "db:new": "supabase migration new",
-    "db:seed": "supabase db seed"
+    "db:seed": "supabase db seed",
+    "gen:types": "supabase gen types typescript --linked > src/lib/database.types.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
