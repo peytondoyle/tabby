@@ -112,6 +112,7 @@ export const MyBillsPage: React.FC = () => {
   const [showNewBillModal, setShowNewBillModal] = useState(false)
   const [showReceiptScanner, setShowReceiptScanner] = useState(false)
   const [billToDelete, setBillToDelete] = useState<Bill | null>(null)
+  const [showSyncBanner, setShowSyncBanner] = useState(false)
 
   // Query to fetch all bills using the centralized fetchBills utility
   const { data: bills = [], isLoading } = useQuery({
@@ -177,8 +178,24 @@ export const MyBillsPage: React.FC = () => {
     createBillMutation.mutate({ title, place })
   }
 
-  const handleBillCreated = (billToken: string) => {
-    // Force query refresh to get updated bills list from RPC
+  const handleBillCreated = async (billToken: string) => {
+    // After bill creation, force-refresh using fetchBills to ensure RPC sync
+    if (isSupabaseAvailable() && supabase) {
+      try {
+        await fetchBills(supabase)
+        // RPC succeeded, hide sync banner if shown
+        setShowSyncBanner(false)
+      } catch (error) {
+        // RPC failed, show sync banner
+        console.warn('[Tabby] Post-scan RPC refresh failed:', error)
+        setShowSyncBanner(true)
+        
+        // Auto-hide banner after 10 seconds
+        setTimeout(() => setShowSyncBanner(false), 10000)
+      }
+    }
+    
+    // Force query invalidation to refresh UI
     queryClient.invalidateQueries({ queryKey: ['my-bills'] })
     
     // Small delay to ensure localStorage is written before navigation
@@ -352,6 +369,35 @@ export const MyBillsPage: React.FC = () => {
             </motion.button>
           </div>
         </div>
+
+        {/* Sync Banner */}
+        <AnimatePresence>
+          {showSyncBanner && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-6 p-4 bg-yellow-100 border-2 border-yellow-300 rounded-2xl"
+            >
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-yellow-800 font-semibold">You're viewing a local copy. Cloud sync will resume automatically.</p>
+                </div>
+                <button
+                  onClick={() => setShowSyncBanner(false)}
+                  className="text-yellow-600 hover:text-yellow-800 p-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Bills Grid */}
         {bills.length > 0 ? (
