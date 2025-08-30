@@ -1,95 +1,33 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import type { BillTotals } from '@/lib/computeTotals'
 
 interface CompactTotalsProps {
-  billId?: string
+  billTotals?: BillTotals | null
 }
 
-type SplitOption = 'even' | 'proportional'
-
-export const CompactTotals: React.FC<CompactTotalsProps> = ({ billId: _billId }) => {
-  const [taxSplit, setTaxSplit] = useState<SplitOption>('even')
-  const [tipSplit, setTipSplit] = useState<SplitOption>('proportional')
-  
-  // Mock totals data - in real app, this would come from props or context
-  const totals = {
-    subtotal: 45.67,
-    tax: 3.65,
-    tip: 9.13,
-    total: 58.45
+export const CompactTotals: React.FC<CompactTotalsProps> = ({ billTotals }) => {
+  // Use calculated totals or defaults
+  const totals = billTotals ? {
+    subtotal: billTotals.subtotal,
+    tax: billTotals.tax,
+    tip: billTotals.tip,
+    total: billTotals.grand_total
+  } : {
+    subtotal: 0,
+    tax: 0,
+    tip: 0,
+    total: 0
   }
+  
+  const showPennyFix = billTotals?.penny_reconciliation.distributed !== 0
 
   return (
     <div className="sticky bottom-0 z-50 bg-card/95 backdrop-blur border-t border-line">
       <div className="max-w-6xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between gap-4">
-          {/* Left: Split Controls */}
-          <div className="flex items-center gap-4">
-            {/* Tax Split */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-ink-dim font-medium">Tax:</span>
-              <div className="rounded-full bg-paper p-1 flex">
-                <motion.button
-                  onClick={() => setTaxSplit('even')}
-                  className={`px-3 py-2.5 text-xs font-medium rounded-full transition-all ${
-                    taxSplit === 'even' 
-                      ? 'bg-brand text-white shadow-soft' 
-                      : 'text-ink-dim hover:text-ink'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Even
-                </motion.button>
-                <motion.button
-                  onClick={() => setTaxSplit('proportional')}
-                  className={`px-3 py-2.5 text-xs font-medium rounded-full transition-all ${
-                    taxSplit === 'proportional' 
-                      ? 'bg-brand text-white shadow-soft' 
-                      : 'text-ink-dim hover:text-ink'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Prop
-                </motion.button>
-              </div>
-            </div>
-
-            {/* Tip Split */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-ink-dim font-medium">Tip:</span>
-              <div className="rounded-full bg-paper p-1 flex">
-                <motion.button
-                  onClick={() => setTipSplit('even')}
-                  className={`px-3 py-2.5 text-xs font-medium rounded-full transition-all ${
-                    tipSplit === 'even' 
-                      ? 'bg-brand text-white shadow-soft' 
-                      : 'text-ink-dim hover:text-ink'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Even
-                </motion.button>
-                <motion.button
-                  onClick={() => setTipSplit('proportional')}
-                  className={`px-3 py-2.5 text-xs font-medium rounded-full transition-all ${
-                    tipSplit === 'proportional' 
-                      ? 'bg-brand text-white shadow-soft' 
-                      : 'text-ink-dim hover:text-ink'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Prop
-                </motion.button>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Totals */}
-          <div className="flex items-center gap-6">
+          {/* Totals Display */}
+          <div className="flex items-center gap-6 w-full justify-between">
             {/* Subtotal, Tax, Tip */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1">
@@ -153,6 +91,21 @@ export const CompactTotals: React.FC<CompactTotalsProps> = ({ billId: _billId })
                 >
                   ${totals.total.toFixed(2)}
                 </motion.span>
+              </AnimatePresence>
+              
+              {/* Penny Fix Indicator */}
+              <AnimatePresence>
+                {showPennyFix && (
+                  <motion.div 
+                    className="inline-flex items-center px-2 py-1 bg-accent/10 text-accent text-xs font-medium rounded-full"
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    ✨ Penny fix
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
           </div>

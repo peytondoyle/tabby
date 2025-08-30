@@ -151,3 +151,39 @@ begin
 end;
 $$;
 grant execute on function public.delete_person_with_editor_token(text, uuid) to anon, authenticated;
+
+-- 13) Delete an item share (unassign item from person) (editor only)
+create or replace function public.delete_item_share_with_editor_token(
+  etoken text,
+  item_id uuid,
+  person_id uuid
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  _ok boolean;
+begin
+  -- Validate editor owns the bill that owns the item
+  select exists (
+    select 1
+    from public.items i
+    join public.bills b on b.id = i.bill_id
+    where i.id = item_id
+      and b.editor_token = etoken
+  ) into _ok;
+
+  if not _ok then
+    raise exception 'invalid editor token';
+  end if;
+
+  -- Delete the item share
+  delete from public.item_shares 
+  where item_id = delete_item_share_with_editor_token.item_id 
+    and person_id = delete_item_share_with_editor_token.person_id;
+  
+  return true;
+end;
+$$;
+grant execute on function public.delete_item_share_with_editor_token(text, uuid, uuid) to anon, authenticated;

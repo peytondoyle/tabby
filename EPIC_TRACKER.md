@@ -43,79 +43,83 @@ Each task is atomic, testable, and composable.
 
 ---
 
-## ⏳ Phase 4 — Math Engine
-- [ ] Implement `computeTotals(items, shares, people, TAX, TIP, taxMode, tipMode, includeZero)`.
-- [ ] Implement penny reconciliation algorithm.
-- [ ] Add `<SplitControls />` for toggles.
-- [ ] Add Jest unit tests (simple, shared, even, couple, rounding cases).
+## ✅ Phase 4 — Assign Mode (COMPLETED)
+- [x] **Click-Click Assignment**: Replace drag & drop with multi-select + click assignment.
+- [x] **Unassigned Items Only**: Receipt shows only unassigned items with "Show assigned" toggle.
+- [x] **Simplified PeopleDock**: Compact chips with horizontal badges for assigned items.
+- [x] **Unassign Functionality**: Click badges to unassign items and return to receipt.
+- [x] **New RPC**: `delete_item_share_with_editor_token` for removing assignments.
+- [x] **React Query Integration**: Proper data invalidation and optimistic updates.
+- [x] **UX Polish**: Selection styles, keyboard shortcuts, success toasts.
+- [x] **DnD Removal**: Removed drag handles and DnD dependencies from UI.
 
 ---
 
-## ⏳ Phase 5 — OCR & Parsing
-- [ ] `<UploadPanel />` for file input + preview.
-- [ ] `/api/ocr` Vercel route calling Google Vision.
-- [ ] `parseReceipt()` function: cluster lines, detect items/subtotal/tax/tip, assign confidence.
-- [ ] Confirm Screen: editable table, warnings, overlay on receipt image/PDF.
-- [ ] Persist accepted results to Supabase.
+## ✅ Phase 5 — Math Engine (COMPLETED)
+- [x] Implement `computeTotals(items, shares, people, TAX, TIP, taxMode, tipMode, includeZero)`.
+- [x] Add proportional tax/tip splitting based on item totals.
+- [x] Add even tax/tip splitting with zero-item people toggle.
+- [x] Implement penny reconciliation algorithm.
+- [x] Add tax/tip mode toggles in bill settings.
+- [x] Update totals display with real-time calculations.
 
 ---
 
-## ✅ Phase 6 — Shareable Exports (COMPLETED)
-- [x] `<ShareCard />` with summary and breakdown modes.
-- [x] Styling: monospace, dotted leaders, watermark footer.
-- [x] Export PNG (html2canvas).
-- [x] Export PDF (react-to-print).
-- [x] `/share/:id` read-only page with ShareCard.
+## ✅ Phase 6 — Receipt Upload & OCR (COMPLETED)
+- [x] **File Upload**: Drag & drop receipt images/PDFs with ReceiptUpload component.
+- [x] **OCR API**: Mock OCR endpoint with structured item extraction.
+- [x] **Item Parsing**: Extract items, prices, totals from OCR with bill generation.
+- [x] **Manual Edit**: OcrEditor component for editing OCR results before saving.
+- [x] **Receipt Thumbnails**: Generate thumbnails for images and PDF placeholders.
+- [x] **Modal Integration**: ReceiptUploadModal replaces separate route, accessible from bill pages.
+- [ ] **Real OCR Integration**: Replace mock with actual Google Vision API.
+- [ ] **Storage Cleanup**: Auto-delete old receipts after 30 days.
 
 ---
 
-## ⏳ Phase 7 — Payments
-- [ ] Venmo handle field on Person.
-- [ ] Venmo deep link + QR code per person.
-- [ ] Copy to clipboard fallback.
-- [ ] “Mark as received” checkbox (manual only).
+## ⏳ Phase 7 — Share & Export
+- [ ] **Share Cards**: Generate PNG images with QR codes for payment.
+- [ ] **Print Styles**: CSS for clean receipt printing.
+- [ ] **PDF Export**: Generate downloadable PDF summaries.
+- [ ] **Venmo Integration**: Deep links to Venmo with pre-filled amounts.
+- [ ] **Share URLs**: Public view-only links for bill sharing.
 
 ---
 
-## 🔄 Phase 8 — Polish (PARTIALLY COMPLETED)
-- [ ] PDF viewer (react-pdf) with thumbnails + zoom.
-- [x] Mobile zoom fixes (inputs ≥16px, touch-action).
-- [x] Bottom sheet for mobile controls.
-- [ ] PWA manifest + icons.
-- [ ] Offline cache of last 3 bills.
-- [ ] Dark mode.
-- [x] Accessibility: ARIA live, keyboard nav, focus states.
-- [ ] Error handling: OCR fail, offline fallback, network retry.
-- [ ] Analytics + Sentry integration.
+## ⏳ Phase 8 — Mobile Polish
+- [ ] **Touch Gestures**: Swipe to assign, long-press for context menus.
+- [ ] **Haptic Feedback**: Vibration on successful assignments.
+- [ ] **Offline Support**: Cache data for offline viewing.
+- [ ] **PWA**: Installable web app with app icon.
+- [ ] **Camera Integration**: Direct camera access for receipt photos.
 
-## ✅ Phase 9 — Compact Layout (COMPLETED)
-- [x] **Layout Shell**: Replace 3-column grid with two-zone vertical layout (Dock + Content).
-- [x] **PeopleDock**: Sticky people row with horizontally scrollable PersonChips.
-- [x] **PersonChip**: Compact cards (h-24) with avatar, name, venmo, running total.
-- [x] **ReceiptItemRow**: Tighter rows with smaller emoji (20px), compact layout.
-- [x] **CompactTotals**: Slim bottom bar with split toggles and totals.
-- [x] **DnD Integration**: Working drag & drop from receipt items to PersonChips.
-- [x] **Accessibility**: ARIA live announcements, proper roles and labels.
-- [x] **Responsive**: Desktop sticky dock, mobile swipeable carousel.
-- [x] **Visual Feedback**: Drop hints, success states, hover effects.
+---
 
-## ✅ Phase 10 — UI Polish M3 (COMPLETED)
-- [x] **SmokeCheck**: Hidden in production, replaced with "Bill loaded ✓" toast on success.
-- [x] **Drag & Drop Polish**: Added DragOverlay with item ghost, improved drop affordances with ring-brand/50 bg-brand/5 on hover.
-- [x] **Drop Success**: PersonChip pulses bg-accent/10 for 200ms + toast notification with accent outline expand/fade microinteraction.
-- [x] **Touch Sensors**: Added pressDelay=100ms for better touch responsiveness.
-- [x] **People Row**: Shrunk PersonChip to min-w-[180px] h-[88px], improved layout with avatar+name left, total mono right.
-- [x] **Navigation**: Added overflow-x scroll with snap-x, arrow buttons for >5 people.
-- [x] **Receipt List**: Updated row styling with emoji 20px, label 14px font-medium, price 14px font-mono.
-- [x] **Leaders**: Added dotted filler between label and price for better visual separation.
-- [x] **Add Item**: Added "+ Add Item" ghost row at end of receipt list.
-- [x] **Group Headings**: Added "Scanned Items" and "Manual Items" section headers.
-- [x] **Totals Bar**: Sticky bottom with bg-card/90 backdrop-blur, border-t border-line styling.
-- [x] **Typography**: Subtotal, Tax, Tip smaller (text-sm, ink-dim), Grand total text-xl font-mono bold.
-- [x] **Segment Pills**: Larger hit targets (py-2.5) + smooth transitions.
-- [x] **Motion Polish**: AnimatePresence fade/slide totals updates, fade up PersonChips on load.
-- [x] **Drop Success**: Accent outline expand/fade microinteraction on successful drops.
-- [x] **Scrollbar Hide**: Added utility class for clean horizontal scrolling.
+## ⏳ Phase 9 — Advanced Features
+- [ ] **Groups**: Temporary couple/group views combining totals.
+- [ ] **Trips**: Multi-bill trip organization.
+- [ ] **Templates**: Save common people/items for reuse.
+- [ ] **Analytics**: Spending patterns and history.
+- [ ] **Notifications**: Reminders for unpaid bills.
+
+---
+
+## 🎯 Current Focus: Phase 7 — Share & Export
+
+**Phase 6 Completed Features:**
+- ✅ Drag & drop file upload with ReceiptUpload component
+- ✅ Mock OCR API with structured item extraction
+- ✅ Bill creation from OCR results with smart title generation
+- ✅ OcrEditor for manual editing with add/edit/delete items
+- ✅ Receipt thumbnails for images and PDF placeholders
+- ✅ Integration with existing bill system and math engine
+
+**Next Steps for Phase 7:**
+1. Create share cards with QR codes for payment
+2. Add print styles for clean receipt printing
+3. Generate downloadable PDF summaries
+4. Implement Venmo deep links
+5. Build public share URLs for bills
 
 ---
 

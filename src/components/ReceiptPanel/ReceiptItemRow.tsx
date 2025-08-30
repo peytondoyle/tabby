@@ -1,50 +1,73 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { useDraggable } from '@dnd-kit/core'
 
 interface ReceiptItem {
   id: string
   emoji: string
   label: string
   price: number
+  quantity: number
+  unit_price: number
 }
 
 interface ReceiptItemRowProps {
   item: ReceiptItem
   index: number
   onDelete: (id: string) => void
+  isSelected?: boolean
+  onClick?: () => void
+  assignedTo?: string[] // Array of person names this item is assigned to
 }
 
 export const ReceiptItemRow: React.FC<ReceiptItemRowProps> = ({
   item,
   index,
-  onDelete
+  onDelete,
+  isSelected = false,
+  onClick,
+  assignedTo = []
 }) => {
   const [isHovered, setIsHovered] = useState(false)
-  
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: item.id,
-    data: item,
-  })
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onClick?.()
+  }
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onDelete(item.id)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick?.()
+    }
+  }
 
   return (
     <motion.div
-      ref={setNodeRef}
-      {...attributes}
-      className={`px-3 py-1.5 rounded-lg hover:bg-paper/60 flex items-center justify-between transition-all duration-200 ${
-        isDragging ? 'opacity-90 scale-98' : ''
+      className={`px-3 py-1.5 rounded-lg flex items-center justify-between transition-all duration-200 cursor-pointer ${
+        isSelected 
+          ? 'ring-2 ring-brand/40 bg-brand/5' 
+          : assignedTo.length > 0
+            ? 'bg-success/5 border border-success/20 hover:bg-success/10'
+            : 'hover:bg-paper/60'
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
       tabIndex={0}
-      whileHover={{ scale: isDragging ? 1 : 1.01 }}
+      role="button"
+      aria-label={`${isSelected ? 'Deselect' : 'Select'} ${item.label}`}
+      aria-pressed={isSelected}
+      whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.98 }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      style={{
-        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-      }}
     >
       {/* Left side: Emoji + Label */}
       <div className="flex items-center gap-3 flex-1">
@@ -58,9 +81,19 @@ export const ReceiptItemRow: React.FC<ReceiptItemRowProps> = ({
         </motion.div>
 
         {/* Item Label */}
-        <span className="font-medium text-ink text-[14px]">
-          {item.label}
-        </span>
+        <div className="flex flex-col">
+          <span className="font-medium text-ink text-[14px]">
+            {item.label}
+          </span>
+          {assignedTo.length > 0 && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="text-xs text-success">Assigned to:</span>
+              <span className="text-xs text-success font-medium">
+                {assignedTo.join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Right side: Price + Actions */}
@@ -80,7 +113,7 @@ export const ReceiptItemRow: React.FC<ReceiptItemRowProps> = ({
           {/* Delete Button */}
           <motion.button
             className="text-ink-dim hover:text-danger transition-colors p-1 rounded hover:bg-danger/10"
-            onClick={() => onDelete(item.id)}
+            onClick={handleDelete}
             title="Delete item"
             aria-label={`Delete ${item.label}`}
             whileHover={{ scale: 1.1 }}
@@ -99,34 +132,6 @@ export const ReceiptItemRow: React.FC<ReceiptItemRowProps> = ({
               <path d="M3 6h18" />
               <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
               <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-            </svg>
-          </motion.button>
-
-          {/* Drag Handle */}
-          <motion.button
-            {...listeners}
-            className="text-ink-dim hover:text-ink transition-colors p-1 rounded hover:bg-paper cursor-grab active:cursor-grabbing touch-action-manipulation opacity-40 hover:opacity-80"
-            title="Drag to assign to person"
-            aria-label={`Drag ${item.label} to assign to person`}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="9" cy="5" r="1" />
-              <circle cx="9" cy="12" r="1" />
-              <circle cx="9" cy="19" r="1" />
-              <circle cx="15" cy="5" r="1" />
-              <circle cx="15" cy="12" r="1" />
-              <circle cx="15" cy="19" r="1" />
             </svg>
           </motion.button>
         </div>

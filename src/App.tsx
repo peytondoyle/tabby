@@ -1,7 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppShell } from './components/AppShell'
-import { BillPage } from './pages/BillPage'
+import { LandingPage } from './pages/LandingPage'
+import { MyBillsPage } from './pages/MyBillsPage'
+import { InteractiveBillPage } from './pages/InteractiveBillPage'
 import { SharePage } from './pages/SharePage'
 
 // Create a client
@@ -18,13 +20,17 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <AppShell>
-          <Routes>
-            <Route path="/bill/:id" element={<BillPage />} />
-            <Route path="/share/:id" element={<SharePage />} />
-            <Route path="/" element={<Navigate to="/bill/new" replace />} />
-          </Routes>
-        </AppShell>
+        <Routes>
+          <Route path="/" element={<AppShell />}>
+            <Route index element={<MyBillsPage />} />
+            <Route path="bills" element={<MyBillsPage />} />
+            <Route path="bill/:id" element={<InteractiveBillPage />} />
+            <Route path="bill" element={<Navigate to="/bills" replace />} />
+            <Route path="share/:id" element={<SharePage />} />
+            <Route path="landing" element={<LandingPage />} />
+            <Route path="*" element={<Navigate to="/bills" replace />} />
+          </Route>
+        </Routes>
       </Router>
     </QueryClientProvider>
   )

@@ -36,7 +36,31 @@ export const ItemList: React.FC<ItemListProps> = ({ billToken, editorToken }) =>
       setError(null)
       
       if (!isSupabaseAvailable()) {
-        // Use mock data for development
+        // Check for OCR-created bill with items
+        const stored = localStorage.getItem(`bill_${billToken}`)
+        if (stored) {
+          try {
+            const billData = JSON.parse(stored)
+            if (billData.items && Array.isArray(billData.items)) {
+              console.log('Found OCR items in localStorage:', billData.items)
+              // Convert OCR items to ItemList format
+              const convertedItems = billData.items.map((item: any, index: number) => ({
+                id: `ocr-item-${index}`,
+                emoji: generateEmojiForItem(item.name),
+                label: item.name,
+                price: item.price,
+                quantity: item.quantity || 1,
+                unit_price: item.price / (item.quantity || 1)
+              }))
+              setItems(convertedItems)
+              return
+            }
+          } catch (error) {
+            console.error('Error parsing stored bill items:', error)
+          }
+        }
+        
+        // Use default mock data
         console.warn('Supabase not available - using mock items data')
         setItems([
           {
@@ -246,4 +270,57 @@ export const ItemList: React.FC<ItemListProps> = ({ billToken, editorToken }) =>
       </div>
     </div>
   )
+}
+
+function generateEmojiForItem(itemName: string): string {
+  const name = itemName.toLowerCase()
+  
+  // Food categories
+  if (name.includes('pizza')) return '🍕'
+  if (name.includes('burger') || name.includes('sandwich')) return '🍔'
+  if (name.includes('salad')) return '🥗'
+  if (name.includes('pasta') || name.includes('noodle')) return '🍝'
+  if (name.includes('soup')) return '🍲'
+  if (name.includes('taco')) return '🌮'
+  if (name.includes('sushi')) return '🍣'
+  if (name.includes('steak') || name.includes('beef')) return '🥩'
+  if (name.includes('chicken')) return '🍗'
+  if (name.includes('fish')) return '🐟'
+  if (name.includes('rice')) return '🍚'
+  if (name.includes('bread') || name.includes('roll')) return '🍞'
+  if (name.includes('cheese')) return '🧀'
+  if (name.includes('egg')) return '🥚'
+  
+  // Drinks
+  if (name.includes('coffee') || name.includes('cappuccino') || name.includes('latte')) return '☕'
+  if (name.includes('tea')) return '🍵'
+  if (name.includes('beer')) return '🍺'
+  if (name.includes('wine')) return '🍷'
+  if (name.includes('cocktail') || name.includes('martini')) return '🍸'
+  if (name.includes('juice') || name.includes('smoothie')) return '🥤'
+  if (name.includes('water')) return '💧'
+  if (name.includes('soda') || name.includes('coke') || name.includes('pepsi')) return '🥤'
+  
+  // Desserts
+  if (name.includes('cake') || name.includes('cupcake')) return '🧁'
+  if (name.includes('cookie')) return '🍪'
+  if (name.includes('ice cream') || name.includes('gelato')) return '🍦'
+  if (name.includes('pie')) return '🥧'
+  if (name.includes('chocolate')) return '🍫'
+  if (name.includes('donut') || name.includes('doughnut')) return '🍩'
+  
+  // Breakfast items
+  if (name.includes('pancake') || name.includes('waffle')) return '🧇'
+  if (name.includes('croissant') || name.includes('pastry')) return '🥐'
+  if (name.includes('bagel')) return '🥯'
+  if (name.includes('toast')) return '🍞'
+  
+  // Snacks
+  if (name.includes('fries') || name.includes('chips')) return '🍟'
+  if (name.includes('popcorn')) return '🍿'
+  if (name.includes('pretzel')) return '🥨'
+  if (name.includes('nuts')) return '🥜'
+  
+  // Default
+  return '🍽️'
 }

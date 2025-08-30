@@ -7,12 +7,21 @@ import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
 import { getBillByToken } from '@/lib/billUtils'
 import { showError, showSuccess } from '@/lib/toast'
 import { deriveAssignedMap } from '@/lib/computeTotals'
-import { PersonChip, type PersonChipRef } from './PersonChip'
+import { useUpsertItemShareMutation } from '@/lib/queryClient'
+import { PersonChip, type PersonChipRef } from './PersonChip.tsx'
 
 interface PeopleDockProps {
   billToken?: string
   editorToken?: string
   onDropSuccess?: (personId: string) => void
+  selectedItems?: string[]
+  onAssignSelected?: (selectedItems: string[], personId?: string) => void
+  personTotals?: Map<string, {
+    subtotal: number
+    tax_share: number
+    tip_share: number
+    total: number
+  }>
 }
 
 interface Person {
@@ -27,7 +36,14 @@ export interface PeopleDockRef {
   handleDropSuccess: (personId: string) => void
 }
 
-export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({ billToken, editorToken, onDropSuccess }, ref) => {
+export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({ 
+  billToken, 
+  editorToken, 
+  onDropSuccess, 
+  selectedItems = [],
+  onAssignSelected,
+  personTotals
+}, ref) => {
   const queryClient = useQueryClient()
   const [isAdding, setIsAdding] = useState(false)
   const [newPerson, setNewPerson] = useState({
@@ -196,6 +212,9 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({ billToke
     }
   })
 
+  // Assign selected items mutation
+  const assignSelectedMutation = useUpsertItemShareMutation(editorToken || '')
+
   const handleAddPerson = async () => {
     if (!newPerson.name.trim()) return
     
@@ -209,6 +228,39 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({ billToke
   const handleCancelAdd = () => {
     setIsAdding(false)
     setNewPerson({ name: '', avatar_url: '', venmo: '' })
+  }
+
+  const handleAssignSelected = (personId: string) => {
+    if (selectedItems.length === 0) return
+
+    // Use the onAssignSelected callback if provided
+    if (onAssignSelected) {
+      onAssignSelected(selectedItems)
+      const personName = people.find((p: Person) => p.id === personId)?.name || 'Unknown';
+      showSuccess(`Assigned ${selectedItems.length} item(s) → ${personName}`)
+      handleDropSuccess(personId) // Trigger success animation
+    } else {
+      // Fallback to old logic
+      const assignPromises = selectedItems.map(itemId =>
+        assignSelectedMutation.mutationFn({
+          itemId,
+          personId,
+          weight: 1
+        })
+      )
+
+      Promise.all(assignPromises)
+        .then(() => {
+          const personName = people.find((p: Person) => p.id === personId)?.name || 'Unknown';
+          showSuccess(`Assigned ${selectedItems.length} item(s) → ${personName}`)
+          onAssignSelected?.([], personId) // Clear selection
+          handleDropSuccess(personId) // Trigger success animation
+        })
+        .catch((error) => {
+          console.error('Error assigning items:', error)
+          showError('Failed to assign items')
+        })
+    }
   }
 
   if (peopleLoading) {
@@ -334,8 +386,15 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({ billToke
                 <PersonChip
                   person={person}
                   editorToken={editorToken || ''}
+                  billToken={billToken}
                   onUpdate={() => queryClient.invalidateQueries({ queryKey: ['people', billToken] })}
                   assignedItems={assignedByPerson[person.id] || []}
+                  selectedItems={selectedItems}
+                  onAssignSelected={(selectedItems) => {
+                    console.log('Assigning items from PersonChip:', selectedItems, 'to person:', person.id)
+                    handleAssignSelected(person.id)
+                  }}
+                  personTotal={personTotals?.get(person.id)}
                   ref={(el: PersonChipRef | null) => {
                     personChipRefs.current[person.id] = el
                   }}

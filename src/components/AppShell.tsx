@@ -16,11 +16,7 @@ const StyleSmoke: React.FC = () => {
   )
 }
 
-interface AppShellProps {
-  children?: React.ReactNode
-}
-
-export const AppShell: React.FC<AppShellProps> = ({ children }) => {
+export const AppShell: React.FC = () => {
   const location = useLocation()
   const { id } = useParams<{ id: string }>()
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
@@ -38,9 +34,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       {/* DEV-only CSS smoke test */}
       <StyleSmoke />
       
-      {/* Sticky Header with Blur */}
+      {/* Sticky Header with Blur - Hidden on bill pages */}
       <motion.header 
-        className="sticky top-0 z-50 bg-paper/80 backdrop-blur-md border-b border-line"
+        className={`sticky top-0 z-50 bg-paper/80 backdrop-blur-md border-b border-line ${isBillPage ? 'hidden' : ''}`}
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
@@ -123,46 +119,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
       {/* Main Content */}
       <main className="flex-1">
-        <div className="mx-auto max-w-6xl p-6 space-y-6">
-          {children || <Outlet />}
-        </div>
+        <Outlet />
       </main>
 
-      {/* Mobile Action Bar */}
-      {isBillPage && (
-        <motion.div 
-          className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-md border-t border-line lg:hidden"
-          initial={{ y: 100 }}
-          animate={{ y: 0 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-        >
-          <div className="flex justify-around items-center h-16 px-6 pb-safe">
-            <motion.button 
-              onClick={() => setIsShareModalOpen(true)}
-              className="flex flex-col items-center justify-center flex-1 py-2 text-ink hover:text-brand transition-colors"
-              whileTap={{ scale: 0.9 }}
-            >
-              <Share className="w-5 h-5 mb-1" />
-              <span className="text-xs">Share</span>
-            </motion.button>
-            <motion.button 
-              onClick={() => setIsShareModalOpen(true)}
-              className="flex flex-col items-center justify-center flex-1 py-2 text-ink hover:text-brand transition-colors"
-              whileTap={{ scale: 0.9 }}
-            >
-              <Download className="w-5 h-5 mb-1" />
-              <span className="text-xs">Export</span>
-            </motion.button>
-            <motion.button 
-              className="flex flex-col items-center justify-center flex-1 py-2 text-ink hover:text-brand transition-colors"
-              whileTap={{ scale: 0.9 }}
-            >
-              <Settings className="w-5 h-5 mb-1" />
-              <span className="text-xs">Settings</span>
-            </motion.button>
-          </div>
-        </motion.div>
-      )}
 
       {/* Share Modal */}
       {isBillPage && id && (

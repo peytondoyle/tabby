@@ -1,11 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Check if we have proper Supabase credentials
-const hasValidCredentials = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
+// Fallback values ensure connection works even if env vars don't load properly
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://evraslbpgcafyvvtbqxy.supabase.co'
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2cmFzbGJwZ2NhZnl2dnRicXh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxMjQ4MTIsImV4cCI6MjA3MTcwMDgxMn0.X7z5jIFwBFvmD6UrJ6KVkxllmz7BDkvHcwOc5pgb8Ew'
+
+const hasValidCredentials = SUPABASE_URL && SUPABASE_ANON_KEY
 
 // Only create client if we have valid credentials
 export const supabase = hasValidCredentials 
-  ? createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, {
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
@@ -14,7 +18,9 @@ export const supabase = hasValidCredentials
   : null
 
 // Helper function to check if Supabase is available
-export const isSupabaseAvailable = () => !!supabase
+export const isSupabaseAvailable = () => {
+  return !!supabase
+}
 
 // Database types (to be generated from schema)
 export interface Database {

@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseAvailable } from './supabaseClient'
+import { getBillByToken } from './billUtils'
 
 // Create a client
 export const queryClient = new QueryClient({
@@ -15,31 +16,8 @@ export const queryClient = new QueryClient({
 export const useBillQuery = (billToken: string) => ({
   queryKey: ['bill', billToken],
   queryFn: async () => {
-    if (!isSupabaseAvailable()) {
-      console.warn('Supabase not available - returning mock bill data')
-      return {
-        id: 'mock-bill-id',
-        title: 'Coffee & Lunch',
-        place: 'Starbucks Downtown',
-        date: '2024-12-15',
-        currency: 'USD',
-        subtotal: 45.67,
-        sales_tax: 3.65,
-        tip: 9.13,
-        tax_split_method: 'proportional',
-        tip_split_method: 'proportional',
-        include_zero_item_people: true,
-        editor_token: 'mock-editor-token',
-        viewer_token: 'mock-viewer-token'
-      }
-    }
-
-    const { data, error } = await supabase!.rpc('get_bill_by_token', {
-      bill_token: billToken
-    })
-
-    if (error) throw error
-    return data?.[0] || null
+    // Use the centralized getBillByToken function which handles both localStorage and Supabase
+    return await getBillByToken(billToken)
   },
   enabled: !!billToken
 })
@@ -47,6 +25,11 @@ export const useBillQuery = (billToken: string) => ({
 export const usePeopleQuery = (billToken: string) => ({
   queryKey: ['people', billToken],
   queryFn: async () => {
+    // Handle scanned bills from localStorage (no people initially)
+    if (billToken.startsWith('scanned-')) {
+      return []
+    }
+
     if (!isSupabaseAvailable()) {
       console.warn('Supabase not available - returning mock people data')
       return [
@@ -74,12 +57,17 @@ export const usePeopleQuery = (billToken: string) => ({
       ]
     }
 
-    const { data, error } = await supabase!.rpc('get_people_by_token', {
-      bill_token: billToken
-    })
+    try {
+      const { data, error } = await supabase!.rpc('get_people_by_token', {
+        bill_token: billToken
+      })
 
-    if (error) throw error
-    return data || []
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.warn('Supabase people query failed, using mock data:', error)
+      return []
+    }
   },
   enabled: !!billToken
 })
@@ -87,6 +75,30 @@ export const usePeopleQuery = (billToken: string) => ({
 export const useItemsQuery = (billToken: string) => ({
   queryKey: ['items', billToken],
   queryFn: async () => {
+    console.log('=== ITEMS QUERY ===')
+    console.log('useItemsQuery called with token:', billToken)
+    
+    // Handle scanned bills from localStorage
+    if (billToken.startsWith('scanned-')) {
+      console.log('Loading items for scanned bill from localStorage')
+      const stored = localStorage.getItem(`bill-${billToken}`)
+      console.log('Stored data found:', !!stored)
+      
+      if (stored) {
+        try {
+          const billData = JSON.parse(stored)
+          console.log('Parsed bill data:', billData)
+          console.log('Items from bill:', billData.items)
+          return billData.items || []
+        } catch (error) {
+          console.error('Error parsing stored bill items:', error)
+        }
+      } else {
+        console.warn('No stored data found for scanned bill')
+      }
+      return []
+    }
+
     if (!isSupabaseAvailable()) {
       console.warn('Supabase not available - returning mock items data')
       return [
@@ -117,12 +129,17 @@ export const useItemsQuery = (billToken: string) => ({
       ]
     }
 
-    const { data, error } = await supabase!.rpc('get_items_by_token', {
-      bill_token: billToken
-    })
+    try {
+      const { data, error } = await supabase!.rpc('get_items_by_token', {
+        bill_token: billToken
+      })
 
-    if (error) throw error
-    return data || []
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.warn('Supabase items query failed, using mock data:', error)
+      return []
+    }
   },
   enabled: !!billToken
 })
@@ -130,6 +147,11 @@ export const useItemsQuery = (billToken: string) => ({
 export const useSharesQuery = (billToken: string) => ({
   queryKey: ['shares', billToken],
   queryFn: async () => {
+    // Handle scanned bills from localStorage (no shares initially)
+    if (billToken.startsWith('scanned-')) {
+      return []
+    }
+
     if (!isSupabaseAvailable()) {
       console.warn('Supabase not available - returning mock shares data')
       return [
@@ -140,18 +162,23 @@ export const useSharesQuery = (billToken: string) => ({
       ]
     }
 
-    const { data, error } = await supabase!.rpc('get_item_shares_by_token', {
-      bill_token: billToken
-    })
+    try {
+      const { data, error } = await supabase!.rpc('get_item_shares_by_token', {
+        bill_token: billToken
+      })
 
-    if (error) throw error
-    return data || []
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.warn('Supabase shares query failed, using mock data:', error)
+      return []
+    }
   },
   enabled: !!billToken
 })
 
 // Mutation for upserting item shares
-export const useUpsertItemShareMutation = (billToken: string) => ({
+export const useUpsertItemShareMutation = (editorToken: string) => ({
   mutationFn: async ({ itemId, personId, weight }: { itemId: string, personId: string, weight: number }) => {
     if (!isSupabaseAvailable()) {
       console.warn('Supabase not available - mocking item share upsert')
@@ -159,7 +186,7 @@ export const useUpsertItemShareMutation = (billToken: string) => ({
     }
 
     const { data, error } = await supabase!.rpc('upsert_item_share_with_editor_token', {
-      etoken: billToken,
+      etoken: editorToken,
       item_id: itemId,
       person_id: personId,
       weight
@@ -169,7 +196,32 @@ export const useUpsertItemShareMutation = (billToken: string) => ({
     return data
   },
   onSuccess: () => {
-    // Invalidate shares query to refetch data
-    queryClient.invalidateQueries({ queryKey: ['shares', billToken] })
+    // Invalidate shares and items queries to refetch data
+    queryClient.invalidateQueries({ queryKey: ['shares'] })
+    queryClient.invalidateQueries({ queryKey: ['items'] })
+  }
+})
+
+// Mutation for deleting item shares
+export const useDeleteItemShareMutation = (editorToken: string) => ({
+  mutationFn: async ({ itemId, personId }: { itemId: string, personId: string }) => {
+    if (!isSupabaseAvailable()) {
+      console.warn('Supabase not available - mocking item share deletion')
+      return true
+    }
+
+    const { data, error } = await supabase!.rpc('delete_item_share_with_editor_token', {
+      etoken: editorToken,
+      item_id: itemId,
+      person_id: personId
+    })
+
+    if (error) throw error
+    return data
+  },
+  onSuccess: () => {
+    // Invalidate shares and items queries to refetch data
+    queryClient.invalidateQueries({ queryKey: ['shares'] })
+    queryClient.invalidateQueries({ queryKey: ['items'] })
   }
 })

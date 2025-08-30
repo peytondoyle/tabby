@@ -88,24 +88,16 @@ export function computeTotals(
   tipMode: TipMode = 'proportional',
   includeZeroPeople: boolean = true
 ): BillTotals {
-  // Suppress unused parameter warnings
-  void shares;
-  void taxMode;
-  void tipMode;
-  void includeZeroPeople;
-  // TODO: Implement the math engine
   // 1. Calculate subtotal from items
-  // 2. Distribute items to people based on shares
-  // 3. Split tax based on taxMode
-  // 4. Split tip based on tipMode
-  // 5. Reconcile pennies to ensure totals add up exactly
-  // 6. Return detailed breakdown per person
-
-  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  const subtotal = items.reduce((sum, item) => sum + item.price, 0)
   const grand_total = subtotal + tax + tip
 
-  // Placeholder implementation
-  const person_totals: PersonTotal[] = people.map(person => ({
+  // 2. Build lookup maps for quick access
+  const itemMap = new Map(items.map(item => [item.id, item]))
+  const personMap = new Map(people.map(person => [person.id, person]))
+  
+  // 3. Initialize person totals
+  const personTotals: PersonTotal[] = people.map(person => ({
     person_id: person.id,
     name: person.name,
     subtotal: 0,
@@ -114,15 +106,106 @@ export function computeTotals(
     total: 0,
     items: []
   }))
-
+  
+  const personTotalMap = new Map(personTotals.map(pt => [pt.person_id, pt]))
+  
+  // 4. Calculate total weight for each item (for shared items)
+  const itemWeightTotals = new Map<string, number>()
+  for (const share of shares) {
+    const current = itemWeightTotals.get(share.item_id) || 0
+    itemWeightTotals.set(share.item_id, current + share.weight)
+  }
+  
+  // 5. Distribute items to people based on shares
+  for (const share of shares) {
+    const item = itemMap.get(share.item_id)
+    const personTotal = personTotalMap.get(share.person_id)
+    
+    if (!item || !personTotal) continue
+    
+    const totalWeight = itemWeightTotals.get(share.item_id) || 1
+    const shareRatio = share.weight / totalWeight
+    const shareAmount = item.price * shareRatio
+    
+    // Add to person's subtotal
+    personTotal.subtotal += shareAmount
+    
+    // Add item to person's items list
+    personTotal.items.push({
+      item_id: share.item_id,
+      emoji: item.emoji || '📦',
+      label: item.label,
+      price: item.price,
+      quantity: item.quantity,
+      weight: share.weight,
+      share_amount: shareAmount
+    })
+  }
+  
+  // 6. Calculate tax shares
+  if (taxMode === 'proportional') {
+    // Split tax proportionally based on each person's subtotal
+    for (const personTotal of personTotals) {
+      if (subtotal > 0) {
+        personTotal.tax_share = (personTotal.subtotal / subtotal) * tax
+      }
+    }
+  } else {
+    // Split tax evenly among relevant people
+    const relevantPeople = includeZeroPeople 
+      ? personTotals 
+      : personTotals.filter(p => p.subtotal > 0)
+    
+    if (relevantPeople.length > 0) {
+      const taxPerPerson = tax / relevantPeople.length
+      for (const personTotal of relevantPeople) {
+        personTotal.tax_share = taxPerPerson
+      }
+    }
+  }
+  
+  // 7. Calculate tip shares
+  if (tipMode === 'proportional') {
+    // Split tip proportionally based on each person's subtotal
+    for (const personTotal of personTotals) {
+      if (subtotal > 0) {
+        personTotal.tip_share = (personTotal.subtotal / subtotal) * tip
+      }
+    }
+  } else {
+    // Split tip evenly among relevant people
+    const relevantPeople = includeZeroPeople 
+      ? personTotals 
+      : personTotals.filter(p => p.subtotal > 0)
+    
+    if (relevantPeople.length > 0) {
+      const tipPerPerson = tip / relevantPeople.length
+      for (const personTotal of relevantPeople) {
+        personTotal.tip_share = tipPerPerson
+      }
+    }
+  }
+  
+  // 8. Calculate raw totals for each person
+  for (const personTotal of personTotals) {
+    personTotal.total = personTotal.subtotal + personTotal.tax_share + personTotal.tip_share
+  }
+  
+  // 9. Round totals to cents and reconcile pennies
+  const reconciledTotals = reconcilePennies(personTotals, grand_total)
+  
+  // 10. Calculate how much was distributed in reconciliation
+  const beforeTotal = personTotals.reduce((sum, p) => sum + Math.round(p.total * 100) / 100, 0)
+  const distributed = grand_total - beforeTotal
+  
   return {
     subtotal,
     tax,
     tip,
     grand_total,
-    person_totals,
+    person_totals: reconciledTotals,
     penny_reconciliation: {
-      distributed: 0,
+      distributed: Math.round(distributed * 100) / 100,
       method: 'distribute_largest'
     }
   }
@@ -136,14 +219,52 @@ export function reconcilePennies(
   personTotals: PersonTotal[],
   targetTotal: number
 ): PersonTotal[] {
-  // Suppress unused parameter warnings
-  void targetTotal;
-  // TODO: Implement penny reconciliation
-  // 1. Calculate current total
-  // 2. Find difference from target
-  // 3. Distribute difference to largest amounts first
-  // 4. Return adjusted totals
-  return personTotals
+  // 1. Round all values to cents (2 decimal places)
+  const roundedTotals = personTotals.map(person => ({
+    ...person,
+    subtotal: Math.round(person.subtotal * 100) / 100,
+    tax_share: Math.round(person.tax_share * 100) / 100,
+    tip_share: Math.round(person.tip_share * 100) / 100,
+    total: Math.round(person.total * 100) / 100,
+    items: person.items.map(item => ({
+      ...item,
+      share_amount: Math.round(item.share_amount * 100) / 100
+    }))
+  }))
+  
+  // 2. Calculate current total after rounding
+  const currentTotal = roundedTotals.reduce((sum, person) => sum + person.total, 0)
+  
+  // 3. Find the difference (in cents)
+  const differenceCents = Math.round((targetTotal - currentTotal) * 100)
+  
+  // 4. If no difference, return as is
+  if (differenceCents === 0) {
+    return roundedTotals
+  }
+  
+  // 5. Sort people by their total (descending) to distribute to largest first
+  const sortedTotals = [...roundedTotals].sort((a, b) => b.total - a.total)
+  
+  // 6. Distribute pennies one at a time
+  const pennyValue = differenceCents > 0 ? 0.01 : -0.01
+  let remaining = Math.abs(differenceCents)
+  
+  for (let i = 0; remaining > 0 && i < sortedTotals.length; i++) {
+    // Distribute one penny to this person
+    sortedTotals[i].total += pennyValue
+    sortedTotals[i].total = Math.round(sortedTotals[i].total * 100) / 100
+    remaining--
+    
+    // If we still have pennies and we've gone through everyone, loop back
+    if (remaining > 0 && i === sortedTotals.length - 1) {
+      i = -1 // Will be incremented to 0 on next iteration
+    }
+  }
+  
+  // 7. Return the totals in original order
+  const resultMap = new Map(sortedTotals.map(p => [p.person_id, p]))
+  return personTotals.map(p => resultMap.get(p.person_id)!)
 }
 
 /**
