@@ -78,6 +78,11 @@ interface FlowState {
   hydrateDraft: (token: string) => void
   clearDraft: () => void
   
+  // Minimal helpers for existing architecture
+  setBillMeta: (meta: Partial<FlowBill>) => void
+  replaceItems: (items: FlowItem[]) => void
+  upsertBillToken: (token: string) => void
+  
   // Reset
   reset: () => void
 }
@@ -245,6 +250,20 @@ export const useFlowStore = create<FlowState>()(
       clearDraft: () => {
         set({ currentDraft: null }, false, 'clearDraft')
       },
+      
+      // Minimal helpers for existing architecture
+      setBillMeta: (meta) => 
+        set((state) => ({ 
+          bill: state.bill ? { ...state.bill, ...meta } : meta as FlowBill 
+        }), false, 'setBillMeta'),
+      
+      replaceItems: (items) => 
+        set({ items, assignments: new Map() }, false, 'replaceItems'),
+      
+      upsertBillToken: (token) => 
+        set((state) => ({ 
+          bill: state.bill ? { ...state.bill, token } : { token } 
+        }), false, 'upsertBillToken'),
       
       // Reset
       reset: () => set({

@@ -182,9 +182,82 @@ export const MyBillsPage: React.FC = () => {
   }
 
 
-  const handleParsed = (result: ParseResult) => {
-    // Create draft from parse result
-    const token = useFlowStore.getState().startDraft(result)
+  // Inline draft helper - creates bill and items from parse result
+  const createDraftFromScan = async (result: ParseResult): Promise<string> => {
+    const flowStore = useFlowStore.getState()
+    
+    try {
+      // Try to persist to Supabase if available
+      if (isSupabaseAvailable() && supabase) {
+        const { data: billToken, error } = await supabase.rpc('create_bill', {
+          title: result.place || 'Scanned Receipt',
+          place: result.place || null,
+          date: result.date || getCurrentDate().iso,
+          sales_tax: result.tax || 0,
+          tip: result.tip || 0,
+          tax_split_method: 'proportional',
+          tip_split_method: 'proportional'
+        })
+        
+        if (!error && billToken) {
+          // Set bill metadata using helper
+          flowStore.setBillMeta({
+            token: billToken,
+            title: result.place || 'Scanned Receipt',
+            place: result.place || null,
+            date: result.date || null,
+            subtotal: result.subtotal || undefined,
+            tax: result.tax || undefined,
+            tip: result.tip || undefined,
+            total: result.total || undefined
+          })
+          
+          // Replace items using helper
+          const flowItems = result.items.map(item => ({
+            id: item.id,
+            label: item.label,
+            price: item.price,
+            emoji: item.emoji || '🍽️'
+          }))
+          flowStore.replaceItems(flowItems)
+          
+          return billToken
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to persist to Supabase, using local token:', error)
+    }
+    
+    // Fallback: create local token and store locally
+    const localToken = `local-${Date.now()}`
+    
+    // Set bill metadata using helper
+    flowStore.setBillMeta({
+      token: localToken,
+      title: result.place || 'Scanned Receipt',
+      place: result.place || null,
+      date: result.date || null,
+      subtotal: result.subtotal || undefined,
+      tax: result.tax || undefined,
+      tip: result.tip || undefined,
+      total: result.total || undefined
+    })
+    
+    // Replace items using helper
+    const flowItems = result.items.map(item => ({
+      id: item.id,
+      label: item.label,
+      price: item.price,
+      emoji: item.emoji || '🍽️'
+    }))
+    flowStore.replaceItems(flowItems)
+    
+    return localToken
+  }
+
+  const handleParsed = async (result: ParseResult) => {
+    // Create draft bill and get token
+    const token = await createDraftFromScan(result)
     
     // Navigate to bill flow
     navigate(`/bill/${token}`)
