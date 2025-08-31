@@ -1,6 +1,24 @@
 // AI Receipt Scanning with OCR
 import { supabase, isSupabaseAvailable as _isSupabaseAvailable } from './supabaseClient'
 
+// New normalized ParseResult type
+export type ParseResult = {
+  place?: string | null
+  date?: string | null
+  items: Array<{
+    id: string
+    label: string
+    price: number
+    emoji?: string | null
+  }>
+  subtotal?: number | null
+  tax?: number | null
+  tip?: number | null
+  total?: number | null
+  rawText?: string | null
+}
+
+// Legacy types for backwards compatibility
 export interface ReceiptItem {
   emoji: string
   label: string
@@ -72,52 +90,105 @@ function getEmojiForItem(itemName: string): string {
   return '🍽️'
 }
 
-// Enhanced OCR processing with better accuracy and validation
-function processReceiptWithAI(imageData: string): Promise<ReceiptScanResult> {
-  return new Promise((resolve) => {
-    // Simulate AI processing delay
-    setTimeout(async () => {
-      try {
-        // Use the real OCR processing function
-        const result = await processReceiptWithRealOCR(imageData)
-        resolve(result)
-      } catch (error) {
-        console.error('OCR processing failed:', error)
-        // Fallback to basic parsing if OCR fails
-        const fallbackResult: ReceiptScanResult = {
-          restaurant_name: "Receipt Upload",
-          location: "Unknown Location",
-          date: new Date().toISOString().split('T')[0],
-          items: [
-            { emoji: '🍽️', label: 'Item 1', price: 10.00, quantity: 1, unit_price: 10.00 }
-          ],
-          subtotal: 10.00,
-          tax: 0.80,
-          tip: 0,
-          total: 10.80
-        }
-        resolve(fallbackResult)
-      }
-    }, 2000)
-  })
+// Generate unique ID
+function generateId(): string {
+  return `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
-export async function scanReceipt(file: File): Promise<ReceiptScanResult> {
-  // Convert file to base64 for processing
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = async (e) => {
-      try {
-        const imageData = e.target?.result as string
-        const result = await processReceiptWithAI(imageData)
-        resolve(result)
-      } catch (error) {
-        reject(error)
-      }
+// Normalize number values, convert NaN to 0
+function normalizeNumber(value: any): number {
+  const num = Number(value)
+  return isNaN(num) ? 0 : num
+}
+
+// New normalized parseReceipt function
+export async function parseReceipt(file: File): Promise<ParseResult> {
+  const startTime = Date.now()
+  console.info('[scan_start] Starting receipt parse')
+  
+  try {
+    // Create FormData for multipart upload
+    const formData = new FormData()
+    formData.append('file', file)
+
+    // Call the API endpoint
+    const response = await fetch('/api/scan-receipt', {
+      method: 'POST',
+      body: formData
+    })
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`)
     }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
+
+    const data = await response.json()
+    const duration = Date.now() - startTime
+    
+    // Normalize the response data
+    const items = Array.isArray(data.items) ? data.items : []
+    const normalizedItems = items.map((item: any) => ({
+      id: generateId(),
+      label: String(item.label || ''),
+      price: normalizeNumber(item.price),
+      emoji: getEmojiForItem(item.label || '')
+    }))
+
+    // Ensure at least one item exists
+    const finalItems = normalizedItems.length > 0 
+      ? normalizedItems 
+      : [{ id: generateId(), label: '', price: 0, emoji: '🍽️' }]
+
+    const result: ParseResult = {
+      place: data.place || null,
+      date: data.date || null,
+      items: finalItems,
+      subtotal: normalizeNumber(data.subtotal),
+      tax: normalizeNumber(data.tax),
+      tip: normalizeNumber(data.tip),
+      total: normalizeNumber(data.total),
+      rawText: data.rawText || null
+    }
+
+    console.info('[scan_success] Receipt parsed successfully', {
+      duration,
+      itemsCount: result.items.length,
+      hasPlace: !!result.place
+    })
+
+    return result
+
+  } catch (error) {
+    const duration = Date.now() - startTime
+    console.error('[scan_fail] Receipt parsing failed', { duration, error })
+    
+    // Always return at least one editable row on failure
+    return {
+      items: [{ id: generateId(), label: '', price: 0, emoji: '🍽️' }]
+    }
+  }
+}
+
+// Legacy scanReceipt function - kept for backwards compatibility
+export async function scanReceipt(file: File): Promise<ReceiptScanResult> {
+  const parseResult = await parseReceipt(file)
+  
+  // Convert ParseResult to legacy ReceiptScanResult format
+  return {
+    restaurant_name: parseResult.place || "Receipt Upload",
+    location: parseResult.place || "Unknown Location", 
+    date: parseResult.date || new Date().toISOString().split('T')[0],
+    items: parseResult.items.map(item => ({
+      emoji: item.emoji || '🍽️',
+      label: item.label,
+      price: item.price,
+      quantity: 1,
+      unit_price: item.price
+    })),
+    subtotal: parseResult.subtotal || 0,
+    tax: parseResult.tax || 0,
+    tip: parseResult.tip || 0,
+    total: parseResult.total || parseResult.items.reduce((sum, item) => sum + item.price, 0)
+  }
 }
 
 // Enhanced OCR validation functions

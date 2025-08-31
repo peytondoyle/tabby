@@ -1,19 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { scanReceipt } from '@/lib/receiptScanning'
-import type { ReceiptScanResult } from '@/lib/receiptScanning'
-
-export interface ParseResult {
-  items: Array<{
-    id: string
-    label: string
-    price: number
-    emoji?: string
-  }>
-  restaurant?: string
-  location?: string
-  date?: string
-}
+import { parseReceipt } from '@/lib/receiptScanning'
+import type { ParseResult } from '@/lib/receiptScanning'
 
 interface ReceiptScannerProps {
   open: boolean
@@ -54,21 +42,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     setErrorMessage(undefined)
 
     try {
-      const scanResult = await scanReceipt(file)
-      
-      // Convert to ParseResult format
-      const parseResult: ParseResult = {
-        items: scanResult.items.map((item, index) => ({
-          id: `item-${index}`,
-          label: item.label,
-          price: item.price,
-          emoji: item.emoji
-        })),
-        restaurant: scanResult.restaurant_name,
-        location: scanResult.location,
-        date: scanResult.date
-      }
-      
+      const parseResult = await parseReceipt(file)
       onParsed(parseResult)
       onClose()
     } catch (err) {

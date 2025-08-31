@@ -56,13 +56,13 @@ export const Flow: React.FC = () => {
     setItems(result.items)
     
     // Set bill info if available
-    if (result.restaurant || result.location || result.date) {
+    if (result.place || result.date) {
       setBill({
         token,
         id: token,
-        title: result.restaurant,
-        place: result.location,
-        date: result.date
+        title: result.place || undefined,
+        place: result.place || undefined,
+        date: result.date || undefined
       })
     }
   }
