@@ -9,7 +9,7 @@ interface ReviewItemsStepProps {
 
 export const ReviewItemsStep: React.FC<ReviewItemsStepProps> = ({ onNext, onPrev }) => {
   const { items, setItems, updateItem, removeItem } = useFlowStore()
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [_editingId, _setEditingId] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newItem, setNewItem] = useState<Partial<FlowItem>>({
     label: '',

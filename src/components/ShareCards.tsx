@@ -144,7 +144,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
 
       {/* Group Breakdown */}
       <div className="space-y-6">
-        {groups.map((group, index) => (
+        {groups.map((group, _index) => (
           <div key={group.person.id} className="border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">

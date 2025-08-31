@@ -45,7 +45,7 @@ export const StartStep: React.FC<StartStepProps> = ({ onNext }) => {
     onNext() // Move to review step after analyzing
   }
 
-  const handleManualStart = () => {
+  const _handleManualStart = () => {
     // Skip scanning and go directly to people step
     onNext()
   }

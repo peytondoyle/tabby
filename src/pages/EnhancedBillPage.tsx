@@ -219,7 +219,7 @@ export const EnhancedBillPage: React.FC = () => {
     total: items.reduce((sum, item) => sum + item.price, 0) + (bill?.sales_tax || 0) + (bill?.tip || 0)
   }
 
-  const unassignedItems = items.filter(item => 
+  const _unassignedItems = items.filter(item => 
     !shares.some(share => share.item_id === item.id)
   )
 
@@ -500,7 +500,7 @@ export const EnhancedBillPage: React.FC = () => {
       <AddPeopleModal
         isOpen={showAddPeople}
         onClose={() => setShowAddPeople(false)}
-        onAddPeople={(newPeople) => {
+        onAddPeople={(_newPeople) => {
           // TODO: Add people to bill
           setShowAddPeople(false)
           queryClient.invalidateQueries({ queryKey: ['people', id] })

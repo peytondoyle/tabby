@@ -94,7 +94,7 @@ export function computeTotals(
 
   // 2. Build lookup maps for quick access
   const itemMap = new Map(items.map(item => [item.id, item]))
-  const personMap = new Map(people.map(person => [person.id, person]))
+  const _personMap = new Map(people.map(person => [person.id, person]))
   
   // 3. Initialize person totals
   const personTotals: PersonTotal[] = people.map(person => ({

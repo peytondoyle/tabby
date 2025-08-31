@@ -108,6 +108,7 @@ export const ItemList: React.FC<ItemListProps> = ({ billToken, editorToken }) =>
 
   useEffect(() => {
     fetchItems()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [billToken])
 
   const handleAddItem = async () => {

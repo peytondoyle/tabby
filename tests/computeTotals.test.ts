@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals'
-import { computeTotals, reconcilePennies, deriveAssignedMap, type Item, type Person, type ItemShare } from '../src/lib/computeTotals'
+import { computeTotals, reconcilePennies as _reconcilePennies, deriveAssignedMap, type Item, type Person, type ItemShare } from '../src/lib/computeTotals'
 
 describe('computeTotals', () => {
   it('should compute totals correctly', () => {

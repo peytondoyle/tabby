@@ -193,7 +193,7 @@ export const useFlowStore = create<FlowState>()(
       },
 
       computeBillTotals: () => {
-        const { people, items, assignments } = get()
+        const { people, items, assignments: _assignments } = get()
         const billTotal = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
         
         const personTotals = people.map(person => {

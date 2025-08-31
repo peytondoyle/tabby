@@ -9,7 +9,7 @@ import { getCurrentDate } from '@/lib/receiptScanning'
 import { fetchBills, type BillSummary } from '@/lib/bills'
 
 // Use BillSummary as the main type for bills
-type Bill = BillSummary
+type _Bill = BillSummary
 
 interface NewBillModalProps {
   isOpen: boolean

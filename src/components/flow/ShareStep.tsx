@@ -15,7 +15,7 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
     items, 
     bill,
     computeBillTotals,
-    getPersonItems,
+    getPersonItems: _getPersonItems,
     getItemAssignments
   } = useFlowStore()
   
@@ -31,7 +31,7 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
     }).format(price)
   }
 
-  const getPersonItemsForExport = (personId: string) => {
+  const _getPersonItemsForExport = (personId: string) => {
     return items.filter(item => {
       const assignments = getItemAssignments(item.id)
       return assignments.includes(personId)
@@ -103,7 +103,7 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
         </div>
         
         <div className="space-y-3">
-          {personTotals.map((personTotal, index) => {
+          {personTotals.map((personTotal, _index) => {
             const person = people.find(p => p.id === personTotal.personId)
             if (!person) return null
             

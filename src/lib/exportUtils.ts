@@ -129,7 +129,7 @@ export async function shareContent(data: {
       const textContent = `${data.title}\n\n${data.text}${data.url ? `\n\n${data.url}` : ''}`
       await navigator.clipboard.writeText(textContent)
       showShareFeedback('Content copied to clipboard!')
-    } catch (clipboardError) {
+    } catch {
       throw new Error('Unable to share content')
     }
   }

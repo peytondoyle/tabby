@@ -26,7 +26,7 @@ export default async function handler(
   }
 
   try {
-    const { imageData, imageType } = req.body
+    const { imageData, imageType: _imageType } = req.body
 
     if (!imageData) {
       return res.status(400).json({ 

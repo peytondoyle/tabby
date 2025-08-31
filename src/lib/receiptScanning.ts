@@ -1,5 +1,5 @@
 // AI Receipt Scanning with OCR
-import { supabase, isSupabaseAvailable } from './supabaseClient'
+import { supabase, isSupabaseAvailable as _isSupabaseAvailable } from './supabaseClient'
 
 export interface ReceiptItem {
   emoji: string
@@ -74,7 +74,7 @@ function getEmojiForItem(itemName: string): string {
 
 // Enhanced OCR processing with better accuracy and validation
 function processReceiptWithAI(imageData: string): Promise<ReceiptScanResult> {
-  return new Promise(async (resolve) => {
+  return new Promise((resolve) => {
     // Simulate AI processing delay
     setTimeout(async () => {
       try {
@@ -216,7 +216,7 @@ function parseReceiptText(ocrText: string): ReceiptScanResult | null {
 }
 
 // Real OCR integration with fallback
-async function processReceiptWithRealOCR(imageData: string): Promise<ReceiptScanResult> {
+async function processReceiptWithRealOCR(_imageData: string): Promise<ReceiptScanResult> {
   try {
     // In production, this would call a real OCR service like:
     // - Google Cloud Vision API
@@ -289,7 +289,7 @@ async function processReceiptWithRealOCR(imageData: string): Promise<ReceiptScan
   }
 }
 
-export async function createBillFromReceipt(receiptData: ReceiptScanResult, editorToken?: string): Promise<string> {
+export async function createBillFromReceipt(receiptData: ReceiptScanResult, _editorToken?: string): Promise<string> {
   // Create a unique token for the scanned bill
   const newToken = 'scanned-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)
   
