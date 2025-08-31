@@ -66,4 +66,5 @@ function App() {
   )
 }
 
+// Used by Vite/React entry point in main.tsx
 export default App
