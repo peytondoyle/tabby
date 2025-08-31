@@ -6,6 +6,7 @@ import { LandingPage } from './pages/LandingPage'
 import { MyBillsPage } from './pages/MyBillsPage'
 import { InteractiveBillPage } from './pages/InteractiveBillPage'
 import { EnhancedBillPage } from './pages/EnhancedBillPage'
+import { Flow } from './pages/Flow'
 import { SharePage } from './pages/SharePage'
 import { runHealthCheck } from './lib/healthCheck'
 
@@ -34,6 +35,7 @@ function App() {
             <Route path="bills" element={<MyBillsPage />} />
             <Route path="bill/:id" element={<EnhancedBillPage />} />
             <Route path="bill-classic/:id" element={<InteractiveBillPage />} />
+            <Route path="bill/:token/flow" element={<Flow />} />
             <Route path="bill" element={<Navigate to="/bills" replace />} />
             <Route path="share/:id" element={<SharePage />} />
             <Route path="landing" element={<LandingPage />} />
