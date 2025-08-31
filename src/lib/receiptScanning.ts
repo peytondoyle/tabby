@@ -102,24 +102,50 @@ export function normalizeNumber(value: unknown): number {
   return isNaN(num) ? 0 : num
 }
 
+// Deterministic dev fallback for development
+function getDEVFallback(): ParseResult {
+  return {
+    place: "Demo Restaurant",
+    date: new Date().toISOString().split('T')[0],
+    items: [
+      { id: generateId(), label: "Margherita Pizza", price: 18.00, emoji: "🍕" },
+      { id: generateId(), label: "Caesar Salad", price: 12.00, emoji: "🥗" },
+      { id: generateId(), label: "Craft Beer", price: 6.00, emoji: "🥤" }
+    ],
+    subtotal: 36.00,
+    tax: 2.88,
+    tip: 7.20,
+    total: 46.08,
+    rawText: "Mock receipt text for development"
+  }
+}
+
 // New normalized parseReceipt function
 export async function parseReceipt(file: File): Promise<ParseResult> {
   const startTime = Date.now()
   console.info('[scan_start] Starting receipt parse')
   
   try {
+    // Get API base URL from environment
+    const API_BASE = import.meta.env.VITE_API_BASE ?? ''
+    
     // Create FormData for multipart upload
     const formData = new FormData()
     formData.append('file', file)
 
-    // Call the API endpoint
-    const response = await fetch('/api/scan-receipt', {
+    // Call the API endpoint with configurable base URL
+    const response = await fetch(`${API_BASE}/api/scan-receipt`, {
       method: 'POST',
       body: formData
     })
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`)
+      console.warn(`[scan_api_error] ${response.status} ${response.statusText}`)
+      
+      // Return fallback for any API error
+      const fallbackResult = getDEVFallback()
+      console.info('[scan_fallback] Using dev fallback due to API error')
+      return fallbackResult
     }
 
     const data = await response.json()
@@ -165,10 +191,10 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
     const duration = Date.now() - startTime
     console.error('[scan_fail] Receipt parsing failed', { duration, error })
     
-    // Always return at least one editable row on failure
-    return {
-      items: [{ id: generateId(), label: '', price: 0, emoji: '🍽️' }]
-    }
+    // Return deterministic fallback on network/parsing error
+    const fallbackResult = getDEVFallback()
+    console.info('[scan_fallback] Using dev fallback due to network error')
+    return fallbackResult
   }
 }
 

@@ -19,6 +19,26 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    // Proxy API calls to vercel dev server (alternative to running vercel dev)
+    // Uncomment if you want to run Vite dev server separately from vercel dev
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        // Fallback to return 404 if vercel dev is not running
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, res) => {
+            console.warn('API proxy error (is vercel dev running on :3000?):', err.message)
+            if (res && 'headersSent' in res && !res.headersSent) {
+              res.writeHead(404, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: 'API server not available' }))
+            }
+          })
+        }
+      }
+    }
+  },
   build: {
     // Increase chunk size warning limit after splitting
     chunkSizeWarningLimit: 1200,

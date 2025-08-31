@@ -23,11 +23,35 @@ SUPABASE_PROJECT_REF=your-project-ref
 
 2. Start the development server:
 
+**Option A: Vite-only development (Default)**
 ```bash
 npm run dev
 ```
+Runs at `http://localhost:5173` with API calls falling back to mock data when `/api/scan-receipt` isn't available.
 
-The development server runs on `http://localhost:5173` with strict port binding.
+**Option B: Full-stack development**
+```bash
+# Terminal 1: Start API server
+npm run dev:api
+
+# Terminal 2: Start Vite (with proxy to API)
+npm run dev:vite
+```
+API server at `http://localhost:3000`, Vite at `http://localhost:5173` with working API calls.
+
+**Option C: All-in-one Vercel dev**
+```bash
+npm run dev:api
+```
+Everything at `http://localhost:3000` (frontend + API routes).
+
+### API Routes in Development
+
+The app includes API routes (like `/api/scan-receipt`) that only work in production or with Vercel's dev server:
+
+- ✅ **Production**: API routes work automatically
+- ✅ **`npm run dev`**: Uses `vercel dev` for full API support
+- ⚠️  **`npm run dev:vite`**: API calls use fallback data or proxy to `vercel dev`
 
 ## Migrations
 

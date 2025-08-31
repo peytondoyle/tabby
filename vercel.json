@@ -7,6 +7,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm ci",
+  "devCommand": "npm run dev:vite",
   "framework": "vite",
   "rewrites": [
     {

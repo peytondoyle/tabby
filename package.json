@@ -6,6 +6,8 @@
   "scripts": {
     "preflight": "node scripts/preflight.mjs",
     "dev": "vite --host --port 5173 --strictPort",
+    "dev:api": "vercel dev --listen 3000 --yes",
+    "dev:vite": "vite --host --port 5173 --strictPort",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -64,6 +66,7 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.39.1",
     "unimported": "^1.31.0",
+    "vercel": "^46.1.1",
     "vite": "^7.1.2"
   }
 }
