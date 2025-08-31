@@ -1,125 +1,24 @@
 import React, { useState } from 'react'
 import { useParams, Navigate, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getBillByToken } from '@/lib/billUtils'
 import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
 import { DndContext, DragOverlay, useDraggable, closestCenter } from '@dnd-kit/core'
 import { ReceiptScanner } from '@/components/ReceiptScanner'
+import { AddPeopleModal } from '@/components/AddPeopleModal'
+import { DragDropAssign } from '@/components/DragDropAssign'
 import { getCurrentDate } from '@/lib/receiptScanning'
 import { PersonCard } from '@/components/PersonCard'
 
 const SAMPLE_BILL_TOKEN = 'e047f028995f1775e49463406db9943d'
 
-interface SplitModalProps {
-  isOpen: boolean
-  onClose: () => void
-  item: any
-  people: any[]
-  onSplit: (itemId: string, peopleIds: string[]) => void
-}
-
-const SplitModal: React.FC<SplitModalProps> = ({ isOpen, onClose, item, people, onSplit }) => {
-  const [selectedPeople, setSelectedPeople] = useState<string[]>([])
-
-  const handlePersonToggle = (personId: string) => {
-    setSelectedPeople(prev => 
-      prev.includes(personId) 
-        ? prev.filter(id => id !== personId)
-        : [...prev, personId]
-    )
-  }
-
-  const handleSplit = () => {
-    if (selectedPeople.length >= 2) {
-      onSplit(item?.id, selectedPeople)
-      onClose()
-      setSelectedPeople([])
-    }
-  }
-
-  return (
-    <AnimatePresence>
-      {isOpen && item && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/70 flex items-end justify-center"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            className="bg-gray-900 rounded-t-3xl w-full max-w-md p-6 text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-bold mb-2">Split</h2>
-              <div className="bg-yellow-600/20 border border-yellow-500/30 rounded-2xl p-4 flex items-center gap-3">
-                <span className="text-2xl">{item.emoji}</span>
-                <span className="font-bold">{item.label}</span>
-              </div>
-              <p className="text-xl font-bold mt-2">between</p>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              {people.map(person => (
-                <button
-                  key={person.id}
-                  onClick={() => handlePersonToggle(person.id)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${
-                    selectedPeople.includes(person.id)
-                      ? 'bg-blue-600 border-2 border-blue-400'
-                      : 'bg-gray-800 border-2 border-gray-700'
-                  }`}
-                >
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                    selectedPeople.includes(person.id)
-                      ? 'border-white bg-white'
-                      : 'border-gray-400'
-                  }`}>
-                    {selectedPeople.includes(person.id) && (
-                      <div className="w-3 h-3 rounded-full bg-blue-600"></div>
-                    )}
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
-                    {person.name.charAt(0)}
-                  </div>
-                  <span className="text-lg font-semibold">{person.name}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="text-center text-gray-400 mb-4">
-              Select at least 2 people
-            </div>
-
-            <button
-              onClick={handleSplit}
-              disabled={selectedPeople.length < 2}
-              className={`w-full py-4 rounded-2xl font-bold transition-all ${
-                selectedPeople.length >= 2
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              Split Item
-            </button>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
 
 interface DraggableItemProps {
   item: any
-  onSplit: (item: any) => void
 }
 
-const DraggableItem: React.FC<DraggableItemProps> = ({ item, onSplit }) => {
+const DraggableItem: React.FC<DraggableItemProps> = ({ item }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: item.id,
     data: { item }
@@ -140,7 +39,6 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, onSplit }) => {
       }`}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      onDoubleClick={() => onSplit(item)}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -157,9 +55,10 @@ export const InteractiveBillPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [splitModalItem, setSplitModalItem] = useState<any>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [showReceiptScanner, setShowReceiptScanner] = useState(false)
+  const [showAddPeople, setShowAddPeople] = useState(false)
+  const [viewMode, setViewMode] = useState<'classic' | 'drag-drop'>('drag-drop')
   
   const { data: bill, isLoading: billLoading } = useQuery({
     queryKey: ['bill', id],
@@ -330,16 +229,110 @@ export const InteractiveBillPage: React.FC = () => {
     }
   }
 
-  const handleSplit = (item: any) => {
-    setSplitModalItem(item)
-  }
-
-  const handleSplitBetween = (itemId: string, peopleIds: string[]) => {
-    splitItemMutation.mutate({ itemId, peopleIds })
-  }
 
   const activeItem = activeId ? items.find(item => item.id === activeId) : null
 
+  // Convert people data for DragDropAssign component
+  const dragDropPeople = people.map(p => ({
+    id: p.id,
+    name: p.name,
+    avatar: p.avatar_url,
+    color: `bg-${['blue', 'purple', 'pink', 'green', 'yellow'][Math.floor(Math.random() * 5)]}-500`
+  }))
+
+  // Convert items data for DragDropAssign component
+  const dragDropItems = items.map(item => ({
+    ...item,
+    assignedTo: shares.filter(s => s.item_id === item.id).map(s => s.person_id)
+  }))
+
+  const handleAddPeople = (newPeople: any[]) => {
+    // TODO: Add people to bill
+    setShowAddPeople(false)
+    queryClient.invalidateQueries({ queryKey: ['people', id] })
+  }
+
+  // Show drag-drop view if enabled
+  if (viewMode === 'drag-drop' && people.length > 0) {
+    return (
+      <div className="min-h-screen bg-paper">
+        {/* Header with toggle */}
+        <div className="max-w-6xl mx-auto p-4">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate('/bills')}
+                className="p-2 text-gray-500 hover:text-gray-700 bg-white rounded-full shadow-md"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">{bill?.title || 'New Bill'}</h1>
+                <p className="text-gray-600">
+                  {bill?.place || 'No location'} • {bill?.date ? new Date(bill.date).toLocaleDateString() : getCurrentDate().short}
+                </p>
+              </div>
+            </div>
+            
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">View:</span>
+              <div className="flex bg-gray-200 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('drag-drop')}
+                  className={`px-4 py-2 rounded-md font-medium transition-all ${
+                    viewMode === 'drag-drop'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  Drag & Drop
+                </button>
+                <button
+                  onClick={() => setViewMode('classic')}
+                  className={`px-4 py-2 rounded-md font-medium transition-all ${
+                    viewMode === 'classic'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  Classic
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Drag Drop Assignment View */}
+        <DragDropAssign
+          people={dragDropPeople}
+          items={dragDropItems}
+          onItemAssign={(itemId, personId) => {
+            assignItemMutation.mutate({ itemId, personId })
+          }}
+          onItemUnassign={(itemId, personId) => {
+            // TODO: Implement unassign
+            console.log('Unassign:', itemId, personId)
+          }}
+          onMultiAssign={(itemId, peopleIds) => {
+            splitItemMutation.mutate({ itemId, peopleIds })
+          }}
+        />
+
+        {/* Add People Modal */}
+        <AddPeopleModal
+          isOpen={showAddPeople}
+          onClose={() => setShowAddPeople(false)}
+          onAddPeople={handleAddPeople}
+          existingPeople={dragDropPeople}
+        />
+      </div>
+    )
+  }
+
+  // Classic view (original layout)
   return (
     <div className="min-h-screen bg-paper text-ink">
       <DndContext 
@@ -350,7 +343,7 @@ export const InteractiveBillPage: React.FC = () => {
         <div className="max-w-screen-sm mx-auto p-4">
           {/* Header */}
           <div className="text-center mb-6 relative">
-            <div className="absolute top-0 left-0">
+            <div className="absolute top-0 left-0 flex items-center gap-2">
               <button
                 onClick={() => navigate('/bills')}
                 className="p-2 text-ink-dim hover:text-ink bg-card rounded-full shadow-soft"
@@ -360,6 +353,15 @@ export const InteractiveBillPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
+              {people.length > 0 && (
+                <button
+                  onClick={() => setViewMode('drag-drop')}
+                  className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg text-sm font-bold"
+                  title="Switch to Drag & Drop View"
+                >
+                  ✨ Try New View
+                </button>
+              )}
             </div>
             
             <h1 className="text-3xl font-bold">{bill?.title || 'New Bill'}</h1>
@@ -393,6 +395,26 @@ export const InteractiveBillPage: React.FC = () => {
               </motion.button>
             </div>
           </div>
+
+          {/* Add People Button if no people */}
+          {people.length === 0 && (
+            <motion.div 
+              className="bg-gradient-to-r from-blue-500/10 to-purple-600/10 border-2 border-dashed border-blue-500/30 rounded-2xl p-8 text-center mb-8"
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="text-5xl mb-4">👥</div>
+              <h3 className="text-xl font-bold mb-2">No People Added Yet</h3>
+              <p className="text-gray-600 mb-4">Add people to start splitting the bill</p>
+              <motion.button
+                onClick={() => setShowAddPeople(true)}
+                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-bold"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                + Add People
+              </motion.button>
+            </motion.div>
+          )}
 
           {/* People Cards */}
           <div className="space-y-4 mb-8">
@@ -453,7 +475,6 @@ export const InteractiveBillPage: React.FC = () => {
                 <DraggableItem
                   key={item.id}
                   item={item}
-                  onSplit={handleSplit}
                 />
               ))
             ) : (
@@ -488,19 +509,6 @@ export const InteractiveBillPage: React.FC = () => {
             )}
           </div>
 
-          {/* Bottom Navigation */}
-          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex gap-4">
-            <button className="bg-gray-800 p-4 rounded-full">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </button>
-            <button className="bg-gray-800 p-4 rounded-full">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </button>
-          </div>
         </div>
 
         {/* Drag Overlay */}
@@ -515,15 +523,15 @@ export const InteractiveBillPage: React.FC = () => {
           )}
         </DragOverlay>
 
-        {/* Split Modal */}
-        <SplitModal
-          isOpen={!!splitModalItem}
-          onClose={() => setSplitModalItem(null)}
-          item={splitModalItem}
-          people={people}
-          onSplit={handleSplitBetween}
-        />
       </DndContext>
+
+      {/* Add People Modal */}
+      <AddPeopleModal
+        isOpen={showAddPeople}
+        onClose={() => setShowAddPeople(false)}
+        onAddPeople={handleAddPeople}
+        existingPeople={dragDropPeople}
+      />
 
       {/* Receipt Scanner */}
       <ReceiptScanner

@@ -5,6 +5,7 @@ import { AppShell } from './components/AppShell'
 import { LandingPage } from './pages/LandingPage'
 import { MyBillsPage } from './pages/MyBillsPage'
 import { InteractiveBillPage } from './pages/InteractiveBillPage'
+import { EnhancedBillPage } from './pages/EnhancedBillPage'
 import { SharePage } from './pages/SharePage'
 import { runHealthCheck } from './lib/healthCheck'
 
@@ -31,7 +32,8 @@ function App() {
           <Route path="/" element={<AppShell />}>
             <Route index element={<MyBillsPage />} />
             <Route path="bills" element={<MyBillsPage />} />
-            <Route path="bill/:id" element={<InteractiveBillPage />} />
+            <Route path="bill/:id" element={<EnhancedBillPage />} />
+            <Route path="bill-classic/:id" element={<InteractiveBillPage />} />
             <Route path="bill" element={<Navigate to="/bills" replace />} />
             <Route path="share/:id" element={<SharePage />} />
             <Route path="landing" element={<LandingPage />} />
