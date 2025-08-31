@@ -1,5 +1,5 @@
 // Types for the math engine
-export interface AssignedLine {
+export type AssignedLine = {
   item_id: string
   emoji: string
   label: string
@@ -32,7 +32,7 @@ export interface ItemShare {
   weight: number // 0.0 to 1.0, e.g., 0.5 for 50/50 split
 }
 
-export interface PersonTotal {
+export type PersonTotal = {
   person_id: string
   name: string
   subtotal: number
