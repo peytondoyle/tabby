@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
 import { ReceiptScanner } from '@/components/ReceiptScanner'
+import type { ParseResult } from '@/lib/receiptScanning'
+import { useFlowStore } from '@/lib/flowStore'
 // import { OnboardingFlow } from '@/components/OnboardingFlow'
 import { getCurrentDate } from '@/lib/receiptScanning'
 import { fetchBills, type BillSummary } from '@/lib/bills'
@@ -110,6 +112,7 @@ const NewBillModal: React.FC<NewBillModalProps> = ({ isOpen, onClose, onCreate }
 export const MyBillsPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { setItems, setBill } = useFlowStore()
   const [showNewBillModal, setShowNewBillModal] = useState(false)
   const [showReceiptScanner, setShowReceiptScanner] = useState(false)
   const [showSyncBanner, setShowSyncBanner] = useState(false)
@@ -201,8 +204,35 @@ export const MyBillsPage: React.FC = () => {
     
     // Small delay to ensure localStorage is written before navigation
     setTimeout(() => {
-      navigate(`/bill/${billToken}/flow`)
+      navigate(`/bill/${billToken}`)
     }, 100)
+  }
+
+  const handleParsed = (result: ParseResult) => {
+    // Set items from scan result in flow store
+    setItems(result.items)
+    
+    // Set bill info if available
+    if (result.place || result.date) {
+      const token = `scanned-${Date.now()}`
+      setBill({
+        token,
+        id: token,
+        title: result.place || undefined,
+        place: result.place || undefined,
+        date: result.date || undefined
+      })
+      // Navigate to the flow with the new token
+      navigate(`/bill/${token}`)
+    } else {
+      // Navigate to flow with temporary token
+      const token = `temp-${Date.now()}`
+      setBill({
+        token,
+        id: token
+      })
+      navigate(`/bill/${token}`)
+    }
   }
 
 
@@ -370,9 +400,9 @@ export const MyBillsPage: React.FC = () => {
 
       {/* Receipt Scanner */}
       <ReceiptScanner
-        isOpen={showReceiptScanner}
-        onClose={() => setShowReceiptScanner(false)}
-        onBillCreated={handleBillCreated}
+        open={showReceiptScanner}
+        onOpenChange={setShowReceiptScanner}
+        onParsed={handleParsed}
       />
 
       {/* Onboarding Flow - temporarily commented out for debugging */}
