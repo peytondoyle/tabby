@@ -1,4 +1,5 @@
 // AI Receipt Scanning with OCR
+import { nanoid } from 'nanoid'
 import { supabase, isSupabaseAvailable as _isSupabaseAvailable } from './supabaseClient'
 
 // New normalized ParseResult type
@@ -92,7 +93,7 @@ function getEmojiForItem(itemName: string): string {
 
 // Generate unique ID
 function generateId(): string {
-  return `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  return `item-${nanoid()}`
 }
 
 // Normalize number values, convert NaN to 0
