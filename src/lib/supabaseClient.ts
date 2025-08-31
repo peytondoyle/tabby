@@ -1,15 +1,40 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Check if we have proper Supabase credentials
-// Fallback values ensure connection works even if env vars don't load properly
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://evraslbpgcafyvvtbqxy.supabase.co'
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2cmFzbGJwZ2NhZnl2dnRicXh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxMjQ4MTIsImV4cCI6MjA3MTcwMDgxMn0.X7z5jIFwBFvmD6UrJ6KVkxllmz7BDkvHcwOc5pgb8Ew'
+// Legacy key detection regex - matches old JWT format
+const LEGACY_KEY_PATTERN = /^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\./
 
-const hasValidCredentials = SUPABASE_URL && SUPABASE_ANON_KEY
+// Get Supabase configuration
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://evraslbpgcafyvvtbqxy.supabase.co'
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || ''
+
+// Runtime validation to prevent using legacy keys
+if (SUPABASE_PUBLISHABLE_KEY && LEGACY_KEY_PATTERN.test(SUPABASE_PUBLISHABLE_KEY)) {
+  throw new Error(
+    '🚨 SECURITY ERROR: Legacy Supabase API key detected!\n' +
+    'Please update to the new Publishable API key format.\n' +
+    'Legacy keys (anon/service_role) are no longer supported.\n' +
+    'See SECURITY.md for migration instructions.'
+  )
+}
+
+// Warn if secret key is accidentally used in client code
+if (SUPABASE_PUBLISHABLE_KEY && SUPABASE_PUBLISHABLE_KEY.startsWith('sb_secret_')) {
+  console.error(
+    '🚨 CRITICAL SECURITY WARNING: Secret key detected in client code!\n' +
+    'The secret key should NEVER be used in client-side code.\n' +
+    'Use the publishable key (sb_publishable_*) instead.'
+  )
+  // In production, we should throw an error here
+  if (!import.meta.env.DEV) {
+    throw new Error('Secret key cannot be used in client-side code')
+  }
+}
+
+const hasValidCredentials = SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
 
 // Only create client if we have valid credentials
 export const supabase = hasValidCredentials 
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: {
         autoRefreshToken: false,
         persistSession: false

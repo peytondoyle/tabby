@@ -38,3 +38,6 @@ service-account.json
 *.njsproj
 *.sln
 *.sw?
+
+# Legacy API keys (NEVER commit)
+.env.legacy

@@ -1,6 +1,26 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { IncomingForm } from 'formidable'
 import { promises as fs } from 'fs'
+import { createClient } from '@supabase/supabase-js'
+
+// Server-side Supabase client using secret key
+const supabaseAdmin = process.env.SUPABASE_SECRET_KEY 
+  ? createClient(
+      process.env.VITE_SUPABASE_URL || 'https://evraslbpgcafyvvtbqxy.supabase.co',
+      process.env.SUPABASE_SECRET_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+  : null
+
+// Validate that we're not using legacy keys
+if (process.env.SUPABASE_SECRET_KEY && process.env.SUPABASE_SECRET_KEY.startsWith('eyJ')) {
+  throw new Error('Legacy service_role key detected! Please use the new Secret key format.')
+}
 
 interface ScanReceiptResponse {
   place?: string | null
@@ -147,6 +167,9 @@ export default async function handler(
     }
 
     console.info('[scan_start] Processing receipt scan')
+    
+    // Note: supabaseAdmin can be used here for server-side database operations
+    // Example: await supabaseAdmin?.from('receipts').insert({ ... })
 
     // Check if OCR is configured (placeholder for real env check)
     const ocrConfigured = process.env.OCR_ENABLED === 'true' || 

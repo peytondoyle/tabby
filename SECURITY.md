@@ -1,22 +1,46 @@
 # Security Policy
 
+## 🚨 API Key Requirements (UPDATED 2025-08-31)
+
+This application **ONLY** supports the new Supabase API key format:
+- **Publishable keys**: `sb_publishable_*` (client-safe)
+- **Secret keys**: `sb_secret_*` (server-only)
+
+### ❌ Legacy Keys NOT Supported
+
+The following legacy key formats are **NO LONGER SUPPORTED** and will be rejected at runtime:
+- JWT-format anon keys (starting with `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9`)
+- JWT-format service_role keys
+- Any other legacy authentication formats
+
 ## 🔒 Environment Variables & Secrets
 
 ### NEVER COMMIT THESE FILES:
 - `.env` - Contains real API keys and passwords
 - `.env.local`, `.env.production`, etc.
+- `.env.legacy` - Contains deprecated keys
 - Any files containing API keys, tokens, or passwords
 
 ### Setup Instructions:
-1. Copy `.env.example` to `.env`
-2. Replace placeholder values with your real credentials
-3. Verify `.env` is listed in `.gitignore`
+1. Copy `.env.example` to `.env.local`
+2. Add your new format keys:
+   - `VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...`
+   - `SUPABASE_SECRET_KEY=sb_secret_...`
+3. Verify `.env.local` is listed in `.gitignore`
 
-### Exposed Supabase Credentials
-⚠️ **CRITICAL**: If you see a Supabase anon key starting with `eyJhbGciOiJIUzI1NiI...` in git history, you should:
-1. Rotate the key in your Supabase dashboard immediately
-2. Update your local `.env` file with the new key
-3. Never commit the new key to version control
+### Key Usage Guidelines
+
+| Context | Use This Key | Never Use |
+|---------|-------------|-----------|
+| Client-Side (Browser) | `VITE_SUPABASE_PUBLISHABLE_KEY` | Secret keys, Legacy JWT keys |
+| Server-Side (API) | `SUPABASE_SECRET_KEY` | Publishable key for privileged ops |
+
+### Runtime Protection
+
+The application includes automatic safeguards:
+1. **Legacy Key Detection**: Throws error if legacy JWT keys are detected
+2. **Secret Key Protection**: Prevents secret keys in client code
+3. **Environment Validation**: Validates key formats at startup
 
 ## 🛡️ API Security
 
