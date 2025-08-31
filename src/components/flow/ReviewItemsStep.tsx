@@ -62,10 +62,10 @@ export const ReviewItemsStep: React.FC<ReviewItemsStepProps> = ({ onNext, onPrev
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="text-6xl mb-4">🍽️</div>
-        <h2 className="text-2xl font-bold mb-2">Review Your Items</h2>
-        <p className="text-ink-dim">
-          Review and edit the items on your bill
+        <div className="text-6xl mb-4">📝</div>
+        <h1 className="text-4xl font-bold mb-2">Review Items</h1>
+        <p className="text-lg text-ink-dim">
+          Edit your items below
         </p>
       </motion.div>
 
@@ -107,47 +107,26 @@ export const ReviewItemsStep: React.FC<ReviewItemsStepProps> = ({ onNext, onPrev
               transition={{ delay: index * 0.05 }}
               className="p-4 bg-card rounded-xl border border-line hover:border-brand/50 transition-all"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-1">
                   <span className="text-2xl">{item.emoji}</span>
-                  
-                  {editingId === item.id ? (
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={item.label}
-                        onChange={(e) => handleEditItem(item.id, 'label', e.target.value)}
-                        className="px-2 py-1 bg-paper border border-line rounded text-sm"
-                        autoFocus
-                        onBlur={() => setEditingId(null)}
-                        onKeyPress={(e) => e.key === 'Enter' && setEditingId(null)}
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={item.price}
-                        onChange={(e) => handleEditItem(item.id, 'price', parseFloat(e.target.value) || 0)}
-                        className="px-2 py-1 bg-paper border border-line rounded text-sm"
-                        onBlur={() => setEditingId(null)}
-                        onKeyPress={(e) => e.key === 'Enter' && setEditingId(null)}
-                      />
-                    </div>
-                  ) : (
-                    <div 
-                      className="flex-1 cursor-pointer"
-                      onClick={() => setEditingId(item.id)}
-                    >
-                      <div className="font-semibold">{item.label}</div>
-                      <div className="text-sm text-ink-dim flex items-center gap-2">
-                        <span>{formatPrice(item.price)}</span>
-                        {item.quantity && item.quantity > 1 && (
-                          <span className="text-xs bg-ink-dim/20 px-1 rounded">
-                            × {item.quantity}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <div className="flex-1 grid grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      value={item.label}
+                      onChange={(e) => handleEditItem(item.id, 'label', e.target.value)}
+                      className="px-3 py-2 bg-paper border border-line rounded-lg focus:ring-2 focus:ring-brand/30 focus:border-brand font-semibold"
+                      placeholder="Item name"
+                    />
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={item.price}
+                      onChange={(e) => handleEditItem(item.id, 'price', parseFloat(e.target.value) || 0)}
+                      className="px-3 py-2 bg-paper border border-line rounded-lg focus:ring-2 focus:ring-brand/30 focus:border-brand font-semibold"
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
                 
                 <button
@@ -241,14 +220,11 @@ export const ReviewItemsStep: React.FC<ReviewItemsStepProps> = ({ onNext, onPrev
       ) : (
         <motion.button
           onClick={() => setShowAddForm(true)}
-          className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-line hover:border-brand/50 rounded-xl text-ink-dim hover:text-ink transition-all mb-6"
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
+          className="text-brand hover:text-brand/80 font-medium text-sm transition-colors mb-6"
+          whileHover={{ x: 2 }}
+          whileTap={{ scale: 0.98 }}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Add Item
+          + Add Item
         </motion.button>
       )}
 

@@ -11,7 +11,7 @@ import { AssignStep } from '@/components/flow/AssignStep'
 import { ShareStep } from '@/components/flow/ShareStep'
 
 const stepTitles: Record<FlowStep, string> = {
-  start: 'Get Started',
+  start: 'Scan Receipt',
   people: 'Add People',
   review: 'Review Items', 
   assign: 'Assign Items',
@@ -28,8 +28,7 @@ export const Flow: React.FC = () => {
   const {
     currentStep,
     setStep,
-    setBill,
-    reset
+    setBill
   } = useFlowStore()
 
   // Get step from URL query or default to 'start'
@@ -116,12 +115,7 @@ export const Flow: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <div>
-                <h1 className="text-xl font-bold">{stepTitles[currentStep]}</h1>
-                <p className="text-sm text-ink-dim">
-                  Step {currentStepIndex + 1} of {stepOrder.length}
-                </p>
-              </div>
+              <h1 className="text-2xl font-bold">{stepTitles[currentStep]}</h1>
             </div>
             
             {/* Step indicators */}

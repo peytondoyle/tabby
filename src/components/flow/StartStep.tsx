@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ReceiptScanner } from '@/components/ReceiptScanner'
+import { AnalyzingStep } from '@/components/flow/AnalyzingStep'
 import { useFlowStore } from '@/lib/flowStore'
 
 interface StartStepProps {
@@ -9,6 +10,8 @@ interface StartStepProps {
 
 export const StartStep: React.FC<StartStepProps> = ({ onNext }) => {
   const [showScanner, setShowScanner] = useState(false)
+  const [showAnalyzing, setShowAnalyzing] = useState(false)
+  const [scannedItems, setScannedItems] = useState<any[]>([])
   const { bill, setBill, setItems } = useFlowStore()
 
   const handleScanComplete = (billToken: string, items?: any[]) => {
@@ -17,7 +20,7 @@ export const StartStep: React.FC<StartStepProps> = ({ onNext }) => {
       setBill({ ...bill, token: billToken })
     }
     
-    // Set items if provided
+    // Store scanned items for processing during analyzing step
     if (items && items.length > 0) {
       const flowItems = items.map((item, index) => ({
         id: item.id || `item-${index}`,
@@ -26,16 +29,30 @@ export const StartStep: React.FC<StartStepProps> = ({ onNext }) => {
         quantity: item.quantity || 1,
         emoji: item.emoji || '🍽️'
       }))
-      setItems(flowItems)
+      setScannedItems(flowItems)
     }
     
     setShowScanner(false)
-    onNext() // Move to review step after scanning
+    setShowAnalyzing(true) // Show analyzing step first
+  }
+
+  const handleAnalyzingComplete = () => {
+    // Set the items after analyzing is complete
+    if (scannedItems.length > 0) {
+      setItems(scannedItems)
+    }
+    setShowAnalyzing(false)
+    onNext() // Move to review step after analyzing
   }
 
   const handleManualStart = () => {
     // Skip scanning and go directly to people step
     onNext()
+  }
+
+  // Show analyzing step if scanning is complete
+  if (showAnalyzing) {
+    return <AnalyzingStep onComplete={handleAnalyzingComplete} />
   }
 
   return (
@@ -48,9 +65,9 @@ export const StartStep: React.FC<StartStepProps> = ({ onNext }) => {
         transition={{ delay: 0.1 }}
       >
         <div className="text-8xl mb-6">🧾</div>
-        <h2 className="text-3xl font-bold mb-4">Split Your Bill</h2>
+        <h1 className="text-4xl font-bold mb-4">Scan Receipt</h1>
         <p className="text-lg text-ink-dim mb-8">
-          Start by scanning your receipt or create a bill manually
+          Upload your receipt to get started
         </p>
       </motion.div>
 
@@ -72,20 +89,7 @@ export const StartStep: React.FC<StartStepProps> = ({ onNext }) => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          📷 Scan Receipt
-        </motion.button>
-
-        {/* Secondary action - Manual entry */}
-        <motion.button
-          onClick={handleManualStart}
-          className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-card hover:bg-card/80 border-2 border-line hover:border-brand/50 text-ink rounded-2xl font-bold transition-all"
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Create Manual Bill
+          Scan Receipt
         </motion.button>
       </motion.div>
 
