@@ -18,7 +18,7 @@
     "gen:types": "supabase gen types typescript --linked > src/lib/database.types.ts",
     "types:check": "tsc --noEmit",
     "lint:strict": "eslint . --max-warnings=0",
-    "dead:exports": "ts-prune",
+    "dead:exports": "ts-prune -p tsconfig.tsprune.json --ignore Tests,stories,.d.ts",
     "dead:files": "unimported",
     "dead:all": "npm run types:check && npm run lint:strict && npm run dead:exports && npm run dead:files"
   },
