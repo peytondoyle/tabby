@@ -2,7 +2,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabaseClient'
-import { showSuccess, showError } from '@/lib/toast'
+import { showSuccess, showError } from '@/lib/exportUtils'
 import type { Bill } from '@/lib/billUtils'
 
 interface BillSettingsProps {

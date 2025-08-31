@@ -2,7 +2,7 @@ import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { motion } from 'framer-motion'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
-import { showError, showSuccess } from '@/lib/toast'
+import { showError, showSuccess } from '@/lib/exportUtils'
 import { useUnassignItem } from '@/api/mutations'
 
 interface PersonChipProps {

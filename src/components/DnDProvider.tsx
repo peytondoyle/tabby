@@ -10,7 +10,7 @@ import {
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
-import { showError, showSuccess } from '@/lib/toast'
+import { showError, showSuccess } from '@/lib/exportUtils'
 
 interface DnDProviderProps {
   children: React.ReactNode

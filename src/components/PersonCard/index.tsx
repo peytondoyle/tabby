@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useDroppable } from '@dnd-kit/core'
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient'
-import { showError, showSuccess } from '../../lib/toast'
+import { showError, showSuccess } from '@/lib/exportUtils'
 
 interface PersonCardProps {
   person: {

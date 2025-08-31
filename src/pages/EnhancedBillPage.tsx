@@ -8,8 +8,8 @@ import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 
 // New components
 import { MultiAssignModal } from '@/components/MultiAssignModal'
-import { ShareFlowModal } from '@/components/ShareFlowModal'
-import { PersonReceiptCard } from '@/components/PersonReceiptCard'
+import { ShareFlowModal } from '@/components/flow/ShareStep'
+import { PersonReceiptCard } from '@/components/PersonCard'
 import { GroupReceiptExport } from '@/components/GroupReceiptExport'
 import { DragDropAssign } from '@/components/DragDropAssign'
 

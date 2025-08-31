@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient';
-import { showError, showSuccess } from '@/lib/toast';
-import { mockDataStore } from '@/lib/mockData';
+import { showError, showSuccess } from '@/lib/exportUtils';
+// import { mockDataStore } from '@/lib/mockData'; // DEPRECATED - removed
 
 export function useAssignItems(billToken: string) {
   const queryClient = useQueryClient();

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { ReceiptUploadModal } from '../components/ReceiptUploadModal'
+import { ReceiptUploadModal } from '@/components/ReceiptScanner'
 
 // Sample bill token for development
 const SAMPLE_BILL_TOKEN = 'e047f028995f1775e49463406db9943d'
