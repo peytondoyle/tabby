@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import type { DraftBill } from './draft'
+import { createDraftFromParseResult, saveDraftToLocal, loadDraftFromLocal } from './draft'
+import type { ParseResult } from './receiptScanning'
 
 export interface FlowBill {
   id?: string
@@ -40,6 +43,9 @@ interface FlowState {
   // Current step
   currentStep: FlowStep
   
+  // Draft state
+  currentDraft: DraftBill | null
+  
   // Actions
   setBill: (bill: FlowBill) => void
   setPeople: (people: FlowPerson[]) => void
@@ -67,6 +73,11 @@ interface FlowState {
     billTotal: number
   }
   
+  // Draft actions
+  startDraft: (parse: ParseResult) => string
+  hydrateDraft: (token: string) => void
+  clearDraft: () => void
+  
   // Reset
   reset: () => void
 }
@@ -82,6 +93,7 @@ export const useFlowStore = create<FlowState>()(
       items: [],
       assignments: new Map(),
       currentStep: 'start',
+      currentDraft: null,
       
       // Bill actions
       setBill: (bill) => set({ bill }, false, 'setBill'),
@@ -214,6 +226,25 @@ export const useFlowStore = create<FlowState>()(
         
         return { personTotals, billTotal }
       },
+
+      // Draft actions
+      startDraft: (parse: ParseResult) => {
+        const draft = createDraftFromParseResult(parse)
+        saveDraftToLocal(draft)
+        set({ currentDraft: draft }, false, 'startDraft')
+        return draft.token
+      },
+
+      hydrateDraft: (token: string) => {
+        const draft = loadDraftFromLocal(token)
+        if (draft) {
+          set({ currentDraft: draft }, false, 'hydrateDraft')
+        }
+      },
+
+      clearDraft: () => {
+        set({ currentDraft: null }, false, 'clearDraft')
+      },
       
       // Reset
       reset: () => set({
@@ -221,7 +252,8 @@ export const useFlowStore = create<FlowState>()(
         people: [],
         items: [],
         assignments: new Map(),
-        currentStep: 'start'
+        currentStep: 'start',
+        currentDraft: null
       }, false, 'reset')
     }),
     {

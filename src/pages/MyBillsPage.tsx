@@ -183,36 +183,14 @@ export const MyBillsPage: React.FC = () => {
 
 
   const handleParsed = (result: ParseResult) => {
-    // Set items from scan result in flow store, converting to FlowItem format
-    const flowItems = result.items.map(item => ({
-      id: item.id,
-      label: item.label,
-      price: item.price,
-      emoji: item.emoji || undefined
-    }))
-    setItems(flowItems)
+    // Create draft from parse result
+    const token = useFlowStore.getState().startDraft(result)
     
-    // Set bill info if available
-    if (result.place || result.date) {
-      const token = `scanned-${Date.now()}`
-      setBill({
-        token,
-        id: token,
-        title: result.place || undefined,
-        place: result.place || undefined,
-        date: result.date || undefined
-      })
-      // Navigate to the flow with the new token
-      navigate(`/bill/${token}`)
-    } else {
-      // Navigate to flow with temporary token
-      const token = `temp-${Date.now()}`
-      setBill({
-        token,
-        id: token
-      })
-      navigate(`/bill/${token}`)
-    }
+    // Navigate to bill flow
+    navigate(`/bill/${token}`)
+    
+    // Close the scanner modal
+    setShowReceiptScanner(false)
   }
 
 
