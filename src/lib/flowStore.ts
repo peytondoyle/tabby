@@ -62,6 +62,10 @@ interface FlowState {
   getItemAssignments: (itemId: string) => string[]
   getPersonItems: (personId: string) => string[]
   getTotalForPerson: (personId: string) => number
+  computeBillTotals: () => { 
+    personTotals: Array<{ personId: string; subtotal: number; taxShare: number; tipShare: number; total: number }>
+    billTotal: number
+  }
   
   // Reset
   reset: () => void
@@ -186,6 +190,29 @@ export const useFlowStore = create<FlowState>()(
         })
         
         return total
+      },
+
+      computeBillTotals: () => {
+        const { people, items, assignments } = get()
+        const billTotal = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
+        
+        const personTotals = people.map(person => {
+          const subtotal = get().getTotalForPerson(person.id)
+          // For v1, tax and tip shares are 0 (will be added in later pass)
+          const taxShare = 0
+          const tipShare = 0
+          const total = subtotal + taxShare + tipShare
+          
+          return {
+            personId: person.id,
+            subtotal,
+            taxShare,
+            tipShare,
+            total
+          }
+        })
+        
+        return { personTotals, billTotal }
       },
       
       // Reset
