@@ -92,12 +92,12 @@ function getEmojiForItem(itemName: string): string {
 }
 
 // Generate unique ID
-function generateId(): string {
+export function generateId(): string {
   return `item-${nanoid()}`
 }
 
 // Normalize number values, convert NaN to 0
-function normalizeNumber(value: unknown): number {
+export function normalizeNumber(value: unknown): number {
   const num = Number(value)
   return isNaN(num) ? 0 : num
 }
