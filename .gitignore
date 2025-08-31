@@ -12,6 +12,22 @@ dist
 dist-ssr
 *.local
 
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+
+# Secrets and sensitive files
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+auth.json
+service-account.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
