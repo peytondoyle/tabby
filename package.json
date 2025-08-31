@@ -15,7 +15,12 @@
     "db:push": "supabase db push",
     "db:new": "supabase migration new",
     "db:seed": "supabase db seed",
-    "gen:types": "supabase gen types typescript --linked > src/lib/database.types.ts"
+    "gen:types": "supabase gen types typescript --linked > src/lib/database.types.ts",
+    "types:check": "tsc --noEmit",
+    "lint:strict": "eslint . --max-warnings=0",
+    "dead:exports": "ts-prune",
+    "dead:files": "unimported",
+    "dead:all": "npm run types:check && npm run lint:strict && npm run dead:exports && npm run dead:files"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -54,8 +59,10 @@
     "jest": "^30.0.5",
     "jest-environment-jsdom": "^30.0.5",
     "ts-jest": "^29.4.1",
+    "ts-prune": "^0.10.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.39.1",
+    "unimported": "^1.31.0",
     "vite": "^7.1.2"
   }
 }
