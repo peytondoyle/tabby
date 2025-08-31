@@ -388,45 +388,43 @@ export const EnhancedBillPage: React.FC = () => {
           {/* Bill Summary Toggle */}
 
           {/* Assignment Interface */}
-          {viewMode === 'assignment' && (
-            <div className="mt-8">
-              {people.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">👥</div>
-                  <h3 className="text-2xl font-bold mb-4">Add People to Split</h3>
-                  <button
-                    onClick={() => setShowAddPeople(true)}
-                    className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-bold"
-                  >
-                    + Add People
-                  </button>
-                </div>
-              ) : (
-                <DragDropAssign
-                  people={people.map(p => ({
-                    id: p.id,
-                    name: p.name,
-                    avatar: p.avatar_url,
-                    color: 'bg-blue-500'
-                  }))}
-                  items={items.map(item => ({
-                    ...item,
-                    assignedTo: shares.filter(s => s.item_id === item.id).map(s => s.person_id)
-                  }))}
-                  onItemAssign={(itemId, personId) => {
-                    assignItemMutation.mutate({ itemId, personId })
-                  }}
-                  onItemUnassign={() => {}} // Not used in current implementation
-                  onMultiAssign={(itemId) => {
-                    const item = items.find(i => i.id === itemId)
-                    if (item) {
-                      handleMultiAssign({ ...item, assignedTo: [] })
-                    }
-                  }}
-                />
-              )}
-            </div>
-          )}
+          <div className="mt-8">
+            {people.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">👥</div>
+                <h3 className="text-2xl font-bold mb-4">Add People to Split</h3>
+                <button
+                  onClick={() => setShowAddPeople(true)}
+                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-bold"
+                >
+                  + Add People
+                </button>
+              </div>
+            ) : (
+              <DragDropAssign
+                people={people.map(p => ({
+                  id: p.id,
+                  name: p.name,
+                  avatar: p.avatar_url,
+                  color: 'bg-blue-500'
+                }))}
+                items={items.map(item => ({
+                  ...item,
+                  assignedTo: shares.filter(s => s.item_id === item.id).map(s => s.person_id)
+                }))}
+                onItemAssign={(itemId, personId) => {
+                  assignItemMutation.mutate({ itemId, personId })
+                }}
+                onItemUnassign={() => {}} // Not used in current implementation
+                onMultiAssign={(itemId) => {
+                  const item = items.find(i => i.id === itemId)
+                  if (item) {
+                    handleMultiAssign({ ...item, assignedTo: [] })
+                  }
+                }}
+              />
+            )}
+          </div>
         </div>
 
         {/* Drag Overlay */}
