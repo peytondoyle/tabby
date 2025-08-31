@@ -171,7 +171,7 @@ export const MyBillsPage: React.FC = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['my-bills'] })
-      navigate(`/bill/${data.token}`)
+      navigate(`/bill/${data.token}/flow`)
     }
   })
 
@@ -201,7 +201,7 @@ export const MyBillsPage: React.FC = () => {
     
     // Small delay to ensure localStorage is written before navigation
     setTimeout(() => {
-      navigate(`/bill/${billToken}`)
+      navigate(`/bill/${billToken}/flow`)
     }, 100)
   }
 
@@ -295,7 +295,7 @@ export const MyBillsPage: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
                 className="bg-card rounded-xl p-4 border border-line hover:border-brand/50 hover:shadow-md transition-all cursor-pointer group"
-                onClick={() => navigate(`/bill/${bill.token}`)}
+                onClick={() => navigate(`/bill/${bill.token}/flow`)}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
               >
