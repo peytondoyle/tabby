@@ -241,3 +241,25 @@ Split with Tabby! 🐱`
 
   return { title, text }
 }
+
+/**
+ * Show success message
+ */
+export function showSuccess(message: string): void {
+  showShareFeedback(`✅ ${message}`)
+}
+
+/**
+ * Show error message  
+ */
+export function showError(message: string): void {
+  const feedback = document.createElement('div')
+  feedback.textContent = `❌ ${message}`
+  feedback.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 font-medium'
+  
+  document.body.appendChild(feedback)
+  
+  setTimeout(() => {
+    feedback.remove()
+  }, 4000)
+}
