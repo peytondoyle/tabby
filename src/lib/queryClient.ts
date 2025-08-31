@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseAvailable } from './supabaseClient'
-import { getBillByToken } from './billUtils'
+// import { getBillByToken } from './billUtils' // unused
 
 // Create a client
 export const queryClient = new QueryClient({

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
 import { getBillByToken } from '@/lib/billUtils'
-import { showError, showSuccess } from '@/lib/exportUtils'
+import { showError } from '@/lib/exportUtils'
 import { deriveAssignedMap } from '@/lib/computeTotals'
 import { useUpsertItemShareMutation } from '@/lib/queryClient'
 import { PersonChip, type PersonChipRef } from './PersonChip.tsx'
@@ -204,7 +204,7 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
       queryClient.invalidateQueries({ queryKey: ['people', billToken] })
       setIsAdding(false)
       setNewPerson({ name: '', avatar_url: '', venmo: '' })
-      showSuccess('Person added successfully')
+      console.log('Person added successfully')
     },
     onError: (error) => {
       console.error('Error adding person:', error)
@@ -236,8 +236,8 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
     // Use the onAssignSelected callback if provided
     if (onAssignSelected) {
       onAssignSelected(selectedItems)
-      const personName = people.find((p: Person) => p.id === personId)?.name || 'Unknown';
-      showSuccess(`Assigned ${selectedItems.length} item(s) → ${personName}`)
+      const personName = people.find((p: Person) => p.id === personId)?.name || 'Unknown'
+      console.log(`Assigned ${selectedItems.length} item(s) → ${personName}`)
       handleDropSuccess(personId) // Trigger success animation
     } else {
       // Fallback to old logic
@@ -251,9 +251,9 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
 
       Promise.all(assignPromises)
         .then(() => {
-          const personName = people.find((p: Person) => p.id === personId)?.name || 'Unknown';
-          showSuccess(`Assigned ${selectedItems.length} item(s) → ${personName}`)
-          onAssignSelected?.([], personId) // Clear selection
+          const personName = people.find((p: Person) => p.id === personId)?.name || 'Unknown'
+          console.log(`Assigned ${selectedItems.length} item(s) → ${personName}`)
+          // onAssignSelected?.([], personId) // Clear selection
           handleDropSuccess(personId) // Trigger success animation
         })
         .catch((error) => {

@@ -97,7 +97,7 @@ function generateId(): string {
 }
 
 // Normalize number values, convert NaN to 0
-function normalizeNumber(value: any): number {
+function normalizeNumber(value: unknown): number {
   const num = Number(value)
   return isNaN(num) ? 0 : num
 }
@@ -127,12 +127,15 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
     
     // Normalize the response data
     const items = Array.isArray(data.items) ? data.items : []
-    const normalizedItems = items.map((item: any) => ({
-      id: generateId(),
-      label: String(item.label || ''),
-      price: normalizeNumber(item.price),
-      emoji: getEmojiForItem(item.label || '')
-    }))
+    const normalizedItems = items.map((item: unknown) => {
+      const itemObj = item as { label?: string; price?: unknown }
+      return {
+        id: generateId(),
+        label: String(itemObj.label || ''),
+        price: normalizeNumber(itemObj.price),
+        emoji: getEmojiForItem(itemObj.label || '')
+      }
+    })
 
     // Ensure at least one item exists
     const finalItems = normalizedItems.length > 0 

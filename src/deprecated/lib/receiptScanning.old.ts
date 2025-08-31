@@ -287,7 +287,7 @@ function parseReceiptText(ocrText: string): ReceiptScanResult | null {
 }
 
 // Real OCR integration with fallback
-async function processReceiptWithRealOCR(_imageData: string): Promise<ReceiptScanResult> {
+async function _processReceiptWithRealOCR(_imageData: string): Promise<ReceiptScanResult> {
   try {
     // In production, this would call a real OCR service like:
     // - Google Cloud Vision API

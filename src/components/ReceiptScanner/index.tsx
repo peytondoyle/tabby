@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { parseReceipt } from '@/lib/receiptScanning'
 import type { ParseResult } from '@/lib/receiptScanning'
 
+export type { ParseResult }
+
 interface ReceiptScannerProps {
   open: boolean
   onOpenChange: (open: boolean) => void

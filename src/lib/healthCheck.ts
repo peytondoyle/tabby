@@ -17,7 +17,8 @@ export function runHealthCheck() {
     } else {
       console.log('[Tabby] RPC check ✅ list_bills OK')
     }
-  }).catch(error => {
-    console.warn('[Tabby] RPC check ❌ health probe failed:', error.message)
+  }, (error: unknown) => {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.warn('[Tabby] RPC check ❌ health probe failed:', errorMessage)
   })
 }

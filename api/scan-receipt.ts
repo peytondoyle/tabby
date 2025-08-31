@@ -35,8 +35,8 @@ function getDEVFallback(): ScanReceiptResponse {
   }
 }
 
-// Parse file from multipart/form-data
-async function parseFormData(req: VercelRequest): Promise<{ file: any } | null> {
+// Parse file from multipart/form-data  
+async function parseFormData(req: VercelRequest): Promise<{ file: unknown } | null> {
   return new Promise((resolve, reject) => {
     const form = new IncomingForm()
     

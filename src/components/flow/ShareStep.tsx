@@ -31,7 +31,7 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
     }).format(price)
   }
 
-  const _getPersonItemsForExport = (personId: string) => {
+  const getPersonItemsForExport = (personId: string) => {
     return items.filter(item => {
       const assignments = getItemAssignments(item.id)
       return assignments.includes(personId)
@@ -182,7 +182,7 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
           return (
             <div 
               key={person.id} 
-              ref={(el) => personCardsRef.current[person.id] = el}
+              ref={(el: HTMLDivElement | null) => { personCardsRef.current[person.id] = el }}
             >
               <PersonCard
                 name={person.name}

@@ -52,8 +52,14 @@ export const Flow: React.FC = () => {
   }
 
   const handleParsed = (result: ParseResult) => {
-    // Set items from scan result
-    setItems(result.items)
+    // Set items from scan result, converting to FlowItem format
+    const flowItems = result.items.map(item => ({
+      id: item.id,
+      label: item.label,
+      price: item.price,
+      emoji: item.emoji || undefined
+    }))
+    setItems(flowItems)
     
     // Set bill info if available
     if (result.place || result.date) {

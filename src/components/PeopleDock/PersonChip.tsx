@@ -1,6 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { motion } from 'framer-motion'
-import { useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
 import { showError, showSuccess } from '@/lib/exportUtils'
 import { useUnassignItem } from '@/api/mutations'
@@ -49,7 +48,6 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
   selectedItems = [],
   personTotal
 }, ref) => {
-  const _queryClient = useQueryClient()
   const [isDropSuccess, setIsDropSuccess] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)

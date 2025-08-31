@@ -8,10 +8,9 @@ import type { ParseResult } from '@/lib/receiptScanning'
 import { useFlowStore } from '@/lib/flowStore'
 // import { OnboardingFlow } from '@/components/OnboardingFlow'
 import { getCurrentDate } from '@/lib/receiptScanning'
-import { fetchBills, type BillSummary } from '@/lib/bills'
+import { fetchBills } from '@/lib/bills'
 
 // Use BillSummary as the main type for bills
-type _Bill = BillSummary
 
 interface NewBillModalProps {
   isOpen: boolean
@@ -182,35 +181,16 @@ export const MyBillsPage: React.FC = () => {
     createBillMutation.mutate({ title, place })
   }
 
-  const handleBillCreated = async (billToken: string) => {
-    // After bill creation, force-refresh using fetchBills to ensure RPC sync
-    if (isSupabaseAvailable() && supabase) {
-      try {
-        await fetchBills(supabase)
-        // RPC succeeded, hide sync banner if shown
-        setShowSyncBanner(false)
-      } catch (error) {
-        // RPC failed, show sync banner
-        console.warn('[Tabby] Post-scan RPC refresh failed:', error)
-        setShowSyncBanner(true)
-        
-        // Auto-hide banner after 10 seconds
-        setTimeout(() => setShowSyncBanner(false), 10000)
-      }
-    }
-    
-    // Force query invalidation to refresh UI
-    queryClient.invalidateQueries({ queryKey: ['my-bills'] })
-    
-    // Small delay to ensure localStorage is written before navigation
-    setTimeout(() => {
-      navigate(`/bill/${billToken}`)
-    }, 100)
-  }
 
   const handleParsed = (result: ParseResult) => {
-    // Set items from scan result in flow store
-    setItems(result.items)
+    // Set items from scan result in flow store, converting to FlowItem format
+    const flowItems = result.items.map(item => ({
+      id: item.id,
+      label: item.label,
+      price: item.price,
+      emoji: item.emoji || undefined
+    }))
+    setItems(flowItems)
     
     // Set bill info if available
     if (result.place || result.date) {
@@ -414,7 +394,7 @@ export const MyBillsPage: React.FC = () => {
           localStorage.setItem('tabby-onboarding-seen', 'true')
           setHasSeenOnboarding(true)
         }}
-        onComplete={handleBillCreated}
+        onComplete={() => console.log('TODO')}
       />
       */}
 

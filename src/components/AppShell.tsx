@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Outlet, useLocation, useParams } from 'react-router-dom'
 import { Share, Download, Settings } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -18,7 +18,6 @@ const StyleSmoke: React.FC = () => {
 export const AppShell: React.FC = () => {
   const location = useLocation()
   const { id } = useParams<{ id: string }>()
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   
   // Determine if we're on a bill page
   const isBillPage = location.pathname.startsWith('/bill/') && id && id !== 'new'
@@ -84,7 +83,7 @@ export const AppShell: React.FC = () => {
               {isBillPage && (
                 <>
                   <motion.button 
-                    onClick={() => setIsShareModalOpen(true)}
+                    onClick={() => {/* TODO: Add share functionality */}}
                     className="hidden sm:flex items-center px-3 py-2 text-sm font-medium text-ink hover:text-brand transition-colors"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -93,7 +92,7 @@ export const AppShell: React.FC = () => {
                     Share
                   </motion.button>
                   <motion.button 
-                    onClick={() => setIsShareModalOpen(true)}
+                    onClick={() => {/* TODO: Add export functionality */}}
                     className="hidden sm:flex items-center px-3 py-2 text-sm font-medium text-ink hover:text-brand transition-colors"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -122,14 +121,6 @@ export const AppShell: React.FC = () => {
       </main>
 
 
-      {/* Share Modal */}
-      {isBillPage && id && (
-        <ShareModal
-          isOpen={isShareModalOpen}
-          onClose={() => setIsShareModalOpen(false)}
-          billToken={id}
-        />
-      )}
     </div>
   )
 }
