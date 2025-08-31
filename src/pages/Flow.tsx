@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useFlowStore } from '@/lib/flowStore'
 import { ReceiptScanner, type ParseResult } from '@/components/ReceiptScanner'
@@ -13,9 +13,55 @@ export const Flow: React.FC = () => {
   const [state, setState] = useState<FlowState>('start')
   const [scannerOpen, setScannerOpen] = useState(false)
   
+  // Bootstrap draft on mount
+  useEffect(() => {
+    if (token && currentDraft?.token !== token) {
+      hydrateDraft(token)
+    }
+  }, [token, currentDraft?.token, hydrateDraft])
+  
+  // Determine initial state based on draft
+  useEffect(() => {
+    if (currentDraft && currentDraft.items.length > 0) {
+      // Convert draft items to flow items
+      const flowItems = currentDraft.items.map(item => ({
+        id: item.id,
+        label: item.label,
+        price: item.price,
+        emoji: '🍽️' // Default emoji for draft items
+      }))
+      setItems(flowItems)
+      
+      // Set bill info from draft
+      setBill({
+        token: currentDraft.token,
+        id: currentDraft.token,
+        title: currentDraft.place,
+        place: currentDraft.place,
+        date: currentDraft.date
+      })
+      
+      // Ensure at least one person exists for assignment
+      if (people.length === 0) {
+        addPerson({
+          id: 'you',
+          name: 'You',
+          avatar: undefined
+        })
+      }
+      
+      // Jump straight to assign state
+      setState('assign')
+    }
+  }, [currentDraft, setItems, setBill, people.length, addPerson])
+  
   const {
     setItems,
-    setBill
+    setBill,
+    currentDraft,
+    hydrateDraft,
+    people,
+    addPerson
   } = useFlowStore()
 
   const handleScanPress = () => {

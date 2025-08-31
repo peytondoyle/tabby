@@ -50,7 +50,26 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
 
   const allItemsAssigned = getUnassignedItemsCount() === 0 && items.length > 0
 
+  // Auto-assign unassigned items evenly before proceeding
+  const autoAssignUnassignedItems = () => {
+    const unassignedItems = items.filter(item => getItemAssignments(item.id).length === 0)
+    
+    if (unassignedItems.length > 0 && people.length > 0) {
+      unassignedItems.forEach((item, index) => {
+        // Round-robin assignment
+        const personIndex = index % people.length
+        const person = people[personIndex]
+        assign(item.id, person.id)
+      })
+    }
+  }
+
   const handleSplitBill = async () => {
+    // Auto-assign any unassigned items
+    if (getUnassignedItemsCount() > 0) {
+      autoAssignUnassignedItems()
+    }
+
     // TODO: Add Supabase persistence here
     // For now, just proceed to the next step
     // In a real implementation, this would:
@@ -185,14 +204,14 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
         
         <button
           onClick={handleSplitBill}
-          disabled={!allItemsAssigned}
+          disabled={items.length === 0 || people.length === 0}
           className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
-            allItemsAssigned
+            items.length > 0 && people.length > 0
               ? 'bg-brand hover:bg-brand/90 text-white'
               : 'bg-brand/30 text-white/70 cursor-not-allowed'
           }`}
         >
-          {allItemsAssigned ? 'Split Bill' : `Assign ${getUnassignedItemsCount()} more item${getUnassignedItemsCount() === 1 ? '' : 's'}`}
+          {getUnassignedItemsCount() > 0 ? `Split Bill (${getUnassignedItemsCount()} auto-assign)` : 'Split Bill'}
         </button>
       </div>
     </div>
