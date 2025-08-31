@@ -17,24 +17,24 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
     getTotalForPerson
   } = useFlowStore()
   
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [activeItemId, setActiveItemId] = useState<string | null>(null)
 
   const handlePersonClick = (personId: string) => {
-    if (selectedItemId) {
-      const currentAssignments = getItemAssignments(selectedItemId)
+    if (activeItemId) {
+      const currentAssignments = getItemAssignments(activeItemId)
       
       if (currentAssignments.includes(personId)) {
-        // Unassign
-        unassign(selectedItemId, personId)
+        // Remove person from assignment
+        unassign(activeItemId, personId)
       } else {
-        // Assign
-        assign(selectedItemId, personId)
+        // Add person to assignment
+        assign(activeItemId, personId)
       }
     }
   }
 
   const handleItemClick = (itemId: string) => {
-    setSelectedItemId(selectedItemId === itemId ? null : itemId)
+    setActiveItemId(activeItemId === itemId ? null : itemId)
   }
 
   const formatPrice = (price: number) => {
@@ -44,11 +44,24 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
     }).format(price)
   }
 
-  const getAssignedItemsCount = () => {
-    return items.filter(item => getItemAssignments(item.id).length > 0).length
+  const getUnassignedItemsCount = () => {
+    return items.filter(item => getItemAssignments(item.id).length === 0).length
   }
 
-  const allItemsAssigned = getAssignedItemsCount() === items.length && items.length > 0
+  const allItemsAssigned = getUnassignedItemsCount() === 0 && items.length > 0
+
+  const handleSplitBill = async () => {
+    // TODO: Add Supabase persistence here
+    // For now, just proceed to the next step
+    // In a real implementation, this would:
+    // 1. Create/update bill in Supabase
+    // 2. Create people records
+    // 3. Create items with assignments
+    // 4. Generate sharing links
+    console.log('Persisting bill state to Supabase...')
+    
+    onNext()
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -59,203 +72,107 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="text-6xl mb-4">🎯</div>
-        <h2 className="text-2xl font-bold mb-2">Assign Items to People</h2>
-        <p className="text-ink-dim">
-          Tap an item, then tap the people who should pay for it
+        <h1 className="text-4xl font-bold mb-2">Assign Items</h1>
+        <p className="text-lg text-ink-dim">
+          Tap an item, then tap people to assign
         </p>
       </motion.div>
 
-      {/* Assignment Progress */}
+      {/* Avatars Row - People at Top */}
       <motion.div 
-        className="bg-card rounded-2xl border border-line p-4 mb-8 text-center"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
+        className="mb-8"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <div className="text-lg font-semibold mb-1">
-          {getAssignedItemsCount()} of {items.length} items assigned
-        </div>
-        <div className="w-full bg-paper rounded-full h-2">
-          <motion.div
-            className="bg-brand h-full rounded-full transition-all duration-300"
-            style={{ width: `${items.length > 0 ? (getAssignedItemsCount() / items.length) * 100 : 0}%` }}
-          />
+        <div className="flex flex-wrap justify-center gap-4">
+          {people.map((person) => {
+            const personTotal = getTotalForPerson(person.id)
+            const isAssignedToActive = activeItemId && getItemAssignments(activeItemId).includes(person.id)
+            
+            return (
+              <motion.button
+                key={person.id}
+                onClick={() => handlePersonClick(person.id)}
+                className={`flex flex-col items-center p-3 rounded-2xl transition-all ${
+                  activeItemId
+                    ? isAssignedToActive
+                      ? 'bg-brand/20 border-2 border-brand'
+                      : 'bg-card border border-line hover:border-brand/50'
+                    : 'bg-card border border-line cursor-default'
+                }`}
+                disabled={!activeItemId}
+                whileHover={activeItemId ? { scale: 1.05 } : undefined}
+                whileTap={activeItemId ? { scale: 0.95 } : undefined}
+              >
+                <div className="w-12 h-12 bg-brand/20 rounded-full flex items-center justify-center font-bold text-brand text-lg mb-2">
+                  {person.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="text-sm font-medium text-center">{person.name}</div>
+                <div className="text-xs text-ink-dim">{formatPrice(personTotal)}</div>
+              </motion.button>
+            )
+          })}
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* People Section */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-            👥 People
-            {selectedItemId && (
-              <span className="text-sm font-normal text-ink-dim">
-                (tap to assign selected item)
-              </span>
-            )}
-          </h3>
-          
-          <div className="space-y-3">
-            {people.map((person) => {
-              const isAssignedToSelected = selectedItemId && getItemAssignments(selectedItemId).includes(person.id)
-              const personTotal = getTotalForPerson(person.id)
-              
-              return (
-                <motion.button
-                  key={person.id}
-                  onClick={() => handlePersonClick(person.id)}
-                  className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                    selectedItemId
-                      ? isAssignedToSelected
-                        ? 'border-brand bg-brand/10 hover:bg-brand/20'
-                        : 'border-line hover:border-brand/50 bg-card'
-                      : 'border-line bg-card cursor-default'
-                  }`}
-                  disabled={!selectedItemId}
-                  whileHover={selectedItemId ? { scale: 1.02 } : undefined}
-                  whileTap={selectedItemId ? { scale: 0.98 } : undefined}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-brand/20 rounded-full flex items-center justify-center font-bold text-brand">
-                        {person.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="font-semibold">{person.name}</div>
-                        <div className="text-sm text-ink-dim">
-                          {formatPrice(personTotal)}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {selectedItemId && isAssignedToSelected && (
-                      <div className="text-brand">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                </motion.button>
-              )
-            })}
-          </div>
-        </motion.div>
-
-        {/* Items Section */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-            🍽️ Items
-            <span className="text-sm font-normal text-ink-dim">
-              (tap to select)
-            </span>
-          </h3>
-          
-          <div className="space-y-3">
-            {items.map((item) => {
-              const assignments = getItemAssignments(item.id)
-              const isSelected = selectedItemId === item.id
-              const isAssigned = assignments.length > 0
-              
-              return (
-                <motion.button
-                  key={item.id}
-                  onClick={() => handleItemClick(item.id)}
-                  className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                    isSelected
-                      ? 'border-brand bg-brand/10'
-                      : isAssigned
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-line bg-card hover:border-brand/50'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{item.emoji}</span>
-                      <div>
-                        <div className="font-semibold">{item.label}</div>
-                        <div className="text-sm text-ink-dim">
-                          {formatPrice(item.price)}
-                          {item.quantity && item.quantity > 1 && (
-                            <span className="ml-2 text-xs bg-ink-dim/20 px-1 rounded">
-                              × {item.quantity}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      {assignments.length > 0 && (
-                        <div className="text-xs text-green-600 font-medium mb-1">
-                          Split {assignments.length} way{assignments.length > 1 ? 's' : ''}
-                        </div>
-                      )}
-                      
-                      <div className="flex -space-x-1">
-                        {assignments.slice(0, 3).map((personId, index) => {
-                          const person = people.find(p => p.id === personId)
-                          return person ? (
-                            <div
-                              key={personId}
-                              className="w-6 h-6 bg-brand/20 border border-white rounded-full flex items-center justify-center text-xs font-bold text-brand"
-                              title={person.name}
-                            >
-                              {person.name.charAt(0)}
-                            </div>
-                          ) : null
-                        })}
-                        
-                        {assignments.length > 3 && (
-                          <div className="w-6 h-6 bg-ink-dim/20 border border-white rounded-full flex items-center justify-center text-xs">
-                            +{assignments.length - 3}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.button>
-              )
-            })}
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Instructions */}
-      {selectedItemId ? (
+      {/* Unassigned Items Warning */}
+      {getUnassignedItemsCount() > 0 && (
         <motion.div 
-          className="mt-8 p-4 bg-brand/10 border border-brand/30 rounded-2xl text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-3 bg-yellow-50 border border-yellow-300 rounded-xl text-center"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
         >
-          <p className="text-brand font-medium">
-            Now tap the people who should pay for "{items.find(i => i.id === selectedItemId)?.label}"
-          </p>
-        </motion.div>
-      ) : (
-        <motion.div 
-          className="mt-8 p-4 bg-card border border-line rounded-2xl text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <p className="text-ink-dim">
-            Select an item to start assigning it to people
+          <p className="text-yellow-800 text-sm font-medium">
+            {getUnassignedItemsCount()} item{getUnassignedItemsCount() > 1 ? 's' : ''} unassigned
           </p>
         </motion.div>
       )}
 
+      {/* Items Pool at Bottom */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <div className="flex flex-wrap gap-3 justify-center">
+          {items.map((item) => {
+            const assignments = getItemAssignments(item.id)
+            const isActive = activeItemId === item.id
+            const isAssigned = assignments.length > 0
+            
+            return (
+              <motion.button
+                key={item.id}
+                onClick={() => handleItemClick(item.id)}
+                className={`relative flex items-center gap-2 px-3 py-2 rounded-full border transition-all ${
+                  isActive
+                    ? 'border-brand bg-brand/10 ring-2 ring-brand/30'
+                    : isAssigned
+                    ? 'border-line bg-card opacity-60'
+                    : 'border-line bg-card hover:border-brand/50'
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <span className="text-sm">{item.emoji}</span>
+                <span className="text-sm font-medium">{item.label}</span>
+                <span className="text-xs text-ink-dim">{formatPrice(item.price)}</span>
+                
+                {/* Assignee count badge */}
+                {isAssigned && (
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-brand rounded-full flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">{assignments.length}</span>
+                  </div>
+                )}
+              </motion.button>
+            )
+          })}
+        </div>
+      </motion.div>
+
       {/* Navigation */}
-      <div className="flex gap-4 mt-8">
+      <div className="flex gap-4 mt-12">
         <button
           onClick={onPrev}
           className="flex items-center gap-2 px-6 py-3 bg-card border border-line hover:border-brand/50 text-ink rounded-xl font-semibold transition-all"
@@ -267,7 +184,7 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
         </button>
         
         <button
-          onClick={onNext}
+          onClick={handleSplitBill}
           disabled={!allItemsAssigned}
           className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
             allItemsAssigned
@@ -275,7 +192,7 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
               : 'bg-brand/30 text-white/70 cursor-not-allowed'
           }`}
         >
-          {allItemsAssigned ? 'Split Bill' : `Assign ${items.length - getAssignedItemsCount()} more item${items.length - getAssignedItemsCount() === 1 ? '' : 's'}`}
+          {allItemsAssigned ? 'Split Bill' : `Assign ${getUnassignedItemsCount()} more item${getUnassignedItemsCount() === 1 ? '' : 's'}`}
         </button>
       </div>
     </div>
