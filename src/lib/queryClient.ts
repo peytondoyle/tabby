@@ -13,64 +13,7 @@ export const queryClient = new QueryClient({
 })
 
 // Custom hooks for data fetching
-export const useBillQuery = (billToken: string) => ({
-  queryKey: ['bill', billToken],
-  queryFn: async () => {
-    // Use the centralized getBillByToken function which handles both localStorage and Supabase
-    return await getBillByToken(billToken)
-  },
-  enabled: !!billToken
-})
 
-export const usePeopleQuery = (billToken: string) => ({
-  queryKey: ['people', billToken],
-  queryFn: async () => {
-    // Handle scanned bills from localStorage (no people initially)
-    if (billToken.startsWith('scanned-')) {
-      return []
-    }
-
-    if (!isSupabaseAvailable()) {
-      console.warn('Supabase not available - returning mock people data')
-      return [
-        {
-          id: 'person-1',
-          name: 'Alice',
-          avatar_url: '👩',
-          venmo_handle: 'alice-smith',
-          is_archived: false
-        },
-        {
-          id: 'person-2',
-          name: 'Bob',
-          avatar_url: '👨',
-          venmo_handle: 'bob-jones',
-          is_archived: false
-        },
-        {
-          id: 'person-3',
-          name: 'Charlie',
-          avatar_url: '🧑',
-          venmo_handle: 'charlie-brown',
-          is_archived: false
-        }
-      ]
-    }
-
-    try {
-      const { data, error } = await supabase!.rpc('get_people_by_token', {
-        bill_token: billToken
-      })
-
-      if (error) throw error
-      return data || []
-    } catch (error) {
-      console.warn('Supabase people query failed, using mock data:', error)
-      return []
-    }
-  },
-  enabled: !!billToken
-})
 
 export const useItemsQuery = (billToken: string) => ({
   queryKey: ['items', billToken],
