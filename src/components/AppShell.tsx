@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { Outlet, useLocation, useParams } from 'react-router-dom'
 import { Share, Download, Settings } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { ShareModal } from '@/components/flow/ShareStep'
 
 // DEV-only component to confirm CSS is loaded
 const StyleSmoke: React.FC = () => {
