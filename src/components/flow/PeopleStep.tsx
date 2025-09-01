@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useFlowStore, type FlowPerson } from '@/lib/flowStore'
+import { Button } from "@/components/ui/Button";
 
 interface PeopleStepProps {
   onNext: () => void
@@ -137,23 +138,22 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
             </div>
             
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowAddForm(false)
                   setNewPersonName('')
                   setNewPersonVenmo('')
                 }}
-                className="flex-1 px-4 py-2 text-text-secondary border border-border rounded-xl hover:bg-background transition-all"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleAddPerson}
                 disabled={!newPersonName.trim()}
-                className="flex-1 px-4 py-2 bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white rounded-xl font-semibold transition-all"
               >
                 Add Person
-              </button>
+              </Button>
             </div>
           </div>
         </motion.div>
@@ -173,27 +173,23 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
 
       {/* Navigation */}
       <div className="flex gap-4">
-        <button
+        <Button
+          variant="secondary"
           onClick={onPrev}
-          className="flex items-center gap-2 px-6 py-3 bg-surface border border-border hover:border-primary/50 text-text-primary rounded-xl font-semibold transition-all"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Back
-        </button>
+        </Button>
         
-        <button
+        <Button
           onClick={onNext}
           disabled={!canProceed}
-          className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
-            canProceed
-              ? 'bg-primary hover:bg-primary-hover text-white'
-              : 'bg-primary/30 text-white/70 cursor-not-allowed'
-          }`}
+          full
         >
           {people.length === 0 ? 'Add at least 1 person' : `Continue with ${people.length} ${people.length === 1 ? 'person' : 'people'}`}
-        </button>
+        </Button>
       </div>
     </div>
   )

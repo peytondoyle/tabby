@@ -1,92 +1,47 @@
-@theme {
-  /* Core Semantic Colors - Modern Flat Palette */
-  --color-primary: #3B82F6;
-  --color-primary-hover: #2563EB;
-  --color-primary-light: rgba(59, 130, 246, 0.1);
-  --color-primary-medium: rgba(59, 130, 246, 0.2);
-  
-  /* Neutral Colors - Foundation */
-  --color-background: #FFFFFF;
-  --color-surface: #F8FAFC;
-  --color-surface-elevated: #FFFFFF;
-  --color-border: #E2E8F0;
-  --color-border-subtle: #F1F5F9;
-  
-  /* Text Colors - Clear Hierarchy */
-  --color-text-primary: #0F172A;
-  --color-text-secondary: #64748B;
-  --color-text-muted: #94A3B8;
-  --color-text-inverse: #FFFFFF;
-  
-  /* Status Colors - Semantic */
-  --color-success: #10B981;
-  --color-success-light: rgba(16, 185, 129, 0.1);
-  --color-warning: #F59E0B;
-  --color-warning-light: rgba(245, 158, 11, 0.1);
-  --color-error: #EF4444;
-  --color-error-light: rgba(239, 68, 68, 0.1);
-  
-  /* Spacing System - 8px Grid */
-  --space-1: 0.25rem;   /* 4px */
-  --space-2: 0.5rem;    /* 8px */
-  --space-3: 0.75rem;   /* 12px */
-  --space-4: 1rem;      /* 16px */
-  --space-5: 1.25rem;   /* 20px */
-  --space-6: 1.5rem;    /* 24px */
-  --space-8: 2rem;      /* 32px */
-  --space-10: 2.5rem;   /* 40px */
-  --space-12: 3rem;     /* 48px */
-  --space-16: 4rem;     /* 64px */
-  
-  /* Border Radius - Consistent */
-  --radius-sm: 0.375rem;  /* 6px */
-  --radius-md: 0.5rem;    /* 8px */
-  --radius-lg: 0.75rem;   /* 12px */
-  --radius-xl: 1rem;      /* 16px */
-  --radius-2xl: 1.5rem;   /* 24px */
-  
-  /* Shadows - Subtle and Modern */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
-  
-  /* Typography */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Monaco, Consolas, monospace;
-  
-  /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+/* src/styles/theme.css */
+:root {
+  --ui-bg: hsl(220 15% 10%);           /* page bg */
+  --ui-panel: hsl(220 14% 16%);        /* card/modal bg */
+  --ui-panel-2: hsl(220 14% 18%);
+  --ui-border: hsl(220 14% 28% / 0.6);
+  --ui-text: hsl(220 20% 96%);
+  --ui-text-dim: hsl(220 15% 70%);
+  --ui-primary: hsl(220 90% 60%);
+  --ui-primary-press: hsl(220 90% 55%);
+  --ui-subtle: hsl(220 12% 26%);
+  --ui-ghost: hsl(220 10% 22%);
+  --ui-success: hsl(150 72% 40%);
+  --ui-danger: hsl(0 84% 62%);
+  --ui-danger-press: hsl(0 84% 58%);
+  --ui-focus: hsl(220 90% 60% / 0.35);
+  --ui-ring: 0 0 0 3px var(--ui-focus);
 }
 
-/* Dark Mode Overrides */
-@media (prefers-color-scheme: dark) {
-  @theme {
-    --color-background: #0F172A;
-    --color-surface: #1E293B;
-    --color-surface-elevated: #334155;
-    --color-border: #334155;
-    --color-border-subtle: #1E293B;
-    
-    --color-text-primary: #F8FAFC;
-    --color-text-secondary: #CBD5E1;
-    --color-text-muted: #94A3B8;
-    --color-text-inverse: #0F172A;
+@media (prefers-color-scheme: light) {
+  :root {
+    --ui-bg: hsl(0 0% 100%);
+    --ui-panel: hsl(0 0% 99%);
+    --ui-panel-2: hsl(0 0% 97%);
+    --ui-border: hsl(220 14% 92%);
+    --ui-text: hsl(220 20% 14%);
+    --ui-text-dim: hsl(220 12% 44%);
+    --ui-primary: hsl(220 90% 56%);
+    --ui-primary-press: hsl(220 90% 52%);
+    --ui-subtle: hsl(220 12% 94%);
+    --ui-ghost: hsl(220 10% 96%);
+    --ui-success: hsl(150 72% 36%);
+    --ui-danger: hsl(0 84% 56%);
+    --ui-danger-press: hsl(0 84% 52%);
+    --ui-focus: hsl(220 90% 56% / 0.35);
   }
 }
 
-/* Dark mode class override for manual control */
-.dark {
-  --color-background: #0F172A;
-  --color-surface: #1E293B;
-  --color-surface-elevated: #334155;
-  --color-border: #334155;
-  --color-border-subtle: #1E293B;
-  
-  --color-text-primary: #F8FAFC;
-  --color-text-secondary: #CBD5E1;
-  --color-text-muted: #94A3B8;
-  --color-text-inverse: #0F172A;
+:root {
+  --r-xs: 0.375rem;  /* 6 */
+  --r-sm: 0.5rem;    /* 8 */
+  --r-md: 0.75rem;   /* 12 */
+  --r-lg: 1rem;      /* 16 */
+  --shadow-1: 0 6px 16px rgba(0,0,0,.18), 0 2px 6px rgba(0,0,0,.16);
 }
+
+html, body, #root { background: var(--ui-bg); color: var(--ui-text); }

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useFlowStore } from '@/lib/flowStore'
 import { PersonCard, GroupCard } from '@/components/ShareCards'
 import { exportReceiptCard, exportGroupReceipt } from '@/lib/exportUtils'
+import { Button } from "@/components/ui/Button";
 
 interface ShareStepProps {
   onPrev: () => void
@@ -131,23 +132,27 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <motion.button
-          onClick={handleGroupShare}
-          className="flex-1 flex items-center justify-center gap-3 px-8 py-6 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold text-lg transition-all"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          👥 Share with Group
-        </motion.button>
+        <motion.div className="flex-1">
+          <Button
+            onClick={handleGroupShare}
+            size="lg"
+            full
+            className="h-16 text-lg"
+          >
+            👥 Share with Group
+          </Button>
+        </motion.div>
 
-        <motion.button
-          onClick={handleIndividualShare}
-          className="flex-1 flex items-center justify-center gap-3 px-8 py-6 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold text-lg transition-all"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          📱 Share Individually
-        </motion.button>
+        <motion.div className="flex-1">
+          <Button
+            onClick={handleIndividualShare}
+            size="lg"
+            full
+            className="h-16 text-lg"
+          >
+            📱 Share Individually
+          </Button>
+        </motion.div>
       </motion.div>
 
       {/* Hidden Cards for Export */}
@@ -202,22 +207,22 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
 
       {/* Navigation */}
       <div className="flex gap-4 mt-8">
-        <button
+        <Button
+          variant="secondary"
           onClick={onPrev}
-          className="flex items-center gap-2 px-6 py-3 bg-card border border-line hover:border-brand/50 text-ink rounded-xl font-semibold transition-all"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Back
-        </button>
+        </Button>
         
-        <button
+        <Button
           onClick={onBack}
-          className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition-all"
+          full
         >
           ✅ Done
-        </button>
+        </Button>
       </div>
     </div>
   )

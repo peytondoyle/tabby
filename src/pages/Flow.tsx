@@ -9,6 +9,8 @@ import { PeopleDock } from '@/components/PeopleDock'
 import { PageContainer } from '@/components/PageContainer'
 import { SplashScreen } from '@/components/SplashScreen'
 import { createBillFromParse, fetchBillByToken } from '@/lib/bills'
+import { isLocalId } from '@/lib/id'
+import { Button } from "@/components/ui/Button";
 
 export const Flow: React.FC = () => {
   const { token } = useParams<{ token: string }>()
@@ -39,17 +41,25 @@ export const Flow: React.FC = () => {
     }
   }, [token, bill, items.length])
 
+
+
   const loadExistingBill = async (billToken: string) => {
+    // Guard against local IDs
+    if (!billToken || isLocalId(billToken)) {
+      console.log('[flow] Skipping local ID:', billToken)
+      return
+    }
+    
     setIsLoadingBill(true)
     try {
       console.log('[flow] Loading existing bill:', billToken)
       const responseData = await fetchBillByToken(billToken)
       
-      if (responseData && responseData.bill) {
-        const billData = responseData.bill
-        const items = responseData.items || []
-        const people = responseData.people || []
-        const shares = responseData.shares || []
+      if (responseData && typeof responseData === 'object' && 'bill' in responseData && responseData.bill) {
+        const billData = responseData.bill as any
+        const items = (responseData as any).items || []
+        const people = (responseData as any).people || []
+        const shares = (responseData as any).shares || []
         
         console.log('[flow] Bill data loaded:', {
           bill: billData.title,
@@ -64,11 +74,11 @@ export const Flow: React.FC = () => {
         
         // Set bill metadata
         setBillMeta({
-          token: billData.token,
-          title: billData.title || 'Untitled Bill',
-          place: billData.place || undefined,
-          date: billData.date || undefined,
-          total: billData.total_amount || undefined
+          token: String(billData.token || ''),
+          title: String(billData.title || 'Untitled Bill'),
+          place: billData.place ? String(billData.place) : undefined,
+          date: billData.date ? String(billData.date) : undefined,
+          total: typeof billData.total_amount === 'number' ? billData.total_amount : undefined
         })
 
         // Load items
@@ -151,8 +161,8 @@ export const Flow: React.FC = () => {
       setBillMeta({
         token: billId,
         title: result.place || 'Scanned Receipt',
-        place: result.place || null,
-        date: result.date || null,
+        place: result.place || undefined,
+        date: result.date || undefined,
         subtotal: result.subtotal || undefined,
         tax: result.tax || undefined,
         tip: result.tip || undefined,
@@ -292,12 +302,9 @@ export const Flow: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <button
-                onClick={handleAssignPress}
-                className="px-8 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold transition-all duration-200 hover:opacity-90"
-              >
+              <Button onClick={handleAssignPress}>
                 Assign Items
-              </button>
+              </Button>
             </div>
           </PageContainer>
         )
@@ -306,12 +313,9 @@ export const Flow: React.FC = () => {
           <PageContainer className="py-8">
             <div className="text-center space-y-8">
               <h1 className="text-3xl font-bold text-text-primary">Add People</h1>
-              <button
-                onClick={() => setAddPeopleOpen(true)}
-                className="px-6 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold transition-all duration-200 hover:opacity-90"
-              >
+              <Button onClick={() => setAddPeopleOpen(true)}>
                 Add People
-              </button>
+              </Button>
             
               {people.length > 0 && (
                 <div className="max-w-md mx-auto">
@@ -319,17 +323,12 @@ export const Flow: React.FC = () => {
                 </div>
               )}
             
-              <button
+              <Button 
                 onClick={handleNext}
                 disabled={people.length === 0}
-                className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 ${
-                  people.length > 0 
-                    ? 'bg-primary hover:bg-primary-hover text-white hover:opacity-90' 
-                    : 'bg-primary/30 text-white/70 cursor-not-allowed'
-                }`}
               >
                 Continue
-              </button>
+              </Button>
             </div>
           </PageContainer>
         )
@@ -348,14 +347,11 @@ export const Flow: React.FC = () => {
       {!isEmpty && currentStep !== 'start' && (
         <div className="bg-surface border-b border-border">
           <div className="max-w-4xl mx-auto p-4">
-            <button
-              onClick={handleBack}
-              className="p-2 text-text-secondary hover:text-text-primary bg-background rounded-full border border-border hover:border-primary/50 transition-opacity duration-150 ease-out hover:opacity-75 motion-reduce:transition-none"
-            >
+            <Button variant="ghost" size="sm" onClick={handleBack}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-            </button>
+            </Button>
           </div>
         </div>
       )}
