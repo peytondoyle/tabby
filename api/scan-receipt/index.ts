@@ -36,6 +36,11 @@ interface ScanReceiptResponse {
   }>
 }
 
+interface HealthResponse {
+  ok: boolean
+  uptimeMs: number
+}
+
 // DEV fallback with 3 deterministic items
 function getDEVFallback(): ScanReceiptResponse {
   return {
@@ -56,7 +61,7 @@ function getDEVFallback(): ScanReceiptResponse {
 }
 
 // Parse file from multipart/form-data  
-async function parseFormData(req: VercelRequest): Promise<{ file: unknown } | null> {
+async function parseFormData(req: VercelRequest): Promise<{ file: any } | null> {
   return new Promise((resolve, reject) => {
     const form = new IncomingForm()
     
@@ -87,7 +92,7 @@ async function processWithOCR(filePath: string): Promise<ScanReceiptResponse> {
   // For now, read file to validate it exists and return structured mock data
   try {
     await fs.access(filePath)
-    console.log(`[OCR] Processing file: ${filePath}`)
+    console.log(`[scan_api] OCR processing file: ${filePath}`)
     
     // Simulate processing time
     await new Promise(resolve => setTimeout(resolve, 800))
@@ -121,34 +126,80 @@ async function processWithOCR(filePath: string): Promise<ScanReceiptResponse> {
       ]
     }
   } catch (error) {
-    console.error('[OCR] File processing failed:', error)
+    console.error('[scan_api] OCR file processing failed:', error)
     throw error
   }
+}
+
+const startTime = Date.now()
+
+function redactQuery(query: any): string {
+  // Redact sensitive query parameters while keeping useful ones
+  const safe = { ...query }
+  delete safe.token
+  delete safe.key
+  delete safe.secret
+  delete safe.password
+  return JSON.stringify(safe)
 }
 
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ): Promise<void> {
-  // Set CORS headers
+  const requestStart = Date.now()
+  const method = req.method || 'UNKNOWN'
+  const queryRedacted = redactQuery(req.query)
+  
+  console.log(`[scan_api] ${method} ${req.url} query=${queryRedacted}`)
+
+  // Set CORS headers - widened to include GET, POST, OPTIONS
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
-  }
-
   try {
+    // Handle OPTIONS preflight request
+    if (req.method === 'OPTIONS') {
+      const duration = Date.now() - requestStart
+      console.log(`[scan_api] OPTIONS completed in ${duration}ms`)
+      return res.status(200).end()
+    }
+
+    // Handle GET health check
+    if (req.method === 'GET') {
+      const { health } = req.query
+      
+      if (health === '1') {
+        const response: HealthResponse = {
+          ok: true,
+          uptimeMs: Date.now() - startTime
+        }
+        const duration = Date.now() - requestStart
+        console.log(`[scan_api] Health check completed in ${duration}ms - uptime: ${response.uptimeMs}ms`)
+        return res.status(200).json(response)
+      }
+      
+      const duration = Date.now() - requestStart
+      console.log(`[scan_api] GET without health param completed in ${duration}ms`)
+      return res.status(405).json({ error: 'GET method requires ?health=1 parameter' })
+    }
+
+    // Handle POST upload
+    if (req.method !== 'POST') {
+      const duration = Date.now() - requestStart
+      console.log(`[scan_api] Method ${method} not allowed, completed in ${duration}ms`)
+      return res.status(405).json({ error: 'Method not allowed' })
+    }
+
+    console.log('[scan_api] Starting receipt processing...')
+
     // Parse multipart form data
     const formData = await parseFormData(req)
     
     if (!formData?.file) {
-      console.warn('[scan_fail] No file provided')
+      const duration = Date.now() - requestStart
+      console.warn(`[scan_api] No file provided, returning fallback in ${duration}ms`)
       return res.status(400).json({ 
         error: 'No file provided',
         ...getDEVFallback()
@@ -159,14 +210,15 @@ export default async function handler(
 
     // Validate file type
     if (!file.mimetype?.startsWith('image/')) {
-      console.warn('[scan_fail] Invalid file type:', file.mimetype)
+      const duration = Date.now() - requestStart
+      console.warn(`[scan_api] Invalid file type: ${file.mimetype}, returning fallback in ${duration}ms`)
       return res.status(400).json({ 
         error: 'Invalid file type. Please upload an image.',
         ...getDEVFallback()
       })
     }
 
-    console.info('[scan_start] Processing receipt scan')
+    console.log(`[scan_api] Processing image file: ${file.originalFilename} (${file.size} bytes, ${file.mimetype})`)
     
     // Note: supabaseAdmin can be used here for server-side database operations
     // Example: await supabaseAdmin?.from('receipts').insert({ ... })
@@ -180,21 +232,23 @@ export default async function handler(
 
     if (ocrConfigured) {
       // Use real OCR
+      console.log('[scan_api] Using OCR processing')
       result = await processWithOCR(file.filepath)
-      console.info('[scan_success] OCR processing completed', {
-        itemsCount: result.items.length,
-        hasPlace: !!result.place
-      })
+      console.log(`[scan_api] OCR processing completed - ${result.items.length} items extracted`)
     } else {
       // DEV fallback
-      console.info('[scan_success] Using DEV fallback')
+      console.log('[scan_api] Using DEV fallback (OCR not configured)')
       result = getDEVFallback()
     }
 
+    const duration = Date.now() - requestStart
+    console.log(`[scan_api] Receipt processing successful in ${duration}ms - items: ${result.items.length}, place: ${!!result.place}`)
+    
     res.status(200).json(result)
 
   } catch (error) {
-    console.error('[scan_fail] Receipt processing error:', error)
+    const duration = Date.now() - requestStart
+    console.error(`[scan_api] Receipt processing error in ${duration}ms:`, error)
     
     // Always return fallback data even on error
     const fallback = getDEVFallback()

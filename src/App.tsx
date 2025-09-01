@@ -8,6 +8,7 @@ import { runHealthCheck } from './lib/healthCheck'
 const MyBillsPage = lazy(() => import('./pages/MyBillsPage').then(m => ({ default: m.MyBillsPage })))
 const Flow = lazy(() => import('./pages/Flow').then(m => ({ default: m.Flow })))
 const SharePage = lazy(() => import('./pages/SharePage').then(m => ({ default: m.SharePage })))
+const DevHealthPage = lazy(() => import('./pages/DevHealthPage').then(m => ({ default: m.DevHealthPage })))
 
 // Lightweight loading skeleton
 const PageSkeleton = () => (
@@ -55,6 +56,11 @@ function App() {
             <Route path="share/:id" element={
               <Suspense fallback={<PageSkeleton />}>
                 <SharePage />
+              </Suspense>
+            } />
+            <Route path="dev-health" element={
+              <Suspense fallback={<PageSkeleton />}>
+                <DevHealthPage />
               </Suspense>
             } />
             <Route path="*" element={<Navigate to="/bills" replace />} />

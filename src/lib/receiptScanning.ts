@@ -1,6 +1,7 @@
 // AI Receipt Scanning with OCR
 import { nanoid } from 'nanoid'
 import { supabase, isSupabaseAvailable as _isSupabaseAvailable } from './supabaseClient'
+import { apiFetch, apiUpload } from './apiClient'
 
 // New normalized ParseResult type
 export type ParseResult = {
@@ -120,53 +121,105 @@ function getDEVFallback(): ParseResult {
   }
 }
 
+// Ensure API is healthy before making requests
+export async function ensureApiHealthy({ tries = 20, delayMs = 500 }: { tries?: number; delayMs?: number } = {}): Promise<boolean> {
+  console.info('[scan_start] Health check starting, tries:', tries)
+  
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      const response = await apiFetch('/api/scan-receipt?health=1')
+      
+      if (response.ok && response.data?.ok) {
+        console.info(`[scan_ok] API healthy after ${attempt} attempts (uptime: ${response.data.uptimeMs}ms)`)
+        return true
+      }
+      
+      console.warn(`[scan_api_error] Health check attempt ${attempt}: ${response.status}`)
+    } catch (error) {
+      // Expected during startup or when API is unavailable
+      if (attempt % 5 === 0) {
+        console.info(`[scan_start] Health check attempt ${attempt}/${tries}...`)
+      }
+      if (attempt === tries) {
+        console.error(`[scan_exception] Health check failed after ${tries} attempts:`, error)
+      }
+    }
+    
+    // Wait before next attempt
+    await new Promise(resolve => setTimeout(resolve, delayMs))
+  }
+  
+  console.warn(`[scan_api_error] API not healthy after ${tries} attempts`)
+  return false
+}
+
 // New normalized parseReceipt function
 export async function parseReceipt(file: File): Promise<ParseResult> {
   const startTime = Date.now()
-  console.info('[scan_start] Starting receipt parse')
+  const fileSize = file.size
+  const fileType = file.type
+  const fileName = file.name
+  
+  console.info(`[scan_start] Starting receipt parse - file: ${fileName} (${fileSize} bytes, ${fileType})`)
   
   try {
-    // Get API base URL from environment
-    const API_BASE = import.meta.env.VITE_API_BASE ?? ''
+    // Ensure API is healthy before making request
+    const isHealthy = await ensureApiHealthy()
+    
+    if (!isHealthy) {
+      const duration = Date.now() - startTime
+      console.warn(`[scan_api_error] API health check failed after ${duration}ms`)
+      const fallbackResult = getDEVFallback()
+      console.info(`[scan_ok] Using dev fallback due to API health check failure - ${fallbackResult.items.length} items`)
+      return fallbackResult
+    }
     
     // Create FormData for multipart upload
     const formData = new FormData()
     formData.append('file', file)
+    
+    console.info('[scan_start] Sending POST request to API endpoint...')
 
-    // Call the API endpoint with configurable base URL
-    const response = await fetch(`${API_BASE}/api/scan-receipt`, {
-      method: 'POST',
-      body: formData
-    })
+    // Call the API endpoint using apiUpload
+    const response = await apiUpload('/api/scan-receipt', formData)
 
     if (!response.ok) {
-      console.warn(`[scan_api_error] ${response.status} ${response.statusText}`)
+      const duration = Date.now() - startTime
+      console.warn(`[scan_api_error] ${response.status} ${response.error} after ${duration}ms`)
       
       // Return fallback for any API error
       const fallbackResult = getDEVFallback()
-      console.info('[scan_fallback] Using dev fallback due to API error')
+      console.info(`[scan_ok] Using dev fallback due to API error - ${fallbackResult.items.length} items`)
       return fallbackResult
     }
 
-    const data = await response.json()
+    const data = response.data
     const duration = Date.now() - startTime
+    
+    console.info(`[scan_ok] API response received in ${duration}ms - parsing data...`)
     
     // Normalize the response data
     const items = Array.isArray(data.items) ? data.items : []
-    const normalizedItems = items.map((item: unknown) => {
+    const normalizedItems = items.map((item: unknown, index: number) => {
       const itemObj = item as { label?: string; price?: unknown }
-      return {
+      const normalized = {
         id: generateId(),
         label: String(itemObj.label || ''),
         price: normalizeNumber(itemObj.price),
         emoji: getEmojiForItem(itemObj.label || '')
       }
+      console.info(`[scan_ok] Normalized item ${index + 1}: ${normalized.label} - $${normalized.price}`)
+      return normalized
     })
 
     // Ensure at least one item exists
     const finalItems = normalizedItems.length > 0 
       ? normalizedItems 
       : [{ id: generateId(), label: '', price: 0, emoji: '🍽️' }]
+
+    if (normalizedItems.length === 0) {
+      console.warn('[scan_api_error] No items found in response, added empty fallback item')
+    }
 
     const result: ParseResult = {
       place: data.place || null,
@@ -179,31 +232,29 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
       rawText: data.rawText || null
     }
 
-    console.info('[scan_success] Receipt parsed successfully', {
-      duration,
-      itemsCount: result.items.length,
-      hasPlace: !!result.place
-    })
+    const totalDuration = Date.now() - startTime
+    console.info(`[scan_ok] Receipt parsed successfully in ${totalDuration}ms - items: ${result.items.length}, place: ${!!result.place}, total: $${result.total || 0}`)
 
     return result
 
   } catch (error) {
     const duration = Date.now() - startTime
-    console.error('[scan_fail] Receipt parsing failed', { duration, error })
+    console.error(`[scan_exception] Receipt parsing failed after ${duration}ms:`, error)
     
     // Return deterministic fallback on network/parsing error
     const fallbackResult = getDEVFallback()
-    console.info('[scan_fallback] Using dev fallback due to network error')
+    console.info(`[scan_ok] Using dev fallback due to network error - ${fallbackResult.items.length} items`)
     return fallbackResult
   }
 }
 
 // Legacy scanReceipt function - kept for backwards compatibility
 export async function scanReceipt(file: File): Promise<ReceiptScanResult> {
+  console.info('[scan_start] Legacy scanReceipt called, delegating to parseReceipt...')
   const parseResult = await parseReceipt(file)
   
   // Convert ParseResult to legacy ReceiptScanResult format
-  return {
+  const legacyResult = {
     restaurant_name: parseResult.place || "Receipt Upload",
     location: parseResult.place || "Unknown Location", 
     date: parseResult.date || new Date().toISOString().split('T')[0],
@@ -219,14 +270,18 @@ export async function scanReceipt(file: File): Promise<ReceiptScanResult> {
     tip: parseResult.tip || 0,
     total: parseResult.total || parseResult.items.reduce((sum, item) => sum + item.price, 0)
   }
+  
+  console.info(`[scan_ok] Legacy format conversion completed - ${legacyResult.items.length} items`)
+  return legacyResult
 }
 
 // Legacy bill creation function - kept for backwards compatibility
 export async function createBillFromReceipt(receiptData: ReceiptScanResult, _editorToken?: string): Promise<string> {
+  console.info('[scan_start] Creating bill from receipt data...')
   const isSupabaseAvailable = _isSupabaseAvailable()
   
   if (!isSupabaseAvailable) {
-    console.warn('Supabase not available - creating local bill')
+    console.warn('[scan_api_error] Supabase not available - creating local bill')
     // Create a token for localStorage-based bill
     const billToken = `scanned-${Date.now()}`
     
@@ -245,10 +300,13 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
     }
     
     localStorage.setItem(`bill-${billToken}`, JSON.stringify(billData))
+    console.info(`[scan_ok] Local bill created with token: ${billToken}`)
     return billToken
   }
 
   try {
+    console.info('[scan_start] Creating bill in Supabase...')
+    
     // Create bill in Supabase
     const billData = {
       title: receiptData.restaurant_name,
@@ -264,13 +322,17 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
       .rpc('create_bill', billData)
 
     if (billError) {
+      console.error('[scan_api_error] Supabase bill creation failed:', billError)
       throw billError
     }
 
     const billToken = bill
+    console.info(`[scan_ok] Supabase bill created with token: ${billToken}`)
 
     // Create items
-    for (const item of receiptData.items) {
+    for (const [index, item] of receiptData.items.entries()) {
+      console.info(`[scan_start] Creating item ${index + 1}/${receiptData.items.length}: ${item.label}`)
+      
       const itemData = {
         bill_token: billToken,
         label: item.label,
@@ -282,16 +344,18 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
         .rpc('create_item', itemData)
 
       if (itemError) {
-        console.error('Failed to create item:', itemError)
+        console.error(`[scan_api_error] Failed to create item ${item.label}:`, itemError)
         // Continue with other items even if one fails
+      } else {
+        console.info(`[scan_ok] Item created: ${item.label}`)
       }
     }
 
-    console.log('Bill created successfully:', billToken)
+    console.info(`[scan_ok] Bill creation completed: ${billToken}`)
     return billToken
 
   } catch (error) {
-    console.error('Failed to create bill in Supabase:', error)
+    console.error('[scan_exception] Failed to create bill in Supabase:', error)
     // Fallback to localStorage
     const billToken = `scanned-${Date.now()}`
     const billData = {
@@ -308,6 +372,7 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
     }
     
     localStorage.setItem(`bill-${billToken}`, JSON.stringify(billData))
+    console.info(`[scan_ok] Fallback local bill created with token: ${billToken}`)
     return billToken
   }
 }

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { parseReceipt } from '@/lib/receiptScanning'
+import { parseReceipt, ensureApiHealthy } from '@/lib/receiptScanning'
 import type { ParseResult } from '@/lib/receiptScanning'
 
 export type { ParseResult }
@@ -16,7 +16,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
   onOpenChange,
   onParsed
 }) => {
-  const [state, setState] = useState<'idle' | 'analyzing' | 'error'>('idle')
+  const [state, setState] = useState<'idle' | 'warming' | 'analyzing' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -40,10 +40,19 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
       return
     }
 
-    setState('analyzing')
     setErrorMessage(undefined)
 
     try {
+      // Step 1: Warming - ensure API is healthy
+      setState('warming')
+      const isHealthy = await ensureApiHealthy()
+      
+      if (!isHealthy) {
+        console.warn('API not healthy, proceeding with fallback')
+      }
+      
+      // Step 2: Analyzing - parse the receipt
+      setState('analyzing')
       const parseResult = await parseReceipt(file)
       onParsed(parseResult)
       onClose()
@@ -54,13 +63,11 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     }
   }
 
-
   const handleRetry = () => {
     setState('idle')
     setErrorMessage(undefined)
     fileInputRef.current?.click()
   }
-
 
   return (
     <AnimatePresence>
@@ -97,6 +104,38 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
             </div>
 
             <div className="p-6">
+              {/* Warming State */}
+              {state === 'warming' && (
+                <div className="text-center py-12">
+                  <motion.div
+                    className="text-8xl mb-8"
+                    animate={{ 
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 5, -5, 0]
+                    }}
+                    transition={{ 
+                      duration: 1.5,
+                      repeat: Infinity,
+                      repeatType: "reverse"
+                    }}
+                  >
+                    🔥⚡
+                  </motion.div>
+                  
+                  <h3 className="text-2xl font-bold mb-2 retro-text-shadow">Warming Up</h3>
+                  <p className="text-ink-dim mb-8 font-mono">
+                    Starting the receipt analyzer… one moment.
+                  </p>
+
+                  {/* Loading indicator */}
+                  <motion.div
+                    className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full mx-auto"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                  />
+                </div>
+              )}
+
               {/* Analyzing State */}
               {state === 'analyzing' && (
                 <div className="text-center py-12">
@@ -226,8 +265,6 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   </div>
                 </div>
               )}
-
-
 
               {/* Error State */}
               {state === 'error' && (

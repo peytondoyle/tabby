@@ -6,6 +6,7 @@ import { AssignStep } from '@/components/flow/AssignStep'
 import { ShareStep } from '@/components/flow/ShareStep'
 import { AddPeopleModal } from '@/components/AddPeopleModal'
 import { PeopleDock } from '@/components/PeopleDock'
+import { createBillFromParse } from '@/lib/bills'
 
 type FlowState = 'start' | 'people' | 'assign' | 'share'
 
@@ -35,39 +36,83 @@ export const Flow: React.FC = () => {
     setScannerOpen(true)
   }
 
-  const handleParsed = (result: ParseResult) => {
-    // Replace store items and set meta using helpers
-    const flowItems = result.items.map(item => ({
-      id: item.id,
-      label: item.label,
-      price: item.price,
-      emoji: item.emoji || '🍽️'
-    }))
-    replaceItems(flowItems)
+  const handleParsed = async (result: ParseResult) => {
+    console.info('[flow] Receipt parsed, creating bill...')
     
-    // Set bill metadata using helper
-    setBillMeta({
-      token: token || `local-${Date.now()}`,
-      title: result.place || 'Scanned Receipt',
-      place: result.place || null,
-      date: result.date || null,
-      subtotal: result.subtotal || undefined,
-      tax: result.tax || undefined,
-      tip: result.tip || undefined,
-      total: result.total || undefined
-    })
-    
-    // Ensure at least one person for assignment
-    if (people.length === 0) {
-      addPerson({
-        id: 'you',
-        name: 'You'
+    try {
+      // Create bill in Supabase/localStorage
+      const billId = await createBillFromParse(result)
+      console.info(`[flow] Bill created with ID: ${billId}`)
+      
+      // Replace store items and set meta using helpers
+      const flowItems = result.items.map(item => ({
+        id: item.id,
+        label: item.label,
+        price: item.price,
+        emoji: item.emoji || '🍽️'
+      }))
+      replaceItems(flowItems)
+      
+      // Set bill metadata using helper
+      setBillMeta({
+        token: billId,
+        title: result.place || 'Scanned Receipt',
+        place: result.place || null,
+        date: result.date || null,
+        subtotal: result.subtotal || undefined,
+        tax: result.tax || undefined,
+        tip: result.tip || undefined,
+        total: result.total || undefined
       })
+      
+      // Ensure at least one person for assignment
+      if (people.length === 0) {
+        addPerson({
+          id: 'you',
+          name: 'You'
+        })
+      }
+      
+      // Close scanner and navigate to the assignment screen
+      setScannerOpen(false)
+      
+      // Navigate to the bill assignment route
+      navigate(`/bill/${billId}`)
+      setStep('assign')
+      
+    } catch (error) {
+      console.error('[flow] Failed to create bill:', error)
+      
+      // Fallback to local flow without navigation
+      const flowItems = result.items.map(item => ({
+        id: item.id,
+        label: item.label,
+        price: item.price,
+        emoji: item.emoji || '🍽️'
+      }))
+      replaceItems(flowItems)
+      
+      setBillMeta({
+        token: token || `local-${Date.now()}`,
+        title: result.place || 'Scanned Receipt',
+        place: result.place || null,
+        date: result.date || null,
+        subtotal: result.subtotal || undefined,
+        tax: result.tax || undefined,
+        tip: result.tip || undefined,
+        total: result.total || undefined
+      })
+      
+      if (people.length === 0) {
+        addPerson({
+          id: 'you',
+          name: 'You'
+        })
+      }
+      
+      setScannerOpen(false)
+      setStep('assign')
     }
-    
-    // Close scanner and go to start step with items
-    setScannerOpen(false)
-    setStep('start')
   }
   
   const handleAssignPress = () => {
