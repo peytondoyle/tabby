@@ -32,6 +32,8 @@ export async function apiFetch<T = any>(
 
     const response = await fetch(url, {
       ...options,
+      mode: 'cors',
+      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -97,6 +99,8 @@ export async function apiUpload<T = any>(
 
     const response = await fetch(url, {
       method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
       body: formData
       // Don't set Content-Type header for FormData - browser will set it with boundary
     })

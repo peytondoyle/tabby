@@ -25,7 +25,8 @@
     "dead:files": "unimported",
     "dead:all": "npm run types:check && npm run lint:strict && npm run dead:exports && npm run dead:files",
     "analyze": "vite build && npx serve dist -l 5050",
-    "dev:check": "curl -s http://127.0.0.1:3000/api/scan-receipt?health=1 && echo && curl -s http://127.0.0.1:3000/api/scan-receipt-health"
+    "dev:check": "curl -s http://127.0.0.1:3000/api/scan-receipt?health=1 && echo && curl -s http://127.0.0.1:3000/api/scan-receipt-health",
+    "dev:check:preflight": "curl -i -X OPTIONS http://127.0.0.1:3000/api/scan-receipt -H 'Origin: http://localhost:5173' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: Content-Type'"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

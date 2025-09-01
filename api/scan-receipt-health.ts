@@ -1,4 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
+import { applyCors } from './_lib/cors'
 
 /**
  * Health check alias for /api/scan-receipt-health
@@ -19,22 +20,14 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ): Promise<void> {
+  // Apply CORS headers and handle OPTIONS preflight
+  if (applyCors(req, res)) return
+
   const requestStart = Date.now()
   
   console.log(`[health_api] ${req.method || 'GET'} ${req.url}`)
 
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
   try {
-    // Handle OPTIONS preflight request
-    if (req.method === 'OPTIONS') {
-      const duration = Date.now() - requestStart
-      console.log(`[health_api] OPTIONS completed in ${duration}ms`)
-      return res.status(200).end()
-    }
 
     // Only allow GET requests
     if (req.method !== 'GET') {

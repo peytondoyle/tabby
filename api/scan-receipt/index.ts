@@ -2,6 +2,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node'
 import { IncomingForm } from 'formidable'
 import { promises as fs } from 'fs'
 import { createClient } from '@supabase/supabase-js'
+import { applyCors } from '../_lib/cors'
 
 // Server-side Supabase client using secret key
 const supabaseAdmin = process.env.SUPABASE_SECRET_KEY 
@@ -147,24 +148,16 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ): Promise<void> {
+  // Apply CORS headers and handle OPTIONS preflight
+  if (applyCors(req, res)) return
+
   const requestStart = Date.now()
   const method = req.method || 'UNKNOWN'
   const queryRedacted = redactQuery(req.query)
   
   console.log(`[scan_api] ${method} ${req.url} query=${queryRedacted}`)
 
-  // Set CORS headers - widened to include GET, POST, OPTIONS
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
   try {
-    // Handle OPTIONS preflight request
-    if (req.method === 'OPTIONS') {
-      const duration = Date.now() - requestStart
-      console.log(`[scan_api] OPTIONS completed in ${duration}ms`)
-      return res.status(200).end()
-    }
 
     // Handle GET health check
     if (req.method === 'GET') {

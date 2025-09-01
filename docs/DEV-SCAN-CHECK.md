@@ -1,6 +1,6 @@
 # Receipt Scanning Development Check
 
-This document provides verification steps for the local receipt scanning setup.
+This document provides verification steps for the local receipt scanning setup, including CORS configuration for cross-origin requests.
 
 ## Quick Health Check
 
@@ -15,6 +15,40 @@ npm run dev:check
 
 # 3. If both pass, run full dev environment
 npm run dev:full
+```
+
+## CORS Configuration
+
+### Why CORS?
+In local development, the UI runs on `http://localhost:5173` (Vite) while the API runs on `http://127.0.0.1:3000` (Vercel). These are different origins, triggering CORS protection in browsers.
+
+### CORS Environment Variables
+Set in `.env.local` or environment:
+
+```bash
+# Allowed origins (comma-separated)
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+# Optional: Allow all origins (dev only!)
+# CORS_ALLOW_ALL=1
+```
+
+### CORS Verification
+
+Test OPTIONS preflight:
+```bash
+npm run dev:check:preflight
+```
+
+Expected response headers:
+```
+HTTP/1.1 204 No Content
+Access-Control-Allow-Origin: http://localhost:5173
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With
+Access-Control-Max-Age: 86400
+Access-Control-Allow-Private-Network: true
+Vary: Origin
 ```
 
 ## Manual Verification
@@ -83,6 +117,22 @@ Expected response (with fallback data):
 - [ ] Navigation routes to `/bill/:id` assignment screen
 
 ## Troubleshooting
+
+### CORS Errors
+- **"Access to fetch at ... has been blocked by CORS policy"**
+  - Ensure API is running on port 3000
+  - Check `CORS_ORIGINS` environment variable includes your origin
+  - Verify preflight succeeds: `npm run dev:check:preflight`
+  - For Safari: Private Network Access header is set automatically
+
+- **Preflight returns 404**
+  - Verify API routes exist and use CORS helper
+  - Check that OPTIONS method is handled
+
+- **Different origins in dev**
+  - UI: `http://localhost:5173` 
+  - API: `http://127.0.0.1:3000`
+  - Both must be in `CORS_ORIGINS` allowlist
 
 ### Health Check Stuck
 - Verify `vercel dev` is running on port 3000

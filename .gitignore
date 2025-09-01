@@ -41,3 +41,4 @@ service-account.json
 
 # Legacy API keys (NEVER commit)
 .env.legacy
+.vercel
