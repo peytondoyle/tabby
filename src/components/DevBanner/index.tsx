@@ -32,7 +32,7 @@ export const DevBanner: React.FC = () => {
       setHealthStatus('checking')
       const response = await apiFetch('/api/scan-receipt?health=1')
       
-      if (response.ok && response.data?.ok) {
+      if (response.ok && response.data && typeof response.data === 'object' && 'ok' in response.data && response.data.ok) {
         setHealthStatus('healthy')
         setLastCheck(new Date())
       } else {

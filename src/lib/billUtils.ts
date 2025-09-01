@@ -1,5 +1,5 @@
 import { supabase, isSupabaseAvailable } from './supabaseClient'
-// import type { OcrResult } from './ocr' // unused
+import type { OcrParsedReceipt, OcrLineItem } from '@/types/domain'
 
 export interface Bill {
   id: string
@@ -16,9 +16,9 @@ export interface Bill {
   editor_token: string
   viewer_token: string
   receipt_file_path?: string
-  ocr_json?: any
+  ocr_json?: OcrParsedReceipt
   trip_id?: string
-  items?: any[]
+  items?: OcrLineItem[]
 }
 
 export const getBillByToken = async (token: string): Promise<Bill | null> => {
@@ -138,7 +138,7 @@ export const getBillByToken = async (token: string): Promise<Bill | null> => {
 }
 
 
-export function generateBillTitle(items: any[], fileName?: string): string {
+export function generateBillTitle(items: OcrLineItem[], fileName?: string): string {
   if (items.length === 0) return fileName ? `Receipt from ${fileName}` : 'New Receipt'
   
   // Try to infer venue type from items
@@ -147,13 +147,13 @@ export function generateBillTitle(items: any[], fileName?: string): string {
   
   const hasFood = items.some(item => 
     foodKeywords.some(keyword => 
-      item.name.toLowerCase().includes(keyword)
+      item.label.toLowerCase().includes(keyword)
     )
   )
   
   const hasDrinks = items.some(item =>
     drinkKeywords.some(keyword =>
-      item.name.toLowerCase().includes(keyword)
+      item.label.toLowerCase().includes(keyword)
     )
   )
 

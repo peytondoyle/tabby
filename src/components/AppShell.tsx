@@ -2,13 +2,12 @@ import React from 'react'
 import { Outlet, useLocation, useParams, useNavigate } from 'react-router-dom'
 import { Settings, Share2 } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { useFlowStore } from '@/lib/flowStore'
+
 
 export const AppShell: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
-  const { bill, items, people } = useFlowStore()
   
   // Determine if we're on a bill page
   const isBillPage = location.pathname.startsWith('/bill/') && id && id !== 'new'
@@ -25,48 +24,57 @@ export const AppShell: React.FC = () => {
             My Bills
           </button>
           <span>/</span>
-          <span className="text-text-primary">Current Bill</span>
+          <span className="text-text-primary">Assign Items</span>
         </div>
       )
     }
     return null
   }
 
-  // Get bill title and meta info
-  const getBillInfo = () => {
-    if (!isBillPage || !bill) return null
-    
-    return (
-      <div className="hidden md:block text-center flex-1 max-w-md mx-8">
-        <h1 className="text-lg font-semibold text-text-primary truncate">
-          {bill.title || 'Split Bill'}
-        </h1>
-        <p className="text-sm text-text-secondary">
-          {items.length} item{items.length !== 1 ? 's' : ''} • {people.length} {people.length !== 1 ? 'people' : 'person'}
-        </p>
-      </div>
-    )
-  }
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Clean, Compact Header */}
+      {/* Clean, Slim Header */}
       <header className="sticky top-0 z-50 bg-surface-elevated border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
-            {/* Left: App Name + Breadcrumb */}
-            <div className="flex items-center gap-6">
+          <div className="flex items-center justify-between h-14">
+            {/* Left: Billy Logo + Back Button (mobile) */}
+            <div className="flex items-center gap-4">
+              {/* Mobile Back Button */}
+              {isBillPage && (
+                <button
+                  onClick={() => navigate('/bills')}
+                  className="lg:hidden p-2 text-text-secondary hover:text-text-primary transition-colors rounded-lg hover:bg-surface"
+                  title="Back to bills"
+                  aria-label="Back to bills"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+              
+              {/* Billy Logo */}
               <button
                 onClick={() => navigate('/bills')}
-                className="text-2xl font-bold text-text-primary hover:text-primary transition-colors"
+                className="text-xl font-bold text-text-primary hover:text-primary transition-colors"
               >
                 Billy
               </button>
-              {getBreadcrumb()}
+              
+              {/* Desktop Breadcrumb */}
+              <div className="hidden lg:block">
+                {getBreadcrumb()}
+              </div>
             </div>
 
-            {/* Center: Bill Title & Meta (only on bill pages) */}
-            {getBillInfo()}
+            {/* Center: Mobile Page Title */}
+            {isBillPage && (
+              <div className="lg:hidden absolute left-1/2 transform -translate-x-1/2">
+                <h1 className="text-sm font-medium text-text-secondary">Assign Items</h1>
+              </div>
+            )}
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2">

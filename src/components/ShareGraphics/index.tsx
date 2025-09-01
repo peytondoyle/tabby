@@ -171,12 +171,12 @@ export const ShareGraphics: React.FC<ShareGraphicsProps> = ({ isOpen, onClose })
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-      <div className="bg-card rounded-3xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Share Bill Split</h2>
+      <div className="bg-surface-elevated rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border shadow-xl">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-text-primary">Share Bill Split</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-paper rounded-full transition-all duration-200"
+            className="p-2 hover:bg-surface rounded-full transition-all duration-200 text-text-secondary hover:text-text-primary"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -185,7 +185,7 @@ export const ShareGraphics: React.FC<ShareGraphicsProps> = ({ isOpen, onClose })
         </div>
 
         {/* Preview */}
-        <div className="bg-paper rounded-xl p-4 mb-4 flex justify-center">
+        <div className="bg-surface rounded-xl p-4 mb-6 flex justify-center border border-border">
           <div className="w-full max-w-md mx-auto">
             <canvas
               ref={canvasRef}
@@ -199,7 +199,7 @@ export const ShareGraphics: React.FC<ShareGraphicsProps> = ({ isOpen, onClose })
         <div className="flex gap-3">
           <button
             onClick={handleShare}
-            className="flex-1 py-3 bg-brand hover:bg-brand/90 text-white rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+            className="flex-1 py-3 bg-primary hover:bg-primary-hover text-text-inverse rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-md"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
@@ -209,7 +209,7 @@ export const ShareGraphics: React.FC<ShareGraphicsProps> = ({ isOpen, onClose })
           
           <button
             onClick={handleDownload}
-            className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+            className="px-6 py-3 bg-surface-elevated hover:bg-surface border border-border text-text-primary rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient';
+
 import { showError, showSuccess as _showSuccess } from '@/lib/exportUtils';
 import { apiFetch } from '@/lib/apiClient';
 // import { mockDataStore } from '@/lib/mockData'; // DEPRECATED - removed

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { parseReceipt, ensureApiHealthy } from '@/lib/receiptScanning'
+import { parseReceipt } from '@/lib/receiptScanning'
 import type { ParseResult } from '@/lib/receiptScanning'
 
 export type { ParseResult }
@@ -18,7 +18,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
   onParsed,
   externalError
 }) => {
-  const [state, setState] = useState<'idle' | 'warming' | 'analyzing' | 'error'>('idle')
+  const [state, setState] = useState<'idle' | 'analyzing' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -55,15 +55,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     setErrorMessage(undefined)
 
     try {
-      // Step 1: Warming - ensure API is healthy
-      setState('warming')
-      const isHealthy = await ensureApiHealthy()
-      
-      if (!isHealthy) {
-        console.warn('API not healthy, proceeding with fallback')
-      }
-      
-      // Step 2: Analyzing - parse the receipt
+      // Analyzing - parse the receipt
       setState('analyzing')
       const parseResult = await parseReceipt(file)
       console.log('[scan_success]', { items_count: parseResult.items.length, total: parseResult.total })
@@ -118,26 +110,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
             </div>
 
             <div className="p-6">
-              {/* Warming State */}
-              {state === 'warming' && (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-8">
-                    ⚡
-                  </div>
-                  
-                  <h3 className="text-2xl font-bold mb-2">Warming Up</h3>
-                  <p className="text-ink-dim mb-8">
-                    Starting the receipt analyzer… one moment.
-                  </p>
 
-                  {/* Loading indicator */}
-                  <motion.div
-                    className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full mx-auto"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                  />
-                </div>
-              )}
 
               {/* Analyzing State */}
               {state === 'analyzing' && (

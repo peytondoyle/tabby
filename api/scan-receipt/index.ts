@@ -2,7 +2,10 @@ import { VercelRequest, VercelResponse } from '@vercel/node'
 import { IncomingForm } from 'formidable'
 import { promises as fs } from 'fs'
 import { createClient } from '@supabase/supabase-js'
-import { applyCors } from '../_lib/cors.js'
+import { applyCors } from '../_utils/cors'
+import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from '../_utils/request'
+import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit'
+import { FILE_LIMITS, HealthResponseSchema } from '../_utils/schemas'
 import { processWithOpenAI, isOpenAIConfigured } from './openai-ocr.js'
 
 // Server-side Supabase client using secret key
@@ -154,11 +157,27 @@ export default async function handler(
   // Apply CORS headers and handle OPTIONS preflight
   if (applyCors(req, res)) return
 
-  const requestStart = Date.now()
+  // Create request context for consistent logging
+  const ctx = createRequestContext(req as any, res as any, 'scan_receipt')
+  
+  // Check rate limiting
+  const rateLimitCheck = checkRateLimit(req as any, 'scan_receipt', ctx)
+  if (!rateLimitCheck.success) {
+    sendErrorResponse(res as any, rateLimitCheck.error, 429, ctx)
+    return
+  }
+
+  // Check request size limits for file uploads
+  const sizeCheck = checkRequestSize(req as any, FILE_LIMITS.maxImageSize, ctx)
+  if (!sizeCheck.success) {
+    sendErrorResponse(res as any, sizeCheck.error, 413, ctx)
+    return
+  }
+
   const method = req.method || 'UNKNOWN'
   const queryRedacted = redactQuery(req.query)
   
-  console.log(`[scan_api] ${method} ${req.url} query=${queryRedacted}`)
+  ctx.log('info', `Request started`, { method, url: req.url, query: queryRedacted })
 
   try {
 
@@ -167,36 +186,40 @@ export default async function handler(
       const { health } = req.query
       
       if (health === '1') {
-        const response: HealthResponse = {
+        const response = {
           ok: true,
           uptimeMs: Date.now() - startTime
         }
-        const duration = Date.now() - requestStart
-        console.log(`[scan_api] Health check completed in ${duration}ms - uptime: ${response.uptimeMs}ms`)
-        return res.status(200).json(response)
+        
+        // Add rate limit headers
+        addRateLimitHeaders(res as any, req as any, 'scan_receipt')
+        
+        // Send success response
+        sendSuccessResponse(res as any, response, 200, ctx)
+        return
       }
       
-      const duration = Date.now() - requestStart
-      console.log(`[scan_api] GET without health param completed in ${duration}ms`)
-      return res.status(405).json({ error: 'GET method requires ?health=1 parameter' })
+      const error = { error: 'GET method requires ?health=1 parameter', code: 'INVALID_HEALTH_PARAM' }
+      sendErrorResponse(res as any, error, 405, ctx)
+      return
     }
 
     // Handle POST upload
     if (req.method !== 'POST') {
-      const duration = Date.now() - requestStart
-      console.log(`[scan_api] Method ${method} not allowed, completed in ${duration}ms`)
-      return res.status(405).json({ error: 'Method not allowed' })
+      const error = { error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' }
+      sendErrorResponse(res as any, error, 405, ctx)
+      return
     }
 
     // Check REQUIRE_REAL_OCR flag
     if (REQUIRE_REAL_OCR && !hasOCRProviders) {
-      const duration = Date.now() - requestStart
-      console.error(`[scan_api] OCR not configured but required, rejected in ${duration}ms`)
-      return res.status(400).json({
-        ok: false,
-        code: 'OCR_NOT_CONFIGURED',
-        message: 'Real OCR scanning is required but no OCR provider keys are configured'
-      })
+      ctx.log('error', 'OCR not configured but required')
+      const error = { 
+        error: 'Real OCR scanning is required but no OCR provider keys are configured',
+        code: 'OCR_NOT_CONFIGURED'
+      }
+      sendErrorResponse(res as any, error, 400, ctx)
+      return
     }
 
     console.log('[scan_api] Starting receipt processing...')
@@ -205,24 +228,23 @@ export default async function handler(
     const formData = await parseFormData(req)
     
     if (!formData?.file) {
-      const duration = Date.now() - requestStart
-      console.warn(`[scan_api] No file provided, returning fallback in ${duration}ms`)
-      return res.status(400).json({ 
-        error: 'No file provided',
-        ...getDEVFallback()
-      })
+      ctx.log('warn', 'No file provided, returning fallback')
+      const error = { error: 'No file provided', code: 'NO_FILE_PROVIDED' }
+      sendErrorResponse(res as any, error, 400, ctx)
+      return
     }
 
     const { file } = formData
 
     // Validate file type
     if (!file.mimetype?.startsWith('image/')) {
-      const duration = Date.now() - requestStart
-      console.warn(`[scan_api] Invalid file type: ${file.mimetype}, returning fallback in ${duration}ms`)
-      return res.status(400).json({ 
+      ctx.log('warn', 'Invalid file type', { mimetype: file.mimetype })
+      const error = { 
         error: 'Invalid file type. Please upload an image.',
-        ...getDEVFallback()
-      })
+        code: 'INVALID_FILE_TYPE'
+      }
+      sendErrorResponse(res as any, error, 400, ctx)
+      return
     }
 
     console.log(`[scan_api] Processing image file: ${file.originalFilename} (${file.size} bytes, ${file.mimetype})`)
@@ -250,14 +272,17 @@ export default async function handler(
       result = getDEVFallback()
     }
 
-    const duration = Date.now() - requestStart
-    console.log(`[scan_api] Receipt processing successful in ${duration}ms - items: ${result.items.length}, place: ${!!result.place}`)
+    // Add rate limit headers
+    addRateLimitHeaders(res as any, req as any, 'scan_receipt')
     
-    res.status(200).json(result)
+    // Send success response
+    sendSuccessResponse(res as any, result, 200, ctx)
+    
+    // Log successful completion
+    logRequestCompletion(ctx, 200)
 
   } catch (error: any) {
-    const duration = Date.now() - requestStart
-    console.error(`[scan_api] Receipt processing error in ${duration}ms:`, {
+    ctx.log('error', 'Receipt processing error', {
       message: error.message,
       status: error.status,
       code: error.code,
@@ -268,11 +293,14 @@ export default async function handler(
     
     // Always return fallback data even on error
     const fallback = getDEVFallback()
-    res.status(500).json({
+    const responseData = {
       error: 'Receipt processing failed',
       errorMessage: error.message, // Include error message for debugging
       ...fallback
-    })
+    }
+    
+    sendSuccessResponse(res as any, responseData, 500, ctx)
+    logRequestCompletion(ctx, 500, error.message)
   }
 }
 

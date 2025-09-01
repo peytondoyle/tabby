@@ -9,7 +9,7 @@
 
 import { buildApiUrl, logApiConfig } from './apiBase'
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T> {
   data?: T
   error?: string
   status: number
@@ -25,7 +25,8 @@ interface ErrorLogData {
     user_agent?: string
     method?: string
     duration_ms?: number
-    [key: string]: any
+    error_type?: string
+    full_url?: string
   }
 }
 
@@ -58,7 +59,7 @@ async function logErrorToServer(errorData: ErrorLogData): Promise<void> {
 /**
  * Enhanced fetch wrapper that handles absolute URLs and consistent error handling
  */
-export async function apiFetch<T = any>(
+export async function apiFetch<T>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
@@ -102,7 +103,7 @@ export async function apiFetch<T = any>(
     if (response.ok) {
       console.info(`[api_client] ${response.status} ${url} completed in ${duration}ms`)
     } else {
-      const errorMsg = (data as any)?.error || response.statusText || 'Request failed'
+      const errorMsg = (data as { error?: string })?.error || response.statusText || 'Request failed'
       result.error = errorMsg
       console.warn(`[api_client] ${response.status} ${url} failed in ${duration}ms: ${errorMsg}`)
       
@@ -179,7 +180,7 @@ export async function apiFetch<T = any>(
 /**
  * POST multipart form data (for file uploads)
  */
-export async function apiUpload<T = any>(
+export async function apiUpload<T>(
   endpoint: string,
   formData: FormData
 ): Promise<ApiResponse<T>> {
@@ -216,7 +217,7 @@ export async function apiUpload<T = any>(
     if (response.ok) {
       console.info(`[api_client] Upload ${response.status} ${url} completed in ${duration}ms`)
     } else {
-      const errorMsg = (data as any)?.error || response.statusText || 'Upload failed'
+      const errorMsg = (data as { error?: string })?.error || response.statusText || 'Upload failed'
       result.error = errorMsg
       console.warn(`[api_client] Upload ${response.status} ${url} failed in ${duration}ms: ${errorMsg}`)
       

@@ -128,14 +128,14 @@ export const BillyShareSheet: React.FC<BillyShareSheetProps> = ({ isOpen, onClos
             {/* Content */}
             <div className="px-6 py-6 overflow-y-auto max-h-[60vh]">
               {/* Success Message */}
-              <div className="text-center mb-6">
+              <div className="text-center mb-8">
                 <div className="text-6xl mb-4">🎉</div>
                 <h3 className="text-xl font-bold mb-2 text-text-primary">Your bill has been split!</h3>
                 <p className="text-text-secondary">Ready to share with your group</p>
               </div>
 
               {/* Bill Summary */}
-              <div className="bg-surface rounded-lg p-4 mb-6 border border-border">
+              <div className="bg-surface rounded-lg p-4 mb-8 border border-border">
                 <div className="text-center mb-4">
                   <h4 className="text-lg font-bold text-text-primary">{bill?.title || 'Bill'}</h4>
                   <p className="text-sm text-text-secondary">{bill?.place || 'Restaurant'}</p>
@@ -170,7 +170,7 @@ export const BillyShareSheet: React.FC<BillyShareSheetProps> = ({ isOpen, onClos
               </div>
               
               {/* Share buttons */}
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3 mb-8">
                 <button
                   onClick={handleShare}
                   className="w-full py-4 bg-primary hover:bg-primary-hover text-text-inverse rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-md"
@@ -193,9 +193,9 @@ export const BillyShareSheet: React.FC<BillyShareSheetProps> = ({ isOpen, onClos
               </div>
 
               {/* Individual share options */}
-              <div className="text-center mb-4">
-                <p className="text-sm text-text-secondary mb-3">or share individually:</p>
-                <div className="flex justify-center gap-4">
+              <div className="text-center">
+                <p className="text-sm text-text-secondary mb-4">or share individually:</p>
+                <div className="flex justify-center gap-6">
                   {personTotals.map(personTotal => {
                     const person = people.find(p => p.id === personTotal.personId)
                     if (!person) return null

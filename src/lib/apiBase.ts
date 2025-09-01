@@ -6,24 +6,18 @@
  * In production: defaults to relative URLs
  */
 
-export function getApiBase(): string {
-  // In development, use the explicit API base to bypass Vite proxy
-  if (import.meta.env.DEV && import.meta.env.VITE_API_BASE) {
-    return import.meta.env.VITE_API_BASE
-  }
-  
-  // In production, use relative URLs (same domain)
-  return ''
-}
+export const API_BASE =
+  import.meta.env.VITE_API_BASE ??
+  (location.hostname === "127.0.0.1" || location.hostname === "localhost"
+    ? "http://127.0.0.1:3000"
+    : "");
 
 export function buildApiUrl(endpoint: string): string {
-  const apiBase = getApiBase()
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
-  return `${apiBase}${cleanEndpoint}`
+  return `${API_BASE}${cleanEndpoint}`
 }
 
 // Helper to log API configuration
 export function logApiConfig() {
-  const apiBase = getApiBase()
-  console.info('[api_config] API Base:', apiBase || '(relative)', ', Mode:', import.meta.env.MODE)
+  console.info('[api_config] API Base:', API_BASE || '(relative)', ', Mode:', import.meta.env.MODE)
 }

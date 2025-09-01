@@ -44,13 +44,13 @@ function loadBillsFromLocalStorage(): BillSummary[] {
 /**
  * Fetch a single bill by token with full data (bill, items, people, shares)
  */
-export async function fetchBillByToken(token: string): Promise<Bill | null> {
+export async function fetchBillByToken(token: string): Promise<{ bill: Bill; items: unknown[]; people?: unknown[]; shares?: unknown[] } | null> {
   try {
     const response = await apiFetch<{ bill: Bill; items: unknown[]; people?: unknown[]; shares?: unknown[] }>(`/api/bills/${token}`)
     
     if (response.ok && response.data) {
-      // Return the bill data from the response
-      return response.data.bill
+      // Return the full response data
+      return response.data
     } else {
       console.warn('[Tabby] bill API failed, using local fallback:', response.error)
       return null // Local fallback removed for now

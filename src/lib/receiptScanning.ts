@@ -1,6 +1,6 @@
 // AI Receipt Scanning with OCR
 import { nanoid } from 'nanoid'
-import { supabase, isSupabaseAvailable as _isSupabaseAvailable } from './supabaseClient'
+import { isSupabaseAvailable as _isSupabaseAvailable } from './supabaseClient'
 import { apiFetch, apiUpload } from './apiClient'
 
 // New normalized ParseResult type
@@ -129,8 +129,9 @@ export async function ensureApiHealthy({ tries = 3, delayMs = 1000 }: { tries?: 
     try {
       const response = await apiFetch('/api/scan-receipt?health=1')
       
-      if (response.ok && response.data?.ok) {
-        console.info(`[scan_ok] API healthy after ${attempt} attempts (uptime: ${response.data.uptimeMs}ms)`)
+      if (response.ok && response.data && typeof response.data === 'object' && 'ok' in response.data && response.data.ok) {
+        const uptimeMs = (response.data as { uptimeMs?: number }).uptimeMs
+        console.info(`[scan_ok] API healthy after ${attempt} attempts (uptime: ${uptimeMs || 0}ms)`)
         return true
       }
       
@@ -197,7 +198,7 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
       
       // Check for OCR not configured error
       const errorData = response.data || {}
-      if (errorData.code === 'OCR_NOT_CONFIGURED') {
+      if (errorData && typeof errorData === 'object' && 'code' in errorData && errorData.code === 'OCR_NOT_CONFIGURED') {
         throw new Error('Receipt scanning is not available. OCR service is not configured.')
       }
       
@@ -220,7 +221,8 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
     console.info(`[scan_ok] API response received in ${duration}ms - parsing data...`)
     
     // Normalize the response data
-    const items = Array.isArray(data.items) ? data.items : []
+    const responseData = data as { items?: unknown[]; place?: string; date?: string; subtotal?: unknown; tax?: unknown; tip?: unknown; total?: unknown; rawText?: string }
+    const items = Array.isArray(responseData.items) ? responseData.items : []
     const normalizedItems = items.map((item: unknown, index: number) => {
       const itemObj = item as { label?: string; price?: unknown }
       const normalized = {
@@ -243,14 +245,14 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
     }
 
     const result: ParseResult = {
-      place: data.place || null,
-      date: data.date || null,
+      place: responseData.place || null,
+      date: responseData.date || null,
       items: finalItems,
-      subtotal: normalizeNumber(data.subtotal),
-      tax: normalizeNumber(data.tax),
-      tip: normalizeNumber(data.tip),
-      total: normalizeNumber(data.total),
-      rawText: data.rawText || null
+      subtotal: normalizeNumber(responseData.subtotal),
+      tax: normalizeNumber(responseData.tax),
+      tip: normalizeNumber(responseData.tip),
+      total: normalizeNumber(responseData.total),
+      rawText: responseData.rawText || null
     }
 
     const totalDuration = Date.now() - startTime
@@ -314,7 +316,7 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
       place: receiptData.restaurant_name,  // Use restaurant_name, not location
       date: receiptData.date,
       items: receiptData.items.map(item => ({
-        id: item.id || `item-${nanoid()}`,
+        id: `item-${nanoid()}`,
         label: item.label,
         price: item.price,
         emoji: item.emoji
@@ -336,7 +338,7 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
       throw new Error(response.error || 'Failed to create bill via server API')
     }
 
-    const { bill } = response.data
+    const { bill } = response.data as { bill: { id: string } }
     console.info(`[scan_ok] Bill created successfully via server API - bill ID: ${bill.id}`)
     
     // Return the bill ID (not editor token since that's server-side only now)
