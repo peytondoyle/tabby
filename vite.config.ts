@@ -37,7 +37,7 @@ export default defineConfig({
             }
           })
           
-          proxy.on('proxyReq', (proxyReq, req) => {
+          proxy.on('proxyReq', (_proxyReq, req) => {
             console.log(`🔄 Proxying ${req.method} ${req.url} to http://127.0.0.1:3000`)
           })
         }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useFlowStore } from '@/lib/flowStore'
+import type { PersonId, ItemId } from '@/types/flow'
 
 interface AssignStepProps {
   onNext: () => void
@@ -17,9 +18,9 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
     getTotalForPerson
   } = useFlowStore()
   
-  const [activeItemId, setActiveItemId] = useState<string | null>(null)
+  const [activeItemId, setActiveItemId] = useState<ItemId | null>(null)
 
-  const handlePersonClick = (personId: string) => {
+  const handlePersonClick = (personId: PersonId) => {
     if (activeItemId) {
       const currentAssignments = getItemAssignments(activeItemId)
       
@@ -33,7 +34,7 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
     }
   }
 
-  const handleItemClick = (itemId: string) => {
+  const handleItemClick = (itemId: ItemId) => {
     setActiveItemId(activeItemId === itemId ? null : itemId)
   }
 
@@ -48,7 +49,7 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
     return items.filter(item => getItemAssignments(item.id).length === 0).length
   }
 
-  const allItemsAssigned = getUnassignedItemsCount() === 0 && items.length > 0
+
 
   // Auto-assign unassigned items evenly before proceeding
   const autoAssignUnassignedItems = () => {

@@ -1,20 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { nanoid } from 'nanoid'
-import { supabase, isSupabaseAvailable } from './supabaseClient'
-import type { ParseResult } from './receiptScanning'
+import type { ParseResult, Bill, OcrParsedReceipt } from '@/types/domain'
 import { apiFetch } from './apiClient'
 
-export type BillSummary = {
+export interface BillListItem {
   id: string
   token: string
-  title: string | null
-  place: string | null
-  date: string | null   // YYYY-MM-DD
-  created_at: string    // ISO string
-  item_count: number
+  editor_token?: string
+  title: string
+  date: string // ISO
+  place?: string
   people_count: number
-  total_amount: number
+  total_amount: number // cents or dollars — use Number() at render if needed
 }
+
+export type BillSummary = BillListItem
 
 /**
  * Load bills from localStorage fallback
@@ -24,7 +24,7 @@ function loadBillsFromLocalStorage(): BillSummary[] {
     const localBillsJson = localStorage.getItem('local-bills')
     const localBills = JSON.parse(localBillsJson || '[]')
     
-    return localBills.map((bill: any) => ({
+    return localBills.map((bill: Record<string, unknown>) => ({
       id: bill.id,
       token: bill.token || bill.editor_token,
       title: bill.title,
@@ -44,39 +44,48 @@ function loadBillsFromLocalStorage(): BillSummary[] {
 /**
  * Fetch a single bill by token with full data (bill, items, people, shares)
  */
-export async function fetchBillByToken(token: string): Promise<any | null> {
+export async function fetchBillByToken(token: string): Promise<Bill | null> {
   try {
-    const response = await apiFetch(`/api/bills/${token}`)
+    const response = await apiFetch<{ bill: Bill; items: unknown[]; people?: unknown[]; shares?: unknown[] }>(`/api/bills/${token}`)
     
     if (response.ok && response.data) {
-      // Return the full response data including bill, items, people, shares
-      return response.data
+      // Return the bill data from the response
+      return response.data.bill
     } else {
       console.warn('[Tabby] bill API failed, using local fallback:', response.error)
-      return loadBillFromLocalStorage(token)
+      return null // Local fallback removed for now
     }
   } catch (error) {
     console.warn('[Tabby] bill API error, using local fallback:', error)
-    return loadBillFromLocalStorage(token)
+    return null // Local fallback removed for now
   }
 }
 
+
+
 /**
- * Load a single bill from localStorage fallback
+ * Load bill from localStorage with proper type safety
  */
-function loadBillFromLocalStorage(token: string): BillSummary | null {
+export function loadBillFromLocalStorage(token: string): BillListItem | null {
+  const raw = localStorage.getItem(`bill:${token}`)
+  if (!raw) return null
   try {
-    const localBills = loadBillsFromLocalStorage()
-    const bill = localBills.find(b => b.token === token)
-    
-    // If it's a mock bill with full data, return it
-    if (bill && (bill as any).items) {
-      return bill
+    const obj = JSON.parse(raw)
+    // Guard minimally to satisfy TS and runtime
+    if (!obj || typeof obj !== 'object') return null
+    const bill = obj as Partial<BillListItem>
+    if (!bill.id || !bill.token || !bill.title || !bill.date) return null
+    return {
+      id: String(bill.id),
+      token: String(bill.token),
+      editor_token: bill.editor_token ? String(bill.editor_token) : undefined,
+      title: String(bill.title),
+      date: String(bill.date),
+      place: bill.place ? String(bill.place) : undefined,
+      people_count: Number(bill.people_count ?? 0),
+      total_amount: Number(bill.total_amount ?? 0),
     }
-    
-    return bill || null
-  } catch (error) {
-    console.error('Error loading bill from localStorage:', error)
+  } catch {
     return null
   }
 }
@@ -87,10 +96,10 @@ function loadBillFromLocalStorage(token: string): BillSummary | null {
  */
 export async function fetchBills(_client?: SupabaseClient): Promise<BillSummary[]> {
   try {
-    const response = await apiFetch('/api/bills/list')
+    const response = await apiFetch<{ bills: BillSummary[] }>('/api/bills/list')
     
     if (response.ok && response.data?.bills) {
-      return response.data.bills as BillSummary[]
+      return response.data.bills
     } else {
       console.warn('[Tabby] bills API failed, using local fallback:', response.error)
       return loadBillsFromLocalStorage()
@@ -104,7 +113,7 @@ export async function fetchBills(_client?: SupabaseClient): Promise<BillSummary[
 /**
  * Create a bill from parsed receipt data
  */
-export async function createBillFromParse(parsed: ParseResult, storage_path?: string | null, ocr_json?: any | null): Promise<string> {
+export async function createBillFromParse(parsed: ParseResult, storage_path?: string | null, ocr_json?: OcrParsedReceipt | null): Promise<string> {
   console.info('[bill_create] Creating bill from parsed data via server API...')
   const startTime = Date.now()
   
@@ -124,7 +133,7 @@ export async function createBillFromParse(parsed: ParseResult, storage_path?: st
 
     if (!response.ok) {
       const duration = Date.now() - startTime
-      const errorDetails = response.data || {}
+      const errorDetails = response.data as { code?: string } || {}
       console.error(`[bill_create_error] code=${errorDetails.code || 'UNKNOWN'} message=${response.error}`)
       console.error(`[bill_create] Server API failed in ${duration}ms:`, response.error)
       
@@ -136,7 +145,7 @@ export async function createBillFromParse(parsed: ParseResult, storage_path?: st
       }
     }
 
-    const { bill, items } = response.data
+    const { bill } = response.data as { bill: { id: string }; items: unknown[] }
     const duration = Date.now() - startTime
     console.info(`[bill_create] Bill created successfully via server API in ${duration}ms - bill ID: ${bill.id}`)
     
@@ -190,7 +199,7 @@ function createLocalBill(parsed: ParseResult): string {
     viewer_token: `view-${nanoid()}`,
     currency: 'USD',
     items: parsed.items.map(item => ({
-      id: item.id,
+      id: `item-${nanoid()}`,
       label: item.label,
       unit_price: Math.round(Number(item.price) * 100) / 100,
       qty: 1,
@@ -234,7 +243,7 @@ export async function deleteBill(token: string): Promise<boolean> {
     if (allowLocalFallback && token.startsWith('local-')) {
       // Remove from local storage
       const localBills = loadBillsFromLocalStorage()
-      const updatedBills = localBills.filter((bill: any) => bill.token !== token)
+      const updatedBills = localBills.filter((bill: BillListItem) => bill.token !== token)
       localStorage.setItem('local-bills', JSON.stringify(updatedBills))
       return true
     }
@@ -247,7 +256,7 @@ export async function deleteBill(token: string): Promise<boolean> {
     const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'
     if (allowLocalFallback && token.startsWith('local-')) {
       const localBills = loadBillsFromLocalStorage()
-      const updatedBills = localBills.filter((bill: any) => bill.token !== token)
+      const updatedBills = localBills.filter((bill: BillListItem) => bill.token !== token)
       localStorage.setItem('local-bills', JSON.stringify(updatedBills))
       return true
     }

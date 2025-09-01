@@ -2,10 +2,11 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 
 interface SplashScreenProps {
-  onScanReceipt: () => void
+  onScanReceipt: (mode?: 'camera' | 'gallery') => void
+  onClose?: () => void
 }
 
-export const SplashScreen: React.FC<SplashScreenProps> = ({ onScanReceipt }) => {
+export const SplashScreen: React.FC<SplashScreenProps> = ({ onScanReceipt, onClose }) => {
   const navigate = useNavigate()
 
   return (
@@ -31,7 +32,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onScanReceipt }) => 
       <div className="w-full max-w-sm space-y-4">
         {/* Scan Receipt Button */}
         <button
-          onClick={onScanReceipt}
+          onClick={() => onScanReceipt('camera')}
           className="w-full bg-primary hover:bg-primary-hover text-white py-4 px-6 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all duration-200"
         >
           <div className="w-6 h-6 bg-white/20 rounded flex items-center justify-center">
@@ -50,6 +51,19 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onScanReceipt }) => 
           </div>
           <span>View My Bills</span>
         </button>
+
+        {/* Close Button (if onClose is provided) */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="w-full bg-background border border-border hover:border-primary/50 text-text-secondary py-2 px-6 rounded-xl font-medium flex items-center justify-center gap-3 transition-all duration-200 mt-2"
+          >
+            <div className="w-4 h-4 flex items-center justify-center">
+              ✕
+            </div>
+            <span>Close</span>
+          </button>
+        )}
       </div>
     </div>
   )

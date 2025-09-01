@@ -2,14 +2,14 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
+import { isSupabaseAvailable } from '@/lib/supabaseClient'
 import { ReceiptScanner } from '@/components/ReceiptScanner'
 import type { ParseResult } from '@/lib/receiptScanning'
 import { useFlowStore } from '@/lib/flowStore'
 import { apiFetch } from '@/lib/apiClient'
 // import { OnboardingFlow } from '@/components/OnboardingFlow'
 import { getCurrentDate } from '@/lib/receiptScanning'
-import { fetchBills, deleteBill } from '@/lib/bills'
+import { fetchBills, deleteBill, type BillListItem } from '@/lib/bills'
 
 // Toast notification component
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => (
@@ -190,7 +190,7 @@ const NewBillModal: React.FC<NewBillModalProps> = ({ isOpen, onClose, onCreate }
 export const MyBillsPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { setItems, setBill } = useFlowStore()
+
   const [showNewBillModal, setShowNewBillModal] = useState(false)
   const [showReceiptScanner, setShowReceiptScanner] = useState(false)
   const [showSyncBanner, setShowSyncBanner] = useState(false)
@@ -202,16 +202,16 @@ export const MyBillsPage: React.FC = () => {
 
 
   // Query to fetch all bills using the centralized fetchBills utility
-  const { data: bills = [], isLoading } = useQuery({
+  const { data: bills = [], isLoading } = useQuery<BillListItem[]>({
     queryKey: ['my-bills'],
     queryFn: async () => {
       if (!isSupabaseAvailable()) {
-        // Load bills from localStorage (for scanned receipts) and include mock bills
+        // Only return scanned receipts from localStorage, no mock data
         const localBillsJson = localStorage.getItem('local-bills')
         const localBills = JSON.parse(localBillsJson || '[]')
         
-        // Return only local bills (scanned receipts)
-        return localBills
+        // Filter to only include scanned receipts (no mock bills)
+        return localBills.filter((bill: any) => bill.scanned === true)
       }
 
       // Use the centralized fetchBills utility
@@ -242,12 +242,12 @@ export const MyBillsPage: React.FC = () => {
         throw new Error(response.error || 'Failed to create bill')
       }
 
-      return response.data.bill
+      return (response.data as { bill: Record<string, unknown> }).bill
     },
     onSuccess: (bill) => {
       queryClient.invalidateQueries({ queryKey: ['my-bills'] })
-      // Navigate using the bill's editor token
-      navigate(`/bill/${bill.editor_token}`)
+              // Navigate using the bill's editor token
+        navigate(`/bill/${(bill as any).editor_token}`)
     }
   })
 
@@ -270,7 +270,7 @@ export const MyBillsPage: React.FC = () => {
         // Auto-hide error toast after 5 seconds
         setTimeout(() => setToast(null), 5000)
       }
-    } catch (error) {
+    } catch (_error) {
       setToast({ message: 'Error deleting bill. Please try again.', type: 'error' })
       setTimeout(() => setToast(null), 5000)
     } finally {
@@ -291,15 +291,15 @@ export const MyBillsPage: React.FC = () => {
         body: JSON.stringify({ parsed: result })
       })
       
-      if (response.ok && response.data?.bill) {
+      if (response.ok && response.data && typeof response.data === 'object' && 'bill' in response.data && response.data.bill) {
         const bill = response.data.bill
         
         // Set bill metadata using helper
         flowStore.setBillMeta({
-          token: bill.editor_token,
+          token: (bill as any).editor_token,
           title: result.place || 'Scanned Receipt',
-          place: result.place || null,
-          date: result.date || null,
+          place: result.place || undefined,
+          date: result.date || undefined,
           subtotal: result.subtotal || undefined,
           tax: result.tax || undefined,
           tip: result.tip || undefined,
@@ -315,7 +315,7 @@ export const MyBillsPage: React.FC = () => {
         }))
         flowStore.replaceItems(flowItems)
         
-        return bill.editor_token
+        return (bill as any).editor_token
       }
       
       // If response not ok, throw error for fallback handling
@@ -342,8 +342,8 @@ export const MyBillsPage: React.FC = () => {
     flowStore.setBillMeta({
       token: localToken,
       title: result.place || 'Scanned Receipt',
-      place: result.place || null,
-      date: result.date || null,
+      place: result.place || undefined,
+      date: result.date || undefined,
       subtotal: result.subtotal || undefined,
       tax: result.tax || undefined,
       tip: result.tip || undefined,
@@ -454,7 +454,7 @@ export const MyBillsPage: React.FC = () => {
         {/* Bills List */}
         {bills.length > 0 ? (
           <div className="space-y-3">
-            {bills.map((bill, index) => (
+            {bills.map((bill: BillListItem) => (
               <div
                 key={bill.token || bill.id}
                 className="bg-surface rounded-xl p-4 border border-border hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group"
@@ -470,11 +470,11 @@ export const MyBillsPage: React.FC = () => {
                         {bill.title}
                       </h3>
                       <div className="flex items-center gap-4 text-sm text-text-secondary">
-                        <span>{formatDate(bill.date)}</span>
+                        <span>{formatDate(String(bill.date))}</span>
                         {bill.people_count > 0 && (
                           <span>👥 {bill.people_count} people</span>
                         )}
-                        <span>${bill.total_amount?.toFixed(2) || '0.00'}</span>
+                        <span>${Number(bill.total_amount).toFixed(2)}</span>
                       </div>
                     </div>
                   </div>

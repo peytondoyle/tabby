@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useFlowStore } from '@/lib/flowStore'
+import type { PersonId, ItemId } from '@/types/flow'
 import { AddPeopleModal } from '@/components/AddPeopleModal'
 import { BillyShareSheet } from './BillyShareSheet'
 import { PageContainer } from '@/components/PageContainer'
@@ -36,7 +37,7 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
     itemRefs.current = itemRefs.current.slice(0, items.length)
   }, [items.length])
 
-  // New 2-step assignment system
+  // Enhanced 2-step assignment system
   const handleItemToggle = useCallback((itemId: string) => {
     setSelectedItems(prev => {
       const newSet = new Set(prev)
@@ -49,18 +50,18 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
     })
   }, [])
 
-  const handleAssignToPerson = useCallback((personId: string) => {
+  const handleAssignToPerson = useCallback((personId: PersonId) => {
     if (selectedItems.size === 0) return
 
     // Assign all selected items to the person
     selectedItems.forEach(itemId => {
       // Remove any existing assignments first
       const existingAssignments = getItemAssignments(itemId)
-      existingAssignments.forEach(assignment => {
-        unassign(itemId, assignment)
+      existingAssignments.forEach(existingPersonId => {
+        unassign(itemId, existingPersonId)
       })
       // Assign to new person
-      assign(itemId, personId)
+      assign(itemId, personId, 1) // Default weight of 1
     })
 
     // Clear selection after assignment
@@ -69,13 +70,17 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
 
   const handleMultiSelect = useCallback((e: React.MouseEvent, itemId: string) => {
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
-      // Multi-select mode
+      // Multi-select mode - toggle selection
       handleItemToggle(itemId)
     } else {
-      // Single select mode
+      // Single select mode - replace selection
       setSelectedItems(new Set([itemId]))
     }
   }, [handleItemToggle])
+
+  const handleUnassignItem = useCallback((itemId: string, personId: string) => {
+    unassign(itemId, personId)
+  }, [unassign])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent, itemId: string, itemIndex: number) => {
     switch (e.key) {
@@ -152,7 +157,7 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
       unassignedItems.forEach((item, index) => {
         const personIndex = index % people.length
         const person = people[personIndex]
-        assign(item.id, person.id)
+        assign(item.id, person.id, 1) // Default weight of 1
       })
     }
   }
@@ -178,32 +183,50 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
       .slice(0, 2)
   }
 
-  const getAssignmentBadges = (itemId: string) => {
-    const assignments = getItemAssignments(itemId)
-    if (assignments.length === 0) return null
+  const getAssignmentBadges = (itemId: ItemId) => {
+    const personIds = getItemAssignments(itemId)
+    if (personIds.length === 0) return null
 
-    const assignedPeople = assignments.map(personId => 
+    const assignedPeople = personIds.map(personId => 
       people.find(p => p.id === personId)
     ).filter(Boolean)
 
     if (assignedPeople.length === 1) {
-      const person = assignedPeople[0]!
+      const person = assignedPeople[0]
+      if (!person) return null
       return (
-        <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-text-inverse text-xs font-bold shadow-md">
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            handleUnassignItem(itemId, person.id)
+          }}
+          className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-text-inverse text-xs font-bold shadow-md hover:bg-primary-hover transition-colors cursor-pointer"
+          title={`Click to unassign from ${person.name}`}
+        >
           {person.name.charAt(0)}
-        </div>
+        </button>
       )
     }
 
     if (assignedPeople.length === 2) {
       return (
         <div className="absolute -top-2 -right-2 flex gap-1">
-          <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-text-inverse text-xs font-bold shadow-sm">
-            {assignedPeople[0]!.name.charAt(0)}
-          </div>
-          <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-text-inverse text-xs font-bold shadow-sm">
-            {assignedPeople[1]!.name.charAt(0)}
-          </div>
+          {assignedPeople.map((person) => {
+            if (!person) return null
+            return (
+              <button
+                key={person.id}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleUnassignItem(itemId, person.id)
+                }}
+                className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-text-inverse text-xs font-bold shadow-sm hover:bg-primary-hover transition-colors cursor-pointer"
+                title={`Click to unassign from ${person.name}`}
+              >
+                {person.name.charAt(0)}
+              </button>
+            )
+          })}
         </div>
       )
     }
@@ -211,12 +234,22 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
     // 3+ people - show first two + count
     return (
       <div className="absolute -top-2 -right-2 flex gap-1">
-        <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-text-inverse text-xs font-bold shadow-sm">
-          {assignedPeople[0]!.name.charAt(0)}
-        </div>
-        <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-text-inverse text-xs font-bold shadow-sm">
-          {assignedPeople[1]!.name.charAt(0)}
-        </div>
+        {assignedPeople.slice(0, 2).map((person) => {
+          if (!person) return null
+          return (
+            <button
+              key={person.id}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleUnassignItem(itemId, person.id)
+              }}
+              className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-text-inverse text-xs font-bold shadow-sm hover:bg-primary-hover transition-colors cursor-pointer"
+              title={`Click to unassign from ${person.name}`}
+            >
+              {person.name.charAt(0)}
+            </button>
+          )
+        })}
         <div className="w-5 h-5 bg-primary/80 rounded-full flex items-center justify-center text-text-inverse text-xs font-bold shadow-sm">
           +{assignedPeople.length - 2}
         </div>
@@ -287,7 +320,7 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
                   {people.map((person) => {
                     const personTotal = getTotalForPerson(person.id)
                     const personItems = items.filter(item => 
-                      getItemAssignments(item.id).includes(person.id)
+                      getItemAssignments(item.id).some(personId => personId === person.id)
                     )
                     
                     return (
@@ -362,11 +395,20 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
               <div className="mb-6">
                 <h2 className="text-lg font-semibold mb-4 text-text-primary">Items</h2>
                 
+                {/* Selection Instructions */}
+                {selectedItems.size === 0 && (
+                  <div className="mb-4 p-3 bg-surface-elevated rounded-lg border border-border">
+                    <p className="text-sm text-text-secondary text-center">
+                      💡 <strong>Tip:</strong> Click items to select them, then choose who to assign them to
+                    </p>
+                  </div>
+                )}
+                
                 {/* Assignee Bar - Desktop */}
                 {selectedItems.size > 0 && (
-                  <div className="hidden lg:block mb-4 p-3 bg-surface-elevated rounded-lg border border-border shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-text-secondary">
+                  <div className="hidden lg:block mb-4 p-4 bg-primary-light/20 rounded-lg border-2 border-primary/30 shadow-sm">
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm font-medium text-text-primary">
                         Assign {selectedItems.size} selected item{selectedItems.size !== 1 ? 's' : ''} to:
                       </span>
                       <div className="flex gap-2">
@@ -374,7 +416,7 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
                           <button
                             key={person.id}
                             onClick={() => handleAssignToPerson(person.id)}
-                            className="px-3 py-2 bg-primary-light hover:bg-primary-medium text-primary rounded-lg font-medium text-sm transition-all duration-200 hover:shadow-md"
+                            className="px-4 py-2 bg-primary hover:bg-primary-hover text-text-inverse rounded-lg font-medium text-sm transition-all duration-200 hover:shadow-md"
                             title={`Press ${index + 1} to assign to ${person.name}`}
                           >
                             {person.name}
@@ -407,8 +449,8 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
                           isSelected
                             ? 'border-primary bg-primary-light shadow-md'
                             : isAssigned
-                            ? 'border-primary/30 bg-primary-light/50 shadow-sm'
-                            : 'border-border bg-surface-elevated hover:border-primary/50 hover:bg-primary-light/30 hover:shadow-sm'
+                            ? 'border-primary/30 bg-primary-light/30 shadow-sm'
+                            : 'border-border bg-surface-elevated hover:border-primary/50 hover:bg-primary-light/20 hover:shadow-sm'
                         }`}
                         aria-label={`${isSelected ? 'Deselect' : 'Select'} ${item.label}`}
                         tabIndex={0}
@@ -458,7 +500,7 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface-elevated border-t border-border shadow-lg z-40">
           <div className="p-4">
             <div className="flex items-center gap-3 mb-3">
-              <span className="text-sm font-medium text-text-secondary">
+              <span className="text-sm font-medium text-text-primary">
                 Assign {selectedItems.size} selected item{selectedItems.size !== 1 ? 's' : ''} to:
               </span>
               <button
@@ -473,7 +515,7 @@ export const BillyAssignScreen: React.FC<BillyAssignScreenProps> = ({ onNext, on
                 <button
                   key={person.id}
                   onClick={() => handleAssignToPerson(person.id)}
-                  className="px-4 py-3 bg-primary-light hover:bg-primary-medium text-primary rounded-lg font-medium transition-all duration-200 hover:shadow-md"
+                  className="px-4 py-3 bg-primary hover:bg-primary-hover text-text-inverse rounded-lg font-medium transition-all duration-200 hover:shadow-md"
                 >
                   {person.name}
                 </button>

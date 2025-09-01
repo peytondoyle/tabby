@@ -68,7 +68,7 @@ export const ShareGraphics: React.FC<ShareGraphicsProps> = ({ isOpen, onClose })
 
     // People and their items
     let yOffset = 200
-    personTotals.forEach((personTotal, index) => {
+    personTotals.forEach((personTotal) => {
       const person = people.find(p => p.id === personTotal.personId)
       if (!person) return
 
@@ -172,7 +172,7 @@ export const ShareGraphics: React.FC<ShareGraphicsProps> = ({ isOpen, onClose })
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
       <div className="bg-card rounded-3xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Share Bill Split</h2>
           <button
             onClick={onClose}
@@ -185,12 +185,14 @@ export const ShareGraphics: React.FC<ShareGraphicsProps> = ({ isOpen, onClose })
         </div>
 
         {/* Preview */}
-        <div className="bg-paper rounded-xl p-4 mb-6 flex justify-center">
-          <canvas
-            ref={canvasRef}
-            className="max-w-full h-auto rounded-lg shadow-lg"
-            style={{ maxHeight: '400px' }}
-          />
+        <div className="bg-paper rounded-xl p-4 mb-4 flex justify-center">
+          <div className="w-full max-w-md mx-auto">
+            <canvas
+              ref={canvasRef}
+              className="w-full h-auto rounded-lg shadow-lg"
+              style={{ maxHeight: '400px' }}
+            />
+          </div>
         </div>
 
         {/* Actions */}

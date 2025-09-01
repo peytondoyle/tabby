@@ -3,6 +3,7 @@ import { devtools } from 'zustand/middleware'
 import type { DraftBill } from './draft'
 import { createDraftFromParseResult, saveDraftToLocal, loadDraftFromLocal } from './draft'
 import type { ParseResult } from './receiptScanning'
+import type { PersonId, ItemId } from '@/types/flow'
 
 export interface FlowBill {
   id?: string
@@ -17,18 +18,24 @@ export interface FlowBill {
 }
 
 export interface FlowPerson {
-  id: string
+  id: PersonId
   name: string
   avatar?: string
   venmo_handle?: string
 }
 
 export interface FlowItem {
-  id: string
+  id: ItemId
   label: string
   price: number
   quantity?: number
   emoji?: string
+}
+
+export interface FlowAssignment {
+  itemId: ItemId
+  personId: PersonId
+  weight: number // For splitting items across multiple people
 }
 
 export type FlowStep = 'start' | 'people' | 'review' | 'assign' | 'share'
@@ -38,7 +45,7 @@ interface FlowState {
   bill: FlowBill | null
   people: FlowPerson[]
   items: FlowItem[]
-  assignments: Map<string, string[]> // itemId -> personIds[]
+  assignments: Map<ItemId, FlowAssignment[]> // itemId -> assignments[]
   
   // Current step
   currentStep: FlowStep
@@ -50,27 +57,28 @@ interface FlowState {
   setBill: (bill: FlowBill) => void
   setPeople: (people: FlowPerson[]) => void
   addPerson: (person: FlowPerson) => void
-  removePerson: (personId: string) => void
+  removePerson: (personId: PersonId) => void
   deduplicatePeople: () => void
   
   setItems: (items: FlowItem[]) => void
-  updateItem: (itemId: string, updates: Partial<FlowItem>) => void
-  removeItem: (itemId: string) => void
+  updateItem: (itemId: ItemId, updates: Partial<FlowItem>) => void
+  removeItem: (itemId: ItemId) => void
   
-  assign: (itemId: string, personId: string) => void
-  unassign: (itemId: string, personId: string) => void
-  clearAssignments: (itemId: string) => void
+  assign: (itemId: ItemId, personId: PersonId, weight?: number) => void
+  unassign: (itemId: ItemId, personId: PersonId) => void
+  clearAssignments: (itemId: ItemId) => void
+  updateAssignmentWeight: (itemId: ItemId, personId: PersonId, weight: number) => void
   
   setStep: (step: FlowStep) => void
   nextStep: () => void
   prevStep: () => void
   
   // Computed getters
-  getItemAssignments: (itemId: string) => string[]
-  getPersonItems: (personId: string) => string[]
-  getTotalForPerson: (personId: string) => number
+  getItemAssignments: (itemId: ItemId) => PersonId[]
+  getPersonItems: (personId: PersonId) => ItemId[]
+  getTotalForPerson: (personId: PersonId) => number
   computeBillTotals: () => { 
-    personTotals: Array<{ personId: string; subtotal: number; taxShare: number; tipShare: number; total: number }>
+    personTotals: Array<{ personId: PersonId; subtotal: number; taxShare: number; tipShare: number; total: number }>
     billTotal: number
   }
   
@@ -126,9 +134,9 @@ export const useFlowStore = create<FlowState>()(
         set((state) => ({ 
           people: state.people.filter(p => p.id !== personId),
           assignments: new Map(
-            Array.from(state.assignments.entries()).map(([itemId, personIds]) => [
+            Array.from(state.assignments.entries()).map(([itemId, assignments]) => [
               itemId,
-              personIds.filter(id => id !== personId)
+              assignments.filter(assignment => assignment.personId !== personId)
             ])
           )
         }), false, 'removePerson'),
@@ -173,12 +181,20 @@ export const useFlowStore = create<FlowState>()(
         }, false, 'removeItem'),
       
       // Assignment actions
-      assign: (itemId, personId) => 
+      assign: (itemId, personId, weight = 1) => 
         set((state) => {
           const newAssignments = new Map(state.assignments)
           const currentAssignments = newAssignments.get(itemId) || []
-          if (!currentAssignments.includes(personId)) {
-            newAssignments.set(itemId, [...currentAssignments, personId])
+          const existingIndex = currentAssignments.findIndex(a => a.personId === personId)
+          
+          if (existingIndex >= 0) {
+            // Update existing assignment weight
+            const updatedAssignments = [...currentAssignments]
+            updatedAssignments[existingIndex] = { ...updatedAssignments[existingIndex], weight }
+            newAssignments.set(itemId, updatedAssignments)
+          } else {
+            // Add new assignment
+            newAssignments.set(itemId, [...currentAssignments, { itemId, personId, weight }])
           }
           return { assignments: newAssignments }
         }, false, 'assign'),
@@ -187,7 +203,7 @@ export const useFlowStore = create<FlowState>()(
         set((state) => {
           const newAssignments = new Map(state.assignments)
           const currentAssignments = newAssignments.get(itemId) || []
-          newAssignments.set(itemId, currentAssignments.filter(id => id !== personId))
+          newAssignments.set(itemId, currentAssignments.filter(a => a.personId !== personId))
           return { assignments: newAssignments }
         }, false, 'unassign'),
         
@@ -197,6 +213,17 @@ export const useFlowStore = create<FlowState>()(
           newAssignments.delete(itemId)
           return { assignments: newAssignments }
         }, false, 'clearAssignments'),
+        
+      updateAssignmentWeight: (itemId, personId, weight) => 
+        set((state) => {
+          const newAssignments = new Map(state.assignments)
+          const currentAssignments = newAssignments.get(itemId) || []
+          const updatedAssignments = currentAssignments.map(a => 
+            a.personId === personId ? { ...a, weight } : a
+          )
+          newAssignments.set(itemId, updatedAssignments)
+          return { assignments: newAssignments }
+        }, false, 'updateAssignmentWeight'),
       
       // Step navigation
       setStep: (step) => set({ currentStep: step }, false, 'setStep'),
@@ -214,12 +241,15 @@ export const useFlowStore = create<FlowState>()(
         }, false, 'prevStep'),
       
       // Getters
-      getItemAssignments: (itemId) => get().assignments.get(itemId) || [],
+      getItemAssignments: (itemId) => {
+        const assignments = get().assignments.get(itemId) || []
+        return assignments.map(a => a.personId)
+      },
       getPersonItems: (personId) => {
         const { assignments } = get()
-        const itemIds: string[] = []
-        assignments.forEach((personIds, itemId) => {
-          if (personIds.includes(personId)) {
+        const itemIds: ItemId[] = []
+        assignments.forEach((assignments, itemId) => {
+          if (assignments.some(a => a.personId === personId)) {
             itemIds.push(itemId)
           }
         })
@@ -229,13 +259,15 @@ export const useFlowStore = create<FlowState>()(
         const { items, assignments, bill } = get()
         let subtotal = 0
         
-        assignments.forEach((personIds, itemId) => {
-          if (personIds.includes(personId)) {
+        assignments.forEach((assignments, itemId) => {
+          const personAssignment = assignments.find(a => a.personId === personId)
+          if (personAssignment) {
             const item = items.find(i => i.id === itemId)
             if (item) {
-              // Split the item cost evenly among assigned people
-              const splitCost = item.price / personIds.length
-              subtotal += splitCost
+              // Calculate cost based on weight
+              const totalWeight = assignments.reduce((sum, a) => sum + a.weight, 0)
+              const personShare = (personAssignment.weight / totalWeight) * item.price
+              subtotal += personShare
             }
           }
         })

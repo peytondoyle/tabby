@@ -115,7 +115,6 @@ export async function exportElementAsImage(
 
     // Restore original styles
     elementsWithOklch.forEach(el => {
-      const computedStyle = window.getComputedStyle(el)
       const properties = ['color', 'background-color', 'border-color']
       
       properties.forEach(prop => {

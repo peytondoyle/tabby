@@ -35,11 +35,11 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
-  const handleScanReceipt = async (mode: 'camera' | 'gallery') => {
+  const handleScanReceipt = async (mode?: 'camera' | 'gallery') => {
     setCurrentStep('capture')
     
-    // Trigger file input based on mode
-    const inputRef = mode === 'camera' ? cameraInputRef : fileInputRef
+    // Trigger file input based on mode, default to camera
+    const inputRef = mode === 'gallery' ? fileInputRef : cameraInputRef
     inputRef.current?.click()
   }
 
