@@ -8,7 +8,6 @@
  */
 
 import { buildApiUrl, logApiConfig } from './apiBase'
-import { supabase, isSupabaseAvailable } from './supabaseClient'
 
 export interface ApiResponse<T = any> {
   data?: T
@@ -31,36 +30,28 @@ interface ErrorLogData {
 }
 
 /**
- * Log API errors to Supabase for debugging and monitoring
+ * Log API errors to server endpoint for debugging and monitoring
+ * SECURITY: No direct client-side Supabase writes allowed
  */
-async function logErrorToSupabase(errorData: ErrorLogData): Promise<void> {
+async function logErrorToServer(errorData: ErrorLogData): Promise<void> {
   // Only log in development or if explicitly enabled
   if (import.meta.env.PROD && import.meta.env.VITE_LOG_API_ERRORS !== '1') {
     return
   }
 
-  if (!isSupabaseAvailable()) {
-    console.warn('[api_client] Supabase unavailable, skipping error logging')
-    return
-  }
-
   try {
-    const { error } = await supabase!
-      .from('scan_errors')
-      .insert({
-        endpoint: errorData.endpoint,
-        status_code: errorData.status_code,
-        message: errorData.message,
-        meta: errorData.meta
-      })
-
-    if (error) {
-      console.warn('[api_client] Failed to log error to Supabase:', error)
-    } else {
-      console.info('[api_client] Error logged to Supabase:', errorData.endpoint, errorData.status_code)
-    }
+    // Route through server API instead of direct Supabase write
+    await fetch(buildApiUrl('/api/errors/log'), {
+      method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(errorData)
+    })
+    
+    console.info('[api_client] Error logged via server API:', errorData.endpoint, errorData.status_code)
   } catch (error) {
-    console.warn('[api_client] Exception logging error to Supabase:', error)
+    console.warn('[api_client] Failed to log error via server API:', error)
   }
 }
 
@@ -115,8 +106,8 @@ export async function apiFetch<T = any>(
       result.error = errorMsg
       console.warn(`[api_client] ${response.status} ${url} failed in ${duration}ms: ${errorMsg}`)
       
-      // Log error to Supabase
-      logErrorToSupabase({
+      // Log error to server API
+      logErrorToServer({
         endpoint: endpoint,
         status_code: response.status,
         message: errorMsg,
@@ -150,8 +141,8 @@ export async function apiFetch<T = any>(
     
     console.error(`[api_client] ${url} network error in ${duration}ms:`, error)
     
-    // Log network error to Supabase
-    logErrorToSupabase({
+    // Log network error to server API
+    logErrorToServer({
       endpoint: endpoint,
       status_code: 0,
       message: errorMsg,
@@ -229,8 +220,8 @@ export async function apiUpload<T = any>(
       result.error = errorMsg
       console.warn(`[api_client] Upload ${response.status} ${url} failed in ${duration}ms: ${errorMsg}`)
       
-      // Log upload error to Supabase
-      logErrorToSupabase({
+      // Log upload error to server API
+      logErrorToServer({
         endpoint: endpoint,
         status_code: response.status,
         message: errorMsg,
@@ -265,8 +256,8 @@ export async function apiUpload<T = any>(
     
     console.error(`[api_client] Upload ${url} network error in ${duration}ms:`, error)
     
-    // Log upload network error to Supabase
-    logErrorToSupabase({
+    // Log upload network error to server API
+    logErrorToServer({
       endpoint: endpoint,
       status_code: 0,
       message: errorMsg,

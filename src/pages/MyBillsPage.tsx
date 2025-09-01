@@ -6,9 +6,92 @@ import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
 import { ReceiptScanner } from '@/components/ReceiptScanner'
 import type { ParseResult } from '@/lib/receiptScanning'
 import { useFlowStore } from '@/lib/flowStore'
+import { apiFetch } from '@/lib/apiClient'
 // import { OnboardingFlow } from '@/components/OnboardingFlow'
 import { getCurrentDate } from '@/lib/receiptScanning'
-import { fetchBills } from '@/lib/bills'
+import { fetchBills, deleteBill } from '@/lib/bills'
+
+// Toast notification component
+const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => (
+  <motion.div
+    initial={{ opacity: 0, y: -50, scale: 0.9 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    exit={{ opacity: 0, y: -50, scale: 0.9 }}
+    className={`fixed top-4 right-4 z-50 p-4 rounded-xl border border-border transition-all ${
+      type === 'success' 
+        ? 'bg-success/10 border-success/30 text-success' 
+        : 'bg-error/10 border-error/30 text-error'
+    }`}
+  >
+    <div className="flex items-center gap-3">
+      <span className="text-xl">{type === 'success' ? '✅' : '❌'}</span>
+      <span className="font-semibold font-mono">{message}</span>
+      <button onClick={onClose} className="ml-2 text-text-secondary hover:text-text-primary transition-colors">×</button>
+    </div>
+  </motion.div>
+)
+
+// Delete confirmation modal
+const DeleteConfirmModal: React.FC<{ 
+  isOpen: boolean; 
+  billTitle: string; 
+  onConfirm: () => void; 
+  onCancel: () => void;
+  isDeleting: boolean;
+}> = ({ isOpen, billTitle, onConfirm, onCancel, isDeleting }) => (
+  <AnimatePresence>
+    {isOpen && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+        onClick={onCancel}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-surface rounded-2xl w-full max-w-md p-6 border border-border hover:border-primary/50 hover:shadow-md transition-all"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-center mb-6">
+            <div className="text-6xl mb-4">🗑️</div>
+            <h2 className="text-2xl font-bold text-text-primary mb-3">Delete Bill?</h2>
+            <p className="text-text-secondary mb-2">
+              Are you sure you want to delete <span className="font-semibold text-text-primary">"{billTitle}"</span>?
+            </p>
+            <p className="text-sm text-error font-mono">⚠️ This action cannot be undone.</p>
+          </div>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              disabled={isDeleting}
+              className="flex-1 py-3 border-2 border-border text-text-secondary rounded-xl font-bold hover:bg-background transition-colors pixel-perfect disabled:opacity-50"
+            >
+              ❌ Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isDeleting}
+              className="flex-1 py-3 bg-error hover:bg-error/80 text-white rounded-xl font-bold transition-colors pixel-perfect disabled:opacity-50"
+            >
+              {isDeleting ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Deleting...
+                </span>
+              ) : (
+                '🗑️ Delete'
+              )}
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+)
 
 // Use BillSummary as the main type for bills
 
@@ -46,7 +129,7 @@ const NewBillModal: React.FC<NewBillModalProps> = ({ isOpen, onClose, onCreate }
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-card text-ink rounded-3xl w-full max-w-md p-6 border-2 border-line shadow-pop retro-shadow"
+            className="bg-surface text-text-primary rounded-3xl w-full max-w-md p-6 border-2 border-border shadow-pop retro-shadow"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold mb-6 text-center retro-text-shadow">✨ Create New Bill</h2>
@@ -54,7 +137,7 @@ const NewBillModal: React.FC<NewBillModalProps> = ({ isOpen, onClose, onCreate }
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-ink-dim mb-2 font-mono">
+                  <label className="block text-sm font-semibold text-text-secondary mb-2 font-mono">
                     🏪 Restaurant/Place *
                   </label>
                   <input
@@ -62,13 +145,13 @@ const NewBillModal: React.FC<NewBillModalProps> = ({ isOpen, onClose, onCreate }
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g., Chick-fil-A, Mom's Kitchen"
-                    className="w-full p-3 bg-paper border-2 border-line text-ink rounded-xl focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder-ink-dim pixel-perfect"
+                    className="w-full p-3 bg-background border-2 border-border text-text-primary rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder-text-secondary pixel-perfect"
                     required
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-ink-dim mb-2 font-mono">
+                  <label className="block text-sm font-semibold text-text-secondary mb-2 font-mono">
                     📍 Location (Optional)
                   </label>
                   <input
@@ -76,29 +159,25 @@ const NewBillModal: React.FC<NewBillModalProps> = ({ isOpen, onClose, onCreate }
                     value={place}
                     onChange={(e) => setPlace(e.target.value)}
                     placeholder="e.g., Downtown, 123 Main St"
-                    className="w-full p-3 bg-paper border-2 border-line text-ink rounded-xl focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder-ink-dim pixel-perfect"
+                    className="w-full p-3 bg-background border-2 border-border text-text-primary rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-brand placeholder-text-secondary pixel-perfect"
                   />
                 </div>
               </div>
 
               <div className="flex gap-3 mt-6">
-                <motion.button
+                <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-3 border-2 border-line text-ink-dim rounded-xl font-bold hover:bg-paper transition-all retro-shadow pixel-perfect"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 py-3 border-2 border-border text-text-secondary rounded-xl font-bold hover:bg-background transition-colors retro-shadow pixel-perfect"
                 >
                   ❌ Cancel
-                </motion.button>
-                <motion.button
+                </button>
+                <button
                   type="submit"
-                  className="flex-1 py-3 bg-brand hover:bg-brand/90 text-white rounded-xl font-bold transition-all shadow-pop retro-shadow pixel-perfect"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-colors shadow-pop retro-shadow pixel-perfect"
                 >
                   ✨ Create Bill
-                </motion.button>
+                </button>
               </div>
             </form>
           </motion.div>
@@ -115,6 +194,11 @@ export const MyBillsPage: React.FC = () => {
   const [showNewBillModal, setShowNewBillModal] = useState(false)
   const [showReceiptScanner, setShowReceiptScanner] = useState(false)
   const [showSyncBanner, setShowSyncBanner] = useState(false)
+  
+  // Delete functionality state
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; billTitle: string; billToken: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
 
   // Query to fetch all bills using the centralized fetchBills utility
@@ -126,59 +210,73 @@ export const MyBillsPage: React.FC = () => {
         const localBillsJson = localStorage.getItem('local-bills')
         const localBills = JSON.parse(localBillsJson || '[]')
         
-        const mockBills = [
-          {
-            id: '1',
-            token: 'e047f028995f1775e49463406db9943d',
-            title: 'Tabby Test Bill',
-            place: 'Billy\'s Cafe',
-            date: '2025-08-24',
-            created_at: '2025-08-24T12:00:00Z',
-            item_count: 6,
-            total_amount: 78.36,
-            people_count: 3
-          }
-        ]
-        
-        // Combine local bills (scanned) with mock bills  
-        const allBills = [...localBills, ...mockBills]
-        return allBills
+        // Return only local bills (scanned receipts)
+        return localBills
       }
 
       // Use the centralized fetchBills utility
-      return await fetchBills(supabase!)
+      return await fetchBills()
     }
   })
 
-  // Mutation to create new bill
+  // Mutation to create new bill via server API
   const createBillMutation = useMutation({
     mutationFn: async ({ title, place }: { title: string, place: string }) => {
-      if (!isSupabaseAvailable()) {
-        console.warn('Supabase not available - returning mock token')
-        return { token: 'mock-' + Date.now() }
+      // Create a ParseResult-like object for the new bill
+      const parsed = {
+        place: place || title,
+        date: getCurrentDate().iso,
+        items: [], // Empty items for now
+        subtotal: 0,
+        tax: 0,
+        tip: 0,
+        total: 0
       }
 
-      const { data, error } = await supabase!.rpc('create_bill', {
-        title,
-        place: place || null,
-        date: getCurrentDate().iso,
-        sales_tax: 0,
-        tip: 0,
-        tax_split_method: 'proportional',
-        tip_split_method: 'proportional'
+      const response = await apiFetch('/api/bills/create', {
+        method: 'POST',
+        body: JSON.stringify({ parsed })
       })
 
-      if (error) throw error
-      return data
+      if (!response.ok) {
+        throw new Error(response.error || 'Failed to create bill')
+      }
+
+      return response.data.bill
     },
-    onSuccess: (data) => {
+    onSuccess: (bill) => {
       queryClient.invalidateQueries({ queryKey: ['my-bills'] })
-      navigate(`/bill/${data.token}/flow`)
+      // Navigate using the bill's editor token
+      navigate(`/bill/${bill.editor_token}`)
     }
   })
 
   const handleCreateBill = (title: string, place: string) => {
     createBillMutation.mutate({ title, place })
+  }
+
+  // Handle bill deletion
+  const handleDeleteBill = async (billToken: string) => {
+    setIsDeleting(true)
+    try {
+      const success = await deleteBill(billToken)
+      if (success) {
+        setToast({ message: 'Bill deleted successfully!', type: 'success' })
+        queryClient.invalidateQueries({ queryKey: ['my-bills'] })
+        // Auto-hide toast after 3 seconds
+        setTimeout(() => setToast(null), 3000)
+      } else {
+        setToast({ message: 'Failed to delete bill. Please try again.', type: 'error' })
+        // Auto-hide error toast after 5 seconds
+        setTimeout(() => setToast(null), 5000)
+      }
+    } catch (error) {
+      setToast({ message: 'Error deleting bill. Please try again.', type: 'error' })
+      setTimeout(() => setToast(null), 5000)
+    } finally {
+      setIsDeleting(false)
+      setDeleteModal(null)
+    }
   }
 
 
@@ -187,48 +285,57 @@ export const MyBillsPage: React.FC = () => {
     const flowStore = useFlowStore.getState()
     
     try {
-      // Try to persist to Supabase if available
-      if (isSupabaseAvailable() && supabase) {
-        const { data: billToken, error } = await supabase.rpc('create_bill', {
+      // Use the server API to create the bill
+      const response = await apiFetch('/api/bills/create', {
+        method: 'POST',
+        body: JSON.stringify({ parsed: result })
+      })
+      
+      if (response.ok && response.data?.bill) {
+        const bill = response.data.bill
+        
+        // Set bill metadata using helper
+        flowStore.setBillMeta({
+          token: bill.editor_token,
           title: result.place || 'Scanned Receipt',
           place: result.place || null,
-          date: result.date || getCurrentDate().iso,
-          sales_tax: result.tax || 0,
-          tip: result.tip || 0,
-          tax_split_method: 'proportional',
-          tip_split_method: 'proportional'
+          date: result.date || null,
+          subtotal: result.subtotal || undefined,
+          tax: result.tax || undefined,
+          tip: result.tip || undefined,
+          total: result.total || undefined
         })
         
-        if (!error && billToken) {
-          // Set bill metadata using helper
-          flowStore.setBillMeta({
-            token: billToken,
-            title: result.place || 'Scanned Receipt',
-            place: result.place || null,
-            date: result.date || null,
-            subtotal: result.subtotal || undefined,
-            tax: result.tax || undefined,
-            tip: result.tip || undefined,
-            total: result.total || undefined
-          })
-          
-          // Replace items using helper
-          const flowItems = result.items.map(item => ({
-            id: item.id,
-            label: item.label,
-            price: item.price,
-            emoji: item.emoji || '🍽️'
-          }))
-          flowStore.replaceItems(flowItems)
-          
-          return billToken
-        }
+        // Replace items using helper
+        const flowItems = result.items.map(item => ({
+          id: item.id,
+          label: item.label,
+          price: item.price,
+          emoji: item.emoji || '🍽️'
+        }))
+        flowStore.replaceItems(flowItems)
+        
+        return bill.editor_token
       }
+      
+      // If response not ok, throw error for fallback handling
+      throw new Error(response.error || 'Failed to create bill via server API')
+      
     } catch (error) {
-      console.warn('Failed to persist to Supabase, using local token:', error)
+      console.error('[scan_api_error] Failed to create bill via server API:', error)
+      
+      // Check if local fallback is allowed
+      const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'
+      
+      if (!allowLocalFallback) {
+        // Re-throw the error for the UI to handle
+        throw error
+      }
+      
+      console.warn('Creating local fallback token...')
     }
     
-    // Fallback: create local token and store locally
+    // Fallback: create local token and store locally (only if allowed)
     const localToken = `local-${Date.now()}`
     
     // Set bill metadata using helper
@@ -280,41 +387,39 @@ export const MyBillsPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-paper flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full mx-auto mb-4"
+            className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"
           />
-          <p className="text-ink font-semibold">Loading your bills...</p>
+          <p className="text-text-primary font-semibold">Loading your bills...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
+    <div className="min-h-screen bg-background text-text-primary">
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-2 retro-text-shadow">My Bills</h1>
-            <p className="text-ink-dim">Manage your bill splitting sessions</p>
+            <p className="text-text-secondary">Manage your bill splitting sessions</p>
           </div>
           
-          <motion.button
+          <button
             onClick={() => setShowReceiptScanner(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-2xl font-bold transition-all shadow-pop retro-shadow pixel-perfect"
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-2xl font-bold transition-colors shadow-pop retro-shadow pixel-perfect"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             + New Receipt
-          </motion.button>
+          </button>
         </div>
 
         {/* Sync Banner */}
@@ -348,37 +453,46 @@ export const MyBillsPage: React.FC = () => {
 
         {/* Bills List */}
         {bills.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {bills.map((bill, index) => (
-              <motion.div
-                key={bill.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-card rounded-xl p-4 border border-line hover:border-brand/50 hover:shadow-md transition-all cursor-pointer group"
-                onClick={() => navigate(`/bill/${bill.token}/flow`)}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+              <div
+                key={bill.token || bill.id}
+                className="bg-surface rounded-xl p-4 border border-border hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group"
+                onClick={() => navigate(`/bill/${bill.token}`)}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-ink group-hover:text-brand transition-colors">
-                      {bill.title}
-                    </h3>
-                    <p className="text-sm text-ink-dim">
-                      {formatDate(bill.date)}
-                    </p>
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <span className="text-xl">🧾</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-text-primary group-hover:text-primary transition-colors">
+                        {bill.title}
+                      </h3>
+                      <div className="flex items-center gap-4 text-sm text-text-secondary">
+                        <span>{formatDate(bill.date)}</span>
+                        {bill.people_count > 0 && (
+                          <span>👥 {bill.people_count} people</span>
+                        )}
+                        <span>${bill.total_amount?.toFixed(2) || '0.00'}</span>
+                      </div>
+                    </div>
                   </div>
-                  <svg 
-                    className="w-5 h-5 text-ink-dim group-hover:text-brand transition-colors" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDeleteModal({ isOpen: true, billTitle: bill.title || 'Untitled Bill', billToken: bill.token })
+                    }}
+                    className="p-2 text-error hover:text-error/80 hover:bg-error/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                    title="Delete bill"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         ) : (
@@ -389,35 +503,22 @@ export const MyBillsPage: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <motion.div 
-              className="text-8xl mb-6"
-              animate={{ 
-                rotate: [0, 10, -10, 0],
-                scale: [1, 1.1, 1]
-              }}
-              transition={{ 
-                duration: 2,
-                repeat: Infinity,
-                repeatType: "reverse"
-              }}
-            >
+            <div className="text-8xl mb-6">
               🎮📋✨
-            </motion.div>
+            </div>
             <h2 className="text-3xl font-bold mb-3 retro-text-shadow">No Bills Yet</h2>
-            <p className="text-ink-dim mb-8 text-lg font-mono">Create your first bill to start splitting costs with friends!</p>
+            <p className="text-text-secondary mb-8 text-lg font-mono">Create your first bill to start splitting costs with friends!</p>
             
-            <motion.button
+            <button
               onClick={() => setShowReceiptScanner(true)}
-              className="flex items-center gap-3 px-8 py-4 bg-brand hover:bg-brand/90 text-white rounded-2xl font-bold transition-all shadow-pop retro-shadow pixel-perfect mx-auto"
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-3 px-8 py-4 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold transition-colors mx-auto"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               + New Receipt
-            </motion.button>
+            </button>
           </motion.div>
         )}
       </div>
@@ -435,6 +536,28 @@ export const MyBillsPage: React.FC = () => {
         onOpenChange={setShowReceiptScanner}
         onParsed={handleParsed}
       />
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <DeleteConfirmModal
+          isOpen={deleteModal.isOpen}
+          billTitle={deleteModal.billTitle}
+          onConfirm={() => handleDeleteBill(deleteModal.billToken)}
+          onCancel={() => setDeleteModal(null)}
+          isDeleting={isDeleting}
+        />
+      )}
+
+      {/* Toast Notifications */}
+      <AnimatePresence>
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Onboarding Flow - temporarily commented out for debugging */}
       {/*

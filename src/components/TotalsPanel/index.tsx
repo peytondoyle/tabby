@@ -57,15 +57,15 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
   }
 
   return (
-    <div className="sticky bottom-0 z-50 bg-card/90 backdrop-blur border-t border-line p-4 space-y-6">
+    <div className="sticky bottom-0 z-50 bg-surface/90 backdrop-blur border-t border-border p-4 space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <h2 className="text-xl font-semibold text-ink mb-2">💰 Split Options</h2>
-        <p className="text-sm text-ink-dim">Configure how to split taxes, tips, and totals</p>
+        <h2 className="text-xl font-semibold text-text-primary mb-2">💰 Split Options</h2>
+        <p className="text-sm text-text-secondary">Configure how to split taxes, tips, and totals</p>
       </motion.div>
 
       {/* Split Options Section */}
@@ -77,14 +77,14 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
       >
         {/* Tax Split */}
         <div className="space-y-3">
-          <label className="text-sm font-medium text-ink-dim">Tax Split</label>
-          <div className="rounded-full bg-paper p-1 flex">
+          <label className="text-sm font-medium text-text-secondary">Tax Split</label>
+          <div className="rounded-full bg-background p-1 flex">
             <motion.button
               onClick={() => setTaxSplit('even')}
               className={`flex-1 py-2.5 px-4 text-sm font-medium rounded-full transition-all ${
                 taxSplit === 'even' 
-                  ? 'bg-card text-ink shadow-soft' 
-                  : 'text-ink-dim hover:text-ink'
+                  ? 'bg-surface text-text-primary' 
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -95,8 +95,8 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
               onClick={() => setTaxSplit('proportional')}
               className={`flex-1 py-2.5 px-4 text-sm font-medium rounded-full transition-all ${
                 taxSplit === 'proportional' 
-                  ? 'bg-card text-ink shadow-soft' 
-                  : 'text-ink-dim hover:text-ink'
+                  ? 'bg-surface text-text-primary' 
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -108,14 +108,14 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
 
         {/* Tip Split */}
         <div className="space-y-3">
-          <label className="text-sm font-medium text-ink-dim">Tip Split</label>
-          <div className="rounded-full bg-paper p-1 flex">
+          <label className="text-sm font-medium text-text-secondary">Tip Split</label>
+          <div className="rounded-full bg-background p-1 flex">
             <motion.button
               onClick={() => setTipSplit('even')}
               className={`flex-1 py-2.5 px-4 text-sm font-medium rounded-full transition-all ${
                 tipSplit === 'even' 
-                  ? 'bg-card text-ink shadow-soft' 
-                  : 'text-ink-dim hover:text-ink'
+                  ? 'bg-surface text-text-primary' 
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -126,8 +126,8 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
               onClick={() => setTipSplit('proportional')}
               className={`flex-1 py-2.5 px-4 text-sm font-medium rounded-full transition-all ${
                 tipSplit === 'proportional' 
-                  ? 'bg-card text-ink shadow-soft' 
-                  : 'text-ink-dim hover:text-ink'
+                  ? 'bg-surface text-text-primary' 
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -139,13 +139,13 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
 
         {/* Include Zero Items Toggle */}
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-ink-dim">
+          <label className="text-sm font-medium text-text-secondary">
             Include people with 0 items
           </label>
           <motion.button
             onClick={() => setIncludeZeroItems(!includeZeroItems)}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              includeZeroItems ? 'bg-brand' : 'bg-line'
+              includeZeroItems ? 'bg-primary' : 'bg-border'
             }`}
             whileTap={{ scale: 0.95 }}
           >
@@ -159,7 +159,7 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
 
         {/* Couple Mode */}
         <div className="space-y-3">
-          <label className="text-sm font-medium text-ink-dim">Couple mode</label>
+          <label className="text-sm font-medium text-text-secondary">Couple mode</label>
           <div className="flex flex-wrap gap-2">
             {coupleMode.map(couple => (
               <motion.button
@@ -167,8 +167,8 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
                 onClick={() => toggleCouple(couple.id)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
                   couple.active
-                    ? 'bg-brand text-white border-brand'
-                    : 'bg-transparent text-ink-dim border-line hover:border-ink-dim'
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-transparent text-text-secondary border-border hover:border-text-secondary'
                 }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -187,15 +187,15 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
       >
-        <h3 className="text-lg font-semibold text-ink">📊 Bill Summary</h3>
+        <h3 className="text-lg font-semibold text-text-primary">📊 Bill Summary</h3>
         
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-sm text-ink-dim">Subtotal</span>
+            <span className="text-sm text-text-secondary">Subtotal</span>
             <AnimatePresence mode="wait">
               <motion.span
                 key={totals.subtotal}
-                className="font-mono text-sm text-ink"
+                className="font-mono text-sm text-text-primary"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -206,11 +206,11 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
             </AnimatePresence>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-ink-dim">Tax</span>
+            <span className="text-sm text-text-secondary">Tax</span>
             <AnimatePresence mode="wait">
               <motion.span
                 key={totals.tax}
-                className="font-mono text-sm text-ink"
+                className="font-mono text-sm text-text-primary"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -221,11 +221,11 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
             </AnimatePresence>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-ink-dim">Tip</span>
+            <span className="text-sm text-text-secondary">Tip</span>
             <AnimatePresence mode="wait">
               <motion.span
                 key={totals.tip}
-                className="font-mono text-sm text-ink"
+                className="font-mono text-sm text-text-primary"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -236,13 +236,13 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
             </AnimatePresence>
           </div>
           
-          <div className="border-t border-line pt-2">
+          <div className="border-t border-border pt-2">
             <div className="flex justify-between items-center">
-              <span className="text-ink font-medium">Grand Total</span>
+              <span className="text-text-primary font-medium">Grand Total</span>
               <AnimatePresence mode="wait">
                 <motion.span
                   key={totals.total}
-                  className="font-mono text-xl font-bold text-ink"
+                  className="font-mono text-xl font-bold text-text-primary"
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
@@ -278,11 +278,11 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
-        <h3 className="text-lg font-semibold text-ink">📤 Share & Export</h3>
+        <h3 className="text-lg font-semibold text-text-primary">📤 Share & Export</h3>
         
         <div className="space-y-3">
           <motion.button 
-            className="w-full bg-brand text-white py-3 px-4 rounded-xl font-medium hover:bg-brand/90 transition-colors flex items-center justify-center gap-2 shadow-pop"
+            className="w-full bg-primary text-white py-3 px-4 rounded-xl font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 shadow-pop"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -292,7 +292,7 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
           
           <div className="flex gap-3">
             <motion.button 
-              className="flex-1 bg-card border border-line text-ink py-2 px-3 rounded-lg text-sm font-medium hover:bg-paper transition-colors flex items-center justify-center gap-2"
+              className="flex-1 bg-background border border-border text-text-primary py-2 px-3 rounded-lg text-sm font-medium hover:bg-surface transition-colors flex items-center justify-center gap-2"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -300,7 +300,7 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
               Save PNG
             </motion.button>
             <motion.button 
-              className="flex-1 bg-card border border-line text-ink py-2 px-3 rounded-lg text-sm font-medium hover:bg-paper transition-colors flex items-center justify-center gap-2"
+              className="flex-1 bg-background border border-border text-text-primary py-2 px-3 rounded-lg text-sm font-medium hover:bg-surface transition-colors flex items-center justify-center gap-2"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -312,12 +312,12 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
 
         {/* Watermark Preview */}
         <motion.div 
-          className="text-center pt-4 border-t border-line"
+          className="text-center pt-4 border-t border-border"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
-          <p className="text-xs text-ink-dim">
+          <p className="text-xs text-text-secondary">
             Split with Tabby
           </p>
         </motion.div>

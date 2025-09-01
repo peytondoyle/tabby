@@ -91,8 +91,8 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="text-6xl mb-4">🎯</div>
-        <h1 className="text-4xl font-bold mb-2">Assign Items</h1>
-        <p className="text-lg text-ink-dim">
+        <h1 className="text-4xl font-bold mb-2 text-text-primary">Assign Items</h1>
+        <p className="text-lg text-text-secondary">
           Tap an item, then tap people to assign
         </p>
       </motion.div>
@@ -116,19 +116,19 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
                 className={`flex flex-col items-center p-3 rounded-2xl transition-all ${
                   activeItemId
                     ? isAssignedToActive
-                      ? 'bg-brand/20 border-2 border-brand'
-                      : 'bg-card border border-line hover:border-brand/50'
-                    : 'bg-card border border-line cursor-default'
+                      ? 'bg-primary/20 border-2 border-primary'
+                      : 'bg-surface border border-border hover:border-primary/50'
+                    : 'bg-surface border border-border cursor-default'
                 }`}
                 disabled={!activeItemId}
                 whileHover={activeItemId ? { scale: 1.05 } : undefined}
                 whileTap={activeItemId ? { scale: 0.95 } : undefined}
               >
-                <div className="w-12 h-12 bg-brand/20 rounded-full flex items-center justify-center font-bold text-brand text-lg mb-2">
+                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center font-bold text-primary text-lg mb-2">
                   {person.name.charAt(0).toUpperCase()}
                 </div>
-                <div className="text-sm font-medium text-center">{person.name}</div>
-                <div className="text-xs text-ink-dim">{formatPrice(personTotal)}</div>
+                <div className="text-sm font-medium text-center text-text-primary">{person.name}</div>
+                <div className="text-xs text-text-secondary">{formatPrice(personTotal)}</div>
               </motion.button>
             )
           })}
@@ -138,11 +138,11 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
       {/* Unassigned Items Warning */}
       {getUnassignedItemsCount() > 0 && (
         <motion.div 
-          className="mb-6 p-3 bg-yellow-50 border border-yellow-300 rounded-xl text-center"
+          className="mb-6 p-3 bg-warning/10 border border-warning/30 rounded-xl text-center"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
         >
-          <p className="text-yellow-800 text-sm font-medium">
+          <p className="text-warning text-sm font-medium">
             {getUnassignedItemsCount()} item{getUnassignedItemsCount() > 1 ? 's' : ''} unassigned
           </p>
         </motion.div>
@@ -166,21 +166,21 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
                 onClick={() => handleItemClick(item.id)}
                 className={`relative flex items-center gap-2 px-3 py-2 rounded-full border transition-all ${
                   isActive
-                    ? 'border-brand bg-brand/10 ring-2 ring-brand/30'
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/30'
                     : isAssigned
-                    ? 'border-line bg-card opacity-60'
-                    : 'border-line bg-card hover:border-brand/50'
+                    ? 'border-border bg-surface opacity-60'
+                    : 'border-border bg-surface hover:border-primary/50'
                 }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <span className="text-sm">{item.emoji}</span>
-                <span className="text-sm font-medium">{item.label}</span>
-                <span className="text-xs text-ink-dim">{formatPrice(item.price)}</span>
+                <span className="text-sm font-medium text-text-primary">{item.label}</span>
+                <span className="text-xs text-text-secondary">{formatPrice(item.price)}</span>
                 
                 {/* Assignee count badge */}
                 {isAssigned && (
-                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-brand rounded-full flex items-center justify-center">
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
                     <span className="text-xs font-bold text-white">{assignments.length}</span>
                   </div>
                 )}

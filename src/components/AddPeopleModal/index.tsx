@@ -34,17 +34,35 @@ export const AddPeopleModal: React.FC<AddPeopleModalProps> = ({
 }) => {
   const [people, setPeople] = useState<Person[]>(existingPeople)
   const [newPersonName, setNewPersonName] = useState('')
+  const [error, setError] = useState('')
 
   const handleAddPerson = () => {
-    if (newPersonName.trim()) {
-      const newPerson: Person = {
-        id: Date.now().toString(),
-        name: newPersonName.trim(),
-        color: avatarColors[people.length % avatarColors.length]
-      }
-      setPeople([...people, newPerson])
-      setNewPersonName('')
+    const trimmedName = newPersonName.trim()
+    setError('')
+    
+    // Check minimum length
+    if (trimmedName.length < 2) {
+      setError('Name must be at least 2 characters')
+      return
     }
+    
+    // Check for duplicates (case-insensitive)
+    const isDuplicate = people.some(p => 
+      p.name.toLowerCase() === trimmedName.toLowerCase()
+    )
+    
+    if (isDuplicate) {
+      setError('This person has already been added')
+      return
+    }
+    
+    const newPerson: Person = {
+      id: Date.now().toString(),
+      name: trimmedName,
+      color: avatarColors[people.length % avatarColors.length]
+    }
+    setPeople([...people, newPerson])
+    setNewPersonName('')
   }
 
   const handleRemovePerson = (id: string) => {
@@ -70,174 +88,166 @@ export const AddPeopleModal: React.FC<AddPeopleModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm grid place-items-center p-4"
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="bg-gray-900 text-white rounded-3xl w-full max-w-md max-h-[80vh] overflow-hidden shadow-2xl"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="bg-surface-elevated text-text-primary rounded-xl w-full max-w-md max-h-[80vh] overflow-hidden border border-border shadow-xl mx-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-6 border-b border-gray-800 bg-gradient-to-r from-blue-600/20 to-purple-600/20">
+            <div className="p-6 border-b border-border bg-surface-elevated">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-2xl font-bold">Add People</h2>
-                <motion.button
+                <h2 className="text-xl font-bold text-text-primary">Add People</h2>
+                <button
                   onClick={onClose}
-                  className="p-2 hover:bg-gray-800 rounded-full transition-colors"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  className="p-2 hover:bg-surface rounded-lg transition-all duration-200 text-text-secondary hover:text-text-primary"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </motion.button>
+                </button>
               </div>
-              <p className="text-gray-400 text-sm">Who's splitting this bill?</p>
+              <p className="text-text-secondary text-sm">Who's splitting this bill?</p>
             </div>
 
             {/* Content */}
             <div className="p-6 overflow-y-auto max-h-[50vh]">
               {/* Add Methods */}
-              <div className="flex gap-3 mb-6">
-                <motion.button
+              <div className="space-y-3 mb-6">
+                <button
                   onClick={handleAddFromContacts}
-                  className="flex-1 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-white px-4 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  className="w-full bg-primary hover:bg-primary-hover text-text-inverse px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-md"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
-                  <span>From Contacts</span>
-                </motion.button>
+                  <span>Add from Contacts</span>
+                </button>
+                
+                <button
+                  onClick={() => setNewPersonName('')}
+                  className="w-full bg-surface border border-border text-text-primary hover:bg-surface-elevated px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span>Enter Manually</span>
+                </button>
               </div>
 
-              {/* Manual Entry */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-400 mb-2">
-                  Add Manually
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newPersonName}
-                    onChange={(e) => setNewPersonName(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddPerson()}
-                    placeholder="Enter name..."
-                    className="flex-1 bg-gray-800 border border-gray-700 text-white px-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500"
-                  />
-                  <motion.button
-                    onClick={handleAddPerson}
-                    disabled={!newPersonName.trim()}
-                    className={`px-6 py-3 rounded-xl font-bold transition-all ${
-                      newPersonName.trim()
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                    }`}
-                    whileHover={newPersonName.trim() ? { scale: 1.05 } : {}}
-                    whileTap={newPersonName.trim() ? { scale: 0.95 } : {}}
-                  >
-                    Add
-                  </motion.button>
+              {/* Manual Entry - only show if user clicks "Enter Manually" */}
+              {newPersonName !== undefined && (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-text-secondary mb-2">
+                    Add Manually
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newPersonName}
+                      onChange={(e) => {
+                        setNewPersonName(e.target.value)
+                        setError('')
+                      }}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddPerson()}
+                      placeholder="Enter name..."
+                      className={`flex-1 bg-surface border text-text-primary px-4 py-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary placeholder-text-muted transition-all duration-200 ${
+                        error ? 'border-error' : 'border-border'
+                      }`}
+                    />
+                    <button
+                      onClick={handleAddPerson}
+                      disabled={!newPersonName.trim()}
+                      className={`px-6 py-3 rounded-lg font-bold transition-all duration-200 ${
+                        newPersonName.trim()
+                          ? 'bg-primary hover:bg-primary-hover text-text-inverse hover:opacity-90 shadow-md'
+                          : 'bg-surface border border-border text-text-muted cursor-not-allowed'
+                      }`}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {error && (
+                    <p className="mt-2 text-sm text-error">{error}</p>
+                  )}
                 </div>
-              </div>
+              )}
 
               {/* People List */}
               <div className="space-y-3">
-                <AnimatePresence>
-                  {people.map((person, index) => (
-                    <motion.div
+                <div className="space-y-3">
+                  {people.map((person) => (
+                    <div
                       key={person.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="flex items-center gap-3 bg-gray-800 p-3 rounded-xl"
+                      className="flex items-center gap-3 bg-surface p-3 rounded-lg border border-border"
                     >
                       {/* Avatar */}
-                      <motion.div
-                        className={`w-12 h-12 ${person.color} rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg`}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                      <div
+                        className={`w-12 h-12 ${person.color} rounded-full flex items-center justify-center text-text-inverse font-bold text-lg shadow-md`}
                       >
                         {person.avatar ? (
                           <img src={person.avatar} alt={person.name} className="w-full h-full rounded-full object-cover" />
                         ) : (
                           person.name.charAt(0).toUpperCase()
                         )}
-                      </motion.div>
+                      </div>
 
                       {/* Name */}
-                      <span className="flex-1 font-semibold">{person.name}</span>
+                      <span className="flex-1 font-semibold text-text-primary">{person.name}</span>
 
                       {/* Remove Button */}
-                      <motion.button
+                      <button
                         onClick={() => handleRemovePerson(person.id)}
-                        className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-red-400"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
+                        className="text-error hover:text-error/80 transition-colors px-2 py-1 rounded hover:bg-error-light"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </motion.button>
-                    </motion.div>
+                        Remove
+                      </button>
+                    </div>
                   ))}
-                </AnimatePresence>
+                </div>
 
                 {people.length === 0 && (
-                  <motion.div 
-                    className="text-center py-8 text-gray-500"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
+                  <div className="text-center py-8 text-text-muted">
                     <div className="text-4xl mb-3">👥</div>
                     <p>No one added yet</p>
                     <p className="text-sm mt-1">Add people to start splitting</p>
-                  </motion.div>
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-gray-800 bg-gray-900/50">
+            <div className="p-6 border-t border-border bg-surface-elevated">
               <div className="flex gap-3">
-                <motion.button
+                <button
                   onClick={onClose}
-                  className="flex-1 py-3 border border-gray-700 text-gray-400 rounded-xl font-bold hover:bg-gray-800 transition-all"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 py-3 border border-border text-text-secondary rounded-lg font-bold hover:bg-surface transition-all duration-200"
                 >
                   Cancel
-                </motion.button>
-                <motion.button
+                </button>
+                <button
                   onClick={handleSubmit}
                   disabled={people.length === 0}
-                  className={`flex-1 py-3 rounded-xl font-bold transition-all ${
+                  className={`flex-1 py-3 rounded-lg font-bold transition-all duration-200 ${
                     people.length > 0
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg'
-                      : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                      ? 'bg-primary hover:bg-primary-hover text-text-inverse shadow-md hover:opacity-90'
+                      : 'bg-surface border border-border text-text-muted cursor-not-allowed'
                   }`}
-                  whileHover={people.length > 0 ? { scale: 1.02 } : {}}
-                  whileTap={people.length > 0 ? { scale: 0.98 } : {}}
                 >
                   {people.length === 0 ? 'Add People First' : `Continue with ${people.length} ${people.length === 1 ? 'Person' : 'People'}`}
-                </motion.button>
+                </button>
               </div>
 
               {people.length > 0 && (
-                <motion.p 
-                  className="text-center text-xs text-gray-500 mt-3"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
+                <p className="text-center text-xs text-text-muted mt-3">
                   You can always add more people later
-                </motion.p>
+                </p>
               )}
             </div>
           </motion.div>

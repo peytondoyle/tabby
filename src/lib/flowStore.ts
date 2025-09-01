@@ -51,6 +51,7 @@ interface FlowState {
   setPeople: (people: FlowPerson[]) => void
   addPerson: (person: FlowPerson) => void
   removePerson: (personId: string) => void
+  deduplicatePeople: () => void
   
   setItems: (items: FlowItem[]) => void
   updateItem: (itemId: string, updates: Partial<FlowItem>) => void
@@ -106,9 +107,21 @@ export const useFlowStore = create<FlowState>()(
       // People actions
       setPeople: (people) => set({ people }, false, 'setPeople'),
       addPerson: (person) => 
-        set((state) => ({ 
-          people: [...state.people, person] 
-        }), false, 'addPerson'),
+        set((state) => {
+          // Check for duplicates by name (case-insensitive)
+          const isDuplicate = state.people.some(p => 
+            p.name.toLowerCase() === person.name.toLowerCase()
+          )
+          
+          if (isDuplicate) {
+            console.warn(`[flow_store] Person "${person.name}" already exists, skipping`)
+            return state
+          }
+          
+          return { 
+            people: [...state.people, person] 
+          }
+        }, false, 'addPerson'),
       removePerson: (personId) => 
         set((state) => ({ 
           people: state.people.filter(p => p.id !== personId),
@@ -119,6 +132,27 @@ export const useFlowStore = create<FlowState>()(
             ])
           )
         }), false, 'removePerson'),
+      
+      // Clean up duplicate people
+      deduplicatePeople: () => 
+        set((state) => {
+          const seen = new Set<string>()
+          const uniquePeople = state.people.filter(person => {
+            const nameKey = person.name.toLowerCase()
+            if (seen.has(nameKey)) {
+              console.warn(`[flow_store] Removing duplicate person: "${person.name}"`)
+              return false
+            }
+            seen.add(nameKey)
+            return true
+          })
+          
+          if (uniquePeople.length !== state.people.length) {
+            console.info(`[flow_store] Removed ${state.people.length - uniquePeople.length} duplicate people`)
+          }
+          
+          return { people: uniquePeople }
+        }, false, 'deduplicatePeople'),
       
       // Items actions  
       setItems: (items) => set({ items }, false, 'setItems'),
@@ -192,8 +226,8 @@ export const useFlowStore = create<FlowState>()(
         return itemIds
       },
       getTotalForPerson: (personId) => {
-        const { items, assignments } = get()
-        let total = 0
+        const { items, assignments, bill } = get()
+        let subtotal = 0
         
         assignments.forEach((personIds, itemId) => {
           if (personIds.includes(personId)) {
@@ -201,28 +235,40 @@ export const useFlowStore = create<FlowState>()(
             if (item) {
               // Split the item cost evenly among assigned people
               const splitCost = item.price / personIds.length
-              total += splitCost
+              subtotal += splitCost
             }
           }
         })
         
-        return total
+        // Add proportional tax and tip
+        const totalSubtotal = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
+        const tax = bill?.tax || 0
+        const tip = bill?.tip || 0
+        
+        const taxShare = totalSubtotal > 0 ? (subtotal / totalSubtotal) * tax : 0
+        const tipShare = totalSubtotal > 0 ? (subtotal / totalSubtotal) * tip : 0
+        
+        return subtotal + taxShare + tipShare
       },
 
       computeBillTotals: () => {
-        const { people, items, assignments: _assignments } = get()
-        const billTotal = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
+        const { people, items, bill, assignments: _assignments } = get()
+        const subtotal = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
+        const tax = bill?.tax || 0
+        const tip = bill?.tip || 0
+        const billTotal = subtotal + tax + tip
         
         const personTotals = people.map(person => {
-          const subtotal = get().getTotalForPerson(person.id)
-          // For v1, tax and tip shares are 0 (will be added in later pass)
-          const taxShare = 0
-          const tipShare = 0
-          const total = subtotal + taxShare + tipShare
+          const personSubtotal = get().getTotalForPerson(person.id)
+          
+          // Calculate proportional tax and tip shares
+          const taxShare = subtotal > 0 ? (personSubtotal / subtotal) * tax : 0
+          const tipShare = subtotal > 0 ? (personSubtotal / subtotal) * tip : 0
+          const total = personSubtotal + taxShare + tipShare
           
           return {
             personId: person.id,
-            subtotal,
+            subtotal: personSubtotal,
             taxShare,
             tipShare,
             total
@@ -257,8 +303,10 @@ export const useFlowStore = create<FlowState>()(
           bill: state.bill ? { ...state.bill, ...meta } : meta as FlowBill 
         }), false, 'setBillMeta'),
       
-      replaceItems: (items) => 
-        set({ items, assignments: new Map() }, false, 'replaceItems'),
+      replaceItems: (items) => {
+        console.log('[flow_store] replaceItems called with:', items.length, 'items')
+        set({ items, assignments: new Map() }, false, 'replaceItems')
+      },
       
       upsertBillToken: (token) => 
         set((state) => ({ 

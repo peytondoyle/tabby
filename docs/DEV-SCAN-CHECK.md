@@ -17,6 +17,38 @@ npm run dev:check
 npm run dev:full
 ```
 
+## Environment Variables for CLI
+
+The application uses Vite environment variables (prefixed with `VITE_`) for the frontend and plain environment variables for CLI tools and curl commands. To ensure both use the same values:
+
+### Loading Environment Variables
+
+```bash
+# Load all variables from .env.local for CLI usage
+set -a; source .env.local; set +a
+
+# Export frontend variables for CLI usage
+export SUPABASE_URL="$VITE_SUPABASE_URL"
+export SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY"
+
+# Verify they're loaded
+echo "URL: $SUPABASE_URL"
+echo "Anon key length: ${#SUPABASE_ANON_KEY}"
+```
+
+### Using in Scripts
+
+After loading the variables, you can use them in curl commands:
+
+```bash
+# Example: Check Supabase connection
+curl -H "apikey: $SUPABASE_ANON_KEY" \
+     -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+     "$SUPABASE_URL/rest/v1/bills?limit=1"
+```
+
+**Note:** This ensures both the Vite frontend (which uses `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`) and CLI tools (which use plain `SUPABASE_URL` and `SUPABASE_ANON_KEY`) share the same configuration values.
+
 ## CORS Configuration
 
 ### Why CORS?
@@ -148,6 +180,40 @@ Expected response (with fallback data):
 }
 ```
 
+## Verify CLI Access
+
+Test that environment variables work correctly for CLI operations:
+
+```bash
+# Load vars from .env.local
+set -a; source .env.local; set +a
+export SUPABASE_URL="$VITE_SUPABASE_URL"
+export SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY"
+
+# Verify curl can access Supabase
+curl -i \
+  -H "apikey: $SUPABASE_ANON_KEY" \
+  -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+  "$SUPABASE_URL/rest/v1/bills?select=id&limit=1"
+```
+
+**Expected outcomes:**
+
+- **200 with `[]`** → Environment variables loaded correctly, Supabase accessible
+- **401/42501** → RLS policies need adjustment (add/configure RLS policies)
+- **"No API key found"** → Environment variables not loaded properly
+- **Connection refused** → Check SUPABASE_URL format
+
+**Example successful response:**
+```bash
+HTTP/2 200 
+date: Sun, 01 Sep 2025 10:00:00 GMT
+content-type: application/json
+content-length: 2
+
+[]
+```
+
 ## Development Checklist
 
 - [ ] `vercel dev --listen 3000` starts without errors
@@ -155,6 +221,7 @@ Expected response (with fallback data):
 - [ ] Health alias returns `{"ok": true, "service": "scan-receipt"}`
 - [ ] Preflight OPTIONS returns 204 with CORS headers
 - [ ] Vite starts on :5173 after health check passes
+- [ ] CLI verification returns 200 (Supabase accessible via curl)
 - [ ] Dev banner shows green "✅ API Health" status
 - [ ] Receipt scanner modal opens in UI
 - [ ] Scanner progresses: idle → warming → analyzing → success

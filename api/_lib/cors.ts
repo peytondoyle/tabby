@@ -68,7 +68,7 @@ export function applyCors(req: VercelRequest, res: VercelResponse): boolean {
   }
   
   // Always set these headers
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
   res.setHeader('Access-Control-Max-Age', '86400') // 24 hours
   res.setHeader('Vary', 'Origin')

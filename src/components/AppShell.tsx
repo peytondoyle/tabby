@@ -1,126 +1,103 @@
 import React from 'react'
-import { Outlet, useLocation, useParams } from 'react-router-dom'
-import { Share, Download, Settings } from 'lucide-react'
-import { motion } from 'framer-motion'
-
-// DEV-only component to confirm CSS is loaded
-const StyleSmoke: React.FC = () => {
-  if (!import.meta.env.DEV) return null
-  
-  return (
-    <div 
-      className="fixed top-4 right-4 w-3 h-3 bg-brand rounded-full z-[9999] opacity-80"
-      title="CSS Loaded ✓"
-    />
-  )
-}
+import { Outlet, useLocation, useParams, useNavigate } from 'react-router-dom'
+import { Settings, Share2 } from 'lucide-react'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { useFlowStore } from '@/lib/flowStore'
 
 export const AppShell: React.FC = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const { bill, items, people } = useFlowStore()
   
   // Determine if we're on a bill page
   const isBillPage = location.pathname.startsWith('/bill/') && id && id !== 'new'
   
-  // Mock data for title lockup - in real app, this would come from bill data
-  const billTitle = isBillPage ? "Coffee & Lunch" : null
-  const billLocation = isBillPage ? "Starbucks Downtown" : null
-  const billDate = isBillPage ? "Dec 15, 2024" : null
+  // Get breadcrumb context
+  const getBreadcrumb = () => {
+    if (isBillPage) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-text-secondary">
+          <button
+            onClick={() => navigate('/bills')}
+            className="hover:text-text-primary transition-colors"
+          >
+            My Bills
+          </button>
+          <span>/</span>
+          <span className="text-text-primary">Current Bill</span>
+        </div>
+      )
+    }
+    return null
+  }
+
+  // Get bill title and meta info
+  const getBillInfo = () => {
+    if (!isBillPage || !bill) return null
+    
+    return (
+      <div className="hidden md:block text-center flex-1 max-w-md mx-8">
+        <h1 className="text-lg font-semibold text-text-primary truncate">
+          {bill.title || 'Split Bill'}
+        </h1>
+        <p className="text-sm text-text-secondary">
+          {items.length} item{items.length !== 1 ? 's' : ''} • {people.length} {people.length !== 1 ? 'people' : 'person'}
+        </p>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-paper flex flex-col">
-      {/* DEV-only CSS smoke test */}
-      <StyleSmoke />
-      
-      {/* Sticky Header with Blur - Hidden on bill pages */}
-      <motion.header 
-        className={`sticky top-0 z-50 bg-paper/80 backdrop-blur-md border-b border-line ${isBillPage ? 'hidden' : ''}`}
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-      >
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Clean, Compact Header */}
+      <header className="sticky top-0 z-50 bg-surface-elevated border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex justify-between items-center h-16">
-            {/* Title Lockup */}
-            <div className="flex items-center">
-              <motion.h1 
-                className="text-xl font-semibold text-ink"
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          <div className="flex items-center justify-between h-16">
+            {/* Left: App Name + Breadcrumb */}
+            <div className="flex items-center gap-6">
+              <button
+                onClick={() => navigate('/bills')}
+                className="text-2xl font-bold text-text-primary hover:text-primary transition-colors"
               >
-                Tabby
-              </motion.h1>
-              {isBillPage && billTitle && (
-                <motion.div 
-                  className="ml-4 flex items-center"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <span className="text-ink-dim">•</span>
-                  <div className="ml-4">
-                    <div className="text-sm font-medium text-ink">{billTitle}</div>
-                    <div className="text-xs text-ink-dim">
-                      {billLocation} • {billDate}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-              {!isBillPage && (
-                <motion.span 
-                  className="ml-4 text-sm text-ink-dim"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  Split bills with friends
-                </motion.span>
-              )}
+                Billy
+              </button>
+              {getBreadcrumb()}
             </div>
 
-            {/* Primary Actions */}
-            <div className="flex items-center space-x-2">
-              {isBillPage && (
-                <>
-                  <motion.button 
-                    onClick={() => {/* TODO: Add share functionality */}}
-                    className="hidden sm:flex items-center px-3 py-2 text-sm font-medium text-ink hover:text-brand transition-colors"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Share className="w-4 h-4 mr-2" />
-                    Share
-                  </motion.button>
-                  <motion.button 
-                    onClick={() => {/* TODO: Add export functionality */}}
-                    className="hidden sm:flex items-center px-3 py-2 text-sm font-medium text-ink hover:text-brand transition-colors"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Export
-                  </motion.button>
-                </>
-              )}
-              <motion.button 
-                className="p-2 text-ink hover:text-brand transition-colors"
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+            {/* Center: Bill Title & Meta (only on bill pages) */}
+            {getBillInfo()}
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <button 
+                onClick={() => navigate('/bills')}
+                className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-lg hover:bg-surface"
+                title="View all bills"
+                aria-label="View all bills"
               >
                 <Settings className="w-5 h-5" />
-              </motion.button>
+              </button>
+              {isBillPage && (
+                <button 
+                  onClick={() => {/* TODO: Implement share */}}
+                  className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-lg hover:bg-surface"
+                  title="Share bill"
+                  aria-label="Share bill"
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
-      </motion.header>
+      </header>
 
       {/* Main Content */}
       <main className="flex-1">
         <Outlet />
       </main>
-
-
     </div>
   )
 }

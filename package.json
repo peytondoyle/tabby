@@ -26,7 +26,8 @@
     "dead:all": "npm run types:check && npm run lint:strict && npm run dead:exports && npm run dead:files",
     "analyze": "vite build && npx serve dist -l 5050",
     "dev:check": "curl -s http://127.0.0.1:3000/api/scan-receipt?health=1 && echo && curl -s http://127.0.0.1:3000/api/scan-receipt-health",
-    "dev:check:preflight": "curl -i -X OPTIONS http://127.0.0.1:3000/api/scan-receipt -H 'Origin: http://localhost:5173' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: Content-Type'"
+    "dev:check:preflight": "curl -i -X OPTIONS http://127.0.0.1:3000/api/scan-receipt -H 'Origin: http://localhost:5173' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: Content-Type'",
+    "dev:diag:api": "echo '=== API Health Check ===' && curl -s http://127.0.0.1:3000/api/scan-receipt?health=1 && echo && echo && echo '=== CORS Preflight Test ===' && curl -i -X OPTIONS http://127.0.0.1:3000/api/bills/create -H 'Origin: http://localhost:5173' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: Content-Type' && echo && echo '=== Environment Diagnostics ===' && curl -s http://127.0.0.1:3000/api/dev/env-diag && echo"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -37,11 +38,13 @@
     "@types/node": "^24.3.0",
     "@vercel/node": "^5.3.17",
     "autoprefixer": "^10.4.21",
+    "form-data": "^4.0.4",
     "formidable": "^3.5.4",
     "framer-motion": "^12.23.12",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.541.0",
     "nanoid": "^5.1.5",
+    "openai": "^5.16.0",
     "postcss": "^8.5.6",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

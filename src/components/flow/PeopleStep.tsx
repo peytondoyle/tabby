@@ -46,7 +46,7 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
       >
         <div className="text-6xl mb-4">👥</div>
         <h2 className="text-2xl font-bold mb-2">Who's splitting the bill?</h2>
-        <p className="text-ink-dim">
+        <p className="text-text-secondary">
           Add the people you want to split the bill with
         </p>
       </motion.div>
@@ -59,7 +59,7 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
         transition={{ delay: 0.1 }}
       >
         {people.length === 0 ? (
-          <div className="text-center py-8 text-ink-dim bg-card rounded-2xl border border-line">
+          <div className="text-center py-8 text-text-secondary bg-surface rounded-2xl border border-border">
             <div className="text-3xl mb-2">👋</div>
             <p>No people added yet</p>
           </div>
@@ -70,23 +70,23 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="flex items-center justify-between p-4 bg-card rounded-xl border border-line hover:border-brand/50 transition-all"
+              className="flex items-center justify-between p-4 bg-surface rounded-xl border border-border hover:border-primary/50 transition-all"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-brand/20 rounded-full flex items-center justify-center font-bold text-brand">
+                <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center font-bold text-primary">
                   {person.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <div className="font-semibold">{person.name}</div>
+                  <div className="font-semibold text-text-primary">{person.name}</div>
                   {person.venmo_handle && (
-                    <div className="text-sm text-ink-dim">@{person.venmo_handle}</div>
+                    <div className="text-sm text-text-secondary">@{person.venmo_handle}</div>
                   )}
                 </div>
               </div>
               
               <button
                 onClick={() => removePerson(person.id)}
-                className="p-2 text-ink-dim hover:text-danger transition-colors"
+                className="p-2 text-text-secondary hover:text-error transition-colors"
                 title="Remove person"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,14 +101,14 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
       {/* Add Person Form */}
       {showAddForm ? (
         <motion.div 
-          className="p-6 bg-card rounded-2xl border border-line mb-6"
+          className="p-6 bg-surface rounded-2xl border border-border mb-6"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
         >
-          <h3 className="font-bold mb-4">Add Person</h3>
+          <h3 className="font-bold mb-4 text-text-primary">Add Person</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-ink-dim mb-2">
+              <label className="block text-sm font-medium text-text-secondary mb-2">
                 Name *
               </label>
               <input
@@ -117,13 +117,13 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
                 onChange={(e) => setNewPersonName(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Enter name"
-                className="w-full p-3 bg-paper border border-line rounded-xl focus:ring-2 focus:ring-brand/30 focus:border-brand"
+                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 autoFocus
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-ink-dim mb-2">
+              <label className="block text-sm font-medium text-text-secondary mb-2">
                 Venmo Handle (Optional)
               </label>
               <input
@@ -132,7 +132,7 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
                 onChange={(e) => setNewPersonVenmo(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="username"
-                className="w-full p-3 bg-paper border border-line rounded-xl focus:ring-2 focus:ring-brand/30 focus:border-brand"
+                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary"
               />
             </div>
             
@@ -143,14 +143,14 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
                   setNewPersonName('')
                   setNewPersonVenmo('')
                 }}
-                className="flex-1 px-4 py-2 text-ink-dim border border-line rounded-xl hover:bg-paper transition-all"
+                className="flex-1 px-4 py-2 text-text-secondary border border-border rounded-xl hover:bg-background transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddPerson}
                 disabled={!newPersonName.trim()}
-                className="flex-1 px-4 py-2 bg-brand hover:bg-brand/90 disabled:bg-brand/50 text-white rounded-xl font-semibold transition-all"
+                className="flex-1 px-4 py-2 bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white rounded-xl font-semibold transition-all"
               >
                 Add Person
               </button>
@@ -160,7 +160,7 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
       ) : (
         <motion.button
           onClick={() => setShowAddForm(true)}
-          className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-line hover:border-brand/50 rounded-xl text-ink-dim hover:text-ink transition-all mb-6"
+          className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-border hover:border-primary/50 rounded-xl text-text-secondary hover:text-text-primary transition-all mb-6"
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
         >
@@ -175,7 +175,7 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
       <div className="flex gap-4">
         <button
           onClick={onPrev}
-          className="flex items-center gap-2 px-6 py-3 bg-card border border-line hover:border-brand/50 text-ink rounded-xl font-semibold transition-all"
+          className="flex items-center gap-2 px-6 py-3 bg-surface border border-border hover:border-primary/50 text-text-primary rounded-xl font-semibold transition-all"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -188,8 +188,8 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
           disabled={!canProceed}
           className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
             canProceed
-              ? 'bg-brand hover:bg-brand/90 text-white'
-              : 'bg-brand/30 text-white/70 cursor-not-allowed'
+              ? 'bg-primary hover:bg-primary-hover text-white'
+              : 'bg-primary/30 text-white/70 cursor-not-allowed'
           }`}
         >
           {people.length === 0 ? 'Add at least 1 person' : `Continue with ${people.length} ${people.length === 1 ? 'person' : 'people'}`}

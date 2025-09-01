@@ -6,20 +6,44 @@ A delightful, trustworthy, and fast restaurant bill splitting app. Upload receip
 
 ### Environment Setup
 
+⚠️ **Breaking Change**: `VITE_SUPABASE_PUBLISHABLE_KEY` is deprecated. Use `VITE_SUPABASE_ANON_KEY` instead. Update any scripts or configs accordingly.
+
 1. Copy `.env.example` to `.env.local` and configure:
 
 ```bash
 # Required - Supabase Configuration
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key  # Client-safe key
-SUPABASE_SECRET_KEY=sb_secret_your-secret-key          # Server-only (for API routes)
+VITE_SUPABASE_ANON_KEY=your-anon-key                   # Client-safe key
+SUPABASE_SECRET_KEY=your-service-role-key              # Server-only (for API routes)
 
 # Optional - For CLI operations
 SUPABASE_DB_PASSWORD=your-db-password
 SUPABASE_PROJECT_REF=your-project-ref
 ```
 
-⚠️ **Important**: Only use the new API key format (`sb_publishable_*` and `sb_secret_*`). Legacy JWT keys are no longer supported.
+### Supabase Setup
+
+**Frontend (Vite):**
+```typescript
+// Frontend (Vite)
+import { createClient } from '@supabase/supabase-js'
+
+export const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!
+)
+```
+
+**Backend / API routes:**
+```typescript
+// Backend / API routes
+import { createClient } from '@supabase/supabase-js'
+
+export const supabaseAdmin = createClient(
+  process.env.VITE_SUPABASE_URL!,
+  process.env.SUPABASE_SECRET_KEY!
+)
+```
 
 2. Start the development server:
 

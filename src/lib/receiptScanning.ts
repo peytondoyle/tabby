@@ -122,7 +122,7 @@ function getDEVFallback(): ParseResult {
 }
 
 // Ensure API is healthy before making requests
-export async function ensureApiHealthy({ tries = 20, delayMs = 500 }: { tries?: number; delayMs?: number } = {}): Promise<boolean> {
+export async function ensureApiHealthy({ tries = 3, delayMs = 1000 }: { tries?: number; delayMs?: number } = {}): Promise<boolean> {
   console.info('[scan_start] Health check starting, tries:', tries)
   
   for (let attempt = 1; attempt <= tries; attempt++) {
@@ -163,12 +163,20 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
   console.info(`[scan_start] Starting receipt parse - file: ${fileName} (${fileSize} bytes, ${fileType})`)
   
   try {
-    // Ensure API is healthy before making request
-    const isHealthy = await ensureApiHealthy()
+    // Ensure API is healthy before making request (quick check)
+    const isHealthy = await ensureApiHealthy({ tries: 2, delayMs: 500 })
     
     if (!isHealthy) {
       const duration = Date.now() - startTime
       console.warn(`[scan_api_error] API health check failed after ${duration}ms`)
+      
+      // Don't use dev fallback if we're in production-like mode
+      const allowDevFallback = import.meta.env.VITE_ALLOW_DEV_FALLBACK !== '0'
+      
+      if (!allowDevFallback) {
+        throw new Error('Receipt scanning service is unavailable. Please try again later.')
+      }
+      
       const fallbackResult = getDEVFallback()
       console.info(`[scan_ok] Using dev fallback due to API health check failure - ${fallbackResult.items.length} items`)
       return fallbackResult
@@ -186,6 +194,19 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
     if (!response.ok) {
       const duration = Date.now() - startTime
       console.warn(`[scan_api_error] ${response.status} ${response.error} after ${duration}ms`)
+      
+      // Check for OCR not configured error
+      const errorData = response.data || {}
+      if (errorData.code === 'OCR_NOT_CONFIGURED') {
+        throw new Error('Receipt scanning is not available. OCR service is not configured.')
+      }
+      
+      // Don't use dev fallback if we're in production-like mode
+      const allowDevFallback = import.meta.env.VITE_ALLOW_DEV_FALLBACK !== '0'
+      
+      if (!allowDevFallback) {
+        throw new Error(response.error || 'Failed to scan receipt. Please try again.')
+      }
       
       // Return fallback for any API error
       const fallbackResult = getDEVFallback()
@@ -241,6 +262,14 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
     const duration = Date.now() - startTime
     console.error(`[scan_exception] Receipt parsing failed after ${duration}ms:`, error)
     
+    // Don't use dev fallback if we're in production-like mode
+    const allowDevFallback = import.meta.env.VITE_ALLOW_DEV_FALLBACK !== '0'
+    
+    if (!allowDevFallback) {
+      // Re-throw the error for proper error handling
+      throw error
+    }
+    
     // Return deterministic fallback on network/parsing error
     const fallbackResult = getDEVFallback()
     console.info(`[scan_ok] Using dev fallback due to network error - ${fallbackResult.items.length} items`)
@@ -275,87 +304,55 @@ export async function scanReceipt(file: File): Promise<ReceiptScanResult> {
   return legacyResult
 }
 
-// Legacy bill creation function - kept for backwards compatibility
+// Legacy bill creation function - now routes through server API
 export async function createBillFromReceipt(receiptData: ReceiptScanResult, _editorToken?: string): Promise<string> {
-  console.info('[scan_start] Creating bill from receipt data...')
-  const isSupabaseAvailable = _isSupabaseAvailable()
+  console.info('[scan_start] Creating bill from receipt data via server API...')
   
-  if (!isSupabaseAvailable) {
-    console.warn('[scan_api_error] Supabase not available - creating local bill')
-    // Create a token for localStorage-based bill
-    const billToken = `scanned-${Date.now()}`
-    
-    // Store in localStorage as fallback
-    const billData = {
-      token: billToken,
-      title: receiptData.restaurant_name,
-      place: receiptData.location,
-      date: receiptData.date,
-      items: receiptData.items,
-      subtotal: receiptData.subtotal,
-      tax: receiptData.tax,
-      tip: receiptData.tip || 0,
-      total: receiptData.total,
-      createdAt: new Date().toISOString()
-    }
-    
-    localStorage.setItem(`bill-${billToken}`, JSON.stringify(billData))
-    console.info(`[scan_ok] Local bill created with token: ${billToken}`)
-    return billToken
-  }
-
   try {
-    console.info('[scan_start] Creating bill in Supabase...')
-    
-    // Create bill in Supabase
-    const billData = {
-      title: receiptData.restaurant_name,
-      place: receiptData.location,
+    // Convert ReceiptScanResult to ParseResult format
+    const parseResult: ParseResult = {
+      place: receiptData.restaurant_name,  // Use restaurant_name, not location
       date: receiptData.date,
-      subtotal: receiptData.subtotal,
-      tax: receiptData.tax,
-      tip: receiptData.tip || 0,
-      total: receiptData.total
-    }
-
-    const { data: bill, error: billError } = await supabase!
-      .rpc('create_bill', billData)
-
-    if (billError) {
-      console.error('[scan_api_error] Supabase bill creation failed:', billError)
-      throw billError
-    }
-
-    const billToken = bill
-    console.info(`[scan_ok] Supabase bill created with token: ${billToken}`)
-
-    // Create items
-    for (const [index, item] of receiptData.items.entries()) {
-      console.info(`[scan_start] Creating item ${index + 1}/${receiptData.items.length}: ${item.label}`)
-      
-      const itemData = {
-        bill_token: billToken,
+      items: receiptData.items.map(item => ({
+        id: item.id || `item-${nanoid()}`,
         label: item.label,
         price: item.price,
         emoji: item.emoji
-      }
-
-      const { error: itemError } = await supabase!
-        .rpc('create_item', itemData)
-
-      if (itemError) {
-        console.error(`[scan_api_error] Failed to create item ${item.label}:`, itemError)
-        // Continue with other items even if one fails
-      } else {
-        console.info(`[scan_ok] Item created: ${item.label}`)
-      }
+      })),
+      subtotal: receiptData.subtotal,
+      tax: receiptData.tax,
+      tip: receiptData.tip,
+      total: receiptData.total
     }
 
-    console.info(`[scan_ok] Bill creation completed: ${billToken}`)
-    return billToken
+    // Use the server API to create the bill
+    const response = await apiFetch('/api/bills/create', {
+      method: 'POST',
+      body: JSON.stringify({ parsed: parseResult })
+    })
+
+    if (!response.ok) {
+      console.error('[scan_api_error] Server API failed:', response.error)
+      throw new Error(response.error || 'Failed to create bill via server API')
+    }
+
+    const { bill } = response.data
+    console.info(`[scan_ok] Bill created successfully via server API - bill ID: ${bill.id}`)
+    
+    // Return the bill ID (not editor token since that's server-side only now)
+    return bill.id
 
   } catch (error) {
-    console.error('[scan_exception] Failed to create bill in Supabase:', error)
+    console.error('[scan_exception] Failed to create bill via server API:', error)
+    
+    // Check if local fallback is allowed
+    const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'
+    
+    if (!allowLocalFallback) {
+      // Re-throw the error for the UI to handle
+      throw error
+    }
+
     // Fallback to localStorage
     const billToken = `scanned-${Date.now()}`
     const billData = {

@@ -1,5 +1,68 @@
 import html2canvas from 'html2canvas'
 
+/**
+ * Convert oklch colors to hex fallbacks for html2canvas compatibility
+ */
+function getHexFallback(oklchValue: string): string | null {
+  // Common oklch to hex mappings for Tailwind colors
+  const oklchToHex: Record<string, string> = {
+    'oklch(0.9 0.02 240)': '#f1f5f9', // slate-100
+    'oklch(0.8 0.02 240)': '#e2e8f0', // slate-200
+    'oklch(0.7 0.02 240)': '#cbd5e1', // slate-300
+    'oklch(0.6 0.02 240)': '#94a3b8', // slate-400
+    'oklch(0.5 0.02 240)': '#64748b', // slate-500
+    'oklch(0.4 0.02 240)': '#475569', // slate-600
+    'oklch(0.3 0.02 240)': '#334155', // slate-700
+    'oklch(0.2 0.02 240)': '#1e293b', // slate-800
+    'oklch(0.1 0.02 240)': '#0f172a', // slate-900
+    
+    // Brand colors (blue)
+    'oklch(0.6 0.15 240)': '#3b82f6', // blue-500
+    'oklch(0.5 0.15 240)': '#2563eb', // blue-600
+    'oklch(0.4 0.15 240)': '#1d4ed8', // blue-700
+    
+    // Success colors (green)
+    'oklch(0.6 0.15 140)': '#22c55e', // green-500
+    'oklch(0.5 0.15 140)': '#16a34a', // green-600
+    
+    // Warning colors (yellow/orange)
+    'oklch(0.8 0.15 80)': '#fbbf24', // amber-400
+    'oklch(0.7 0.15 80)': '#f59e0b', // amber-500
+    
+    // Error colors (red)
+    'oklch(0.6 0.15 20)': '#ef4444', // red-500
+    'oklch(0.5 0.15 20)': '#dc2626', // red-600
+    
+    // Neutral colors
+    'oklch(0.95 0.005 240)': '#fafafa', // gray-50
+    'oklch(0.9 0.005 240)': '#f5f5f5', // gray-100
+    'oklch(0.8 0.005 240)': '#e5e5e5', // gray-200
+    'oklch(0.7 0.005 240)': '#d4d4d4', // gray-300
+    'oklch(0.6 0.005 240)': '#a3a3a3', // gray-400
+    'oklch(0.5 0.005 240)': '#737373', // gray-500
+    'oklch(0.4 0.005 240)': '#525252', // gray-600
+    'oklch(0.3 0.005 240)': '#404040', // gray-700
+    'oklch(0.2 0.005 240)': '#262626', // gray-800
+    'oklch(0.1 0.005 240)': '#171717', // gray-900
+    'oklch(0.05 0.005 240)': '#0a0a0a', // gray-950
+  }
+  
+  // Try exact match first
+  if (oklchToHex[oklchValue]) {
+    return oklchToHex[oklchValue]
+  }
+  
+  // Try partial match (for variations)
+  for (const [oklch, hex] of Object.entries(oklchToHex)) {
+    if (oklchValue.includes(oklch.substring(0, 20))) { // Match first part
+      return hex
+    }
+  }
+  
+  // Fallback to a safe default
+  return '#000000'
+}
+
 export interface ExportOptions {
   filename?: string
   format: 'png' | 'jpeg' | 'pdf'
@@ -15,6 +78,29 @@ export async function exportElementAsImage(
   options: ExportOptions = { format: 'png' }
 ): Promise<void> {
   try {
+    // Temporarily replace oklch colors with hex fallbacks for html2canvas compatibility
+    const originalStyles = new Map<string, string>()
+    const elementsWithOklch = element.querySelectorAll('*')
+    
+    elementsWithOklch.forEach(el => {
+      const computedStyle = window.getComputedStyle(el)
+      const properties = ['color', 'background-color', 'border-color']
+      
+      properties.forEach(prop => {
+        const value = computedStyle.getPropertyValue(prop)
+        if (value.includes('oklch')) {
+          // Store original style
+          originalStyles.set(`${el.tagName}.${prop}`, value)
+          
+          // Replace with hex fallback
+          const fallbackColor = getHexFallback(value)
+          if (fallbackColor) {
+            ;(el as HTMLElement).style.setProperty(prop, fallbackColor, 'important')
+          }
+        }
+      })
+    })
+
     // Configure html2canvas options for high quality
     const canvas = await html2canvas(element, {
       scale: options.scale || 2, // Higher scale for better quality
@@ -25,6 +111,19 @@ export async function exportElementAsImage(
       scrollY: 0,
       width: element.scrollWidth,
       height: element.scrollHeight
+    })
+
+    // Restore original styles
+    elementsWithOklch.forEach(el => {
+      const computedStyle = window.getComputedStyle(el)
+      const properties = ['color', 'background-color', 'border-color']
+      
+      properties.forEach(prop => {
+        const key = `${el.tagName}.${prop}`
+        if (originalStyles.has(key)) {
+          ;(el as HTMLElement).style.removeProperty(prop)
+        }
+      })
     })
 
     // Create download link

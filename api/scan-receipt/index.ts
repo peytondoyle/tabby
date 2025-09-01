@@ -2,7 +2,8 @@ import { VercelRequest, VercelResponse } from '@vercel/node'
 import { IncomingForm } from 'formidable'
 import { promises as fs } from 'fs'
 import { createClient } from '@supabase/supabase-js'
-import { applyCors } from '../_lib/cors'
+import { applyCors } from '../_lib/cors.js'
+import { processWithOpenAI, isOpenAIConfigured } from './openai-ocr.js'
 
 // Server-side Supabase client using secret key
 const supabaseAdmin = process.env.SUPABASE_SECRET_KEY 
@@ -22,6 +23,18 @@ const supabaseAdmin = process.env.SUPABASE_SECRET_KEY
 if (process.env.SUPABASE_SECRET_KEY && process.env.SUPABASE_SECRET_KEY.startsWith('eyJ')) {
   throw new Error('Legacy service_role key detected! Please use the new Secret key format.')
 }
+
+// Feature flags
+const REQUIRE_REAL_OCR = process.env.REQUIRE_REAL_OCR === '1'
+
+// Check if OCR provider keys are available
+const hasOCRProviders = !!(
+  process.env.GOOGLE_CLOUD_VISION_API_KEY ||
+  process.env.AWS_ACCESS_KEY_ID ||
+  process.env.AZURE_VISION_ENDPOINT ||
+  process.env.OCR_SPACE_API_KEY ||
+  process.env.OPENAI_API_KEY
+)
 
 interface ScanReceiptResponse {
   place?: string | null
@@ -83,22 +96,25 @@ async function parseFormData(req: VercelRequest): Promise<{ file: any } | null> 
   })
 }
 
-// Real OCR processing (placeholder for Google Vision, AWS Textract, etc.)
-async function processWithOCR(filePath: string): Promise<ScanReceiptResponse> {
-  // In production, this would:
-  // 1. Read the file buffer
-  // 2. Call external OCR service (Google Vision API, AWS Textract, etc.)
-  // 3. Parse the OCR text to extract structured data
-  
-  // For now, read file to validate it exists and return structured mock data
+// Real OCR processing with OpenAI or other providers
+async function processWithOCR(filePath: string, mimeType?: string): Promise<ScanReceiptResponse> {
   try {
-    await fs.access(filePath)
-    console.log(`[scan_api] OCR processing file: ${filePath}`)
+    // Read the file buffer
+    const fileBuffer = await fs.readFile(filePath)
+    console.log(`[scan_api] OCR processing file: ${filePath}, size: ${fileBuffer.length} bytes`)
     
-    // Simulate processing time
+    // Use OpenAI if configured
+    if (isOpenAIConfigured()) {
+      console.log('[scan_api] Using OpenAI Vision for OCR')
+      return await processWithOpenAI(fileBuffer, mimeType || 'image/jpeg')
+    }
+    
+    // TODO: Add other OCR providers here (Google Vision, AWS Textract, etc.)
+    
+    // Fallback to mock data if no OCR provider is configured
+    console.log('[scan_api] No OCR provider configured, using mock data')
     await new Promise(resolve => setTimeout(resolve, 800))
     
-    // Return more realistic receipt data
     return {
       place: "Chick-fil-A Store #02849",
       date: "2025-08-29",
@@ -106,20 +122,7 @@ async function processWithOCR(filePath: string): Promise<ScanReceiptResponse> {
       tax: 1.37,
       tip: 0,
       total: 24.22,
-      rawText: `
-        Chick-fil-A
-        Store #02849  
-        Richmond, VA 23230
-        8/29/2025 9:39 AM
-        
-        Cobb Salad w/ Nuggets                $9.95
-        Medium Waffle Fries                  $2.75
-        Chick-fil-A Deluxe Meal             $10.15
-        
-        Subtotal                            $22.85
-        Tax                                  $1.37
-        Total                               $24.22
-      `.trim(),
+      rawText: `Mock receipt (configure OCR provider for real scanning)`,
       items: [
         { label: "Cobb Salad w/ Nuggets", price: 9.95 },
         { label: "Medium Waffle Fries", price: 2.75 },
@@ -147,7 +150,7 @@ function redactQuery(query: any): string {
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
-): Promise<void> {
+) {
   // Apply CORS headers and handle OPTIONS preflight
   if (applyCors(req, res)) return
 
@@ -185,6 +188,17 @@ export default async function handler(
       return res.status(405).json({ error: 'Method not allowed' })
     }
 
+    // Check REQUIRE_REAL_OCR flag
+    if (REQUIRE_REAL_OCR && !hasOCRProviders) {
+      const duration = Date.now() - requestStart
+      console.error(`[scan_api] OCR not configured but required, rejected in ${duration}ms`)
+      return res.status(400).json({
+        ok: false,
+        code: 'OCR_NOT_CONFIGURED',
+        message: 'Real OCR scanning is required but no OCR provider keys are configured'
+      })
+    }
+
     console.log('[scan_api] Starting receipt processing...')
 
     // Parse multipart form data
@@ -216,17 +230,19 @@ export default async function handler(
     // Note: supabaseAdmin can be used here for server-side database operations
     // Example: await supabaseAdmin?.from('receipts').insert({ ... })
 
-    // Check if OCR is configured (placeholder for real env check)
+    // Check if OCR is configured
     const ocrConfigured = process.env.OCR_ENABLED === 'true' || 
                          process.env.GOOGLE_VISION_API_KEY || 
-                         process.env.AWS_TEXTRACT_ENABLED
+                         process.env.AWS_TEXTRACT_ENABLED ||
+                         process.env.OPENAI_API_KEY ||
+                         process.env.OCR_SPACE_API_KEY
 
     let result: ScanReceiptResponse
 
     if (ocrConfigured) {
       // Use real OCR
       console.log('[scan_api] Using OCR processing')
-      result = await processWithOCR(file.filepath)
+      result = await processWithOCR(file.filepath, file.mimetype)
       console.log(`[scan_api] OCR processing completed - ${result.items.length} items extracted`)
     } else {
       // DEV fallback
@@ -239,14 +255,22 @@ export default async function handler(
     
     res.status(200).json(result)
 
-  } catch (error) {
+  } catch (error: any) {
     const duration = Date.now() - requestStart
-    console.error(`[scan_api] Receipt processing error in ${duration}ms:`, error)
+    console.error(`[scan_api] Receipt processing error in ${duration}ms:`, {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      type: error.type,
+      response: error.response?.data,
+      stack: error.stack?.split('\n').slice(0, 5).join('\n')
+    })
     
     // Always return fallback data even on error
     const fallback = getDEVFallback()
     res.status(500).json({
       error: 'Receipt processing failed',
+      errorMessage: error.message, // Include error message for debugging
       ...fallback
     })
   }

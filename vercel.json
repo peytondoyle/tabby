@@ -1,5 +1,4 @@
 {
-  "devCommand": "echo \"Vite is launched separately (dev-full)\"",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" }
   ]

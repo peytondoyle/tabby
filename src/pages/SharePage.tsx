@@ -15,8 +15,8 @@ export const SharePage: React.FC = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-ink mb-2">Invalid Share Link</h1>
-          <p className="text-ink-dim">This receipt link is not valid.</p>
+          <h1 className="text-2xl font-semibold text-text-primary mb-2">Invalid Share Link</h1>
+          <p className="text-text-secondary">This receipt link is not valid.</p>
         </div>
       </div>
     )
@@ -32,8 +32,8 @@ export const SharePage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h1 className="text-3xl font-bold text-ink mb-2">Receipt</h1>
-          <p className="text-ink-dim">View and share your bill split</p>
+          <h1 className="text-3xl font-bold text-text-primary mb-2">Receipt</h1>
+          <p className="text-text-secondary">View and share your bill split</p>
         </motion.div>
 
         {/* Mode Toggle */}
@@ -43,13 +43,13 @@ export const SharePage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          <div className="flex gap-2 bg-paper rounded-lg p-1">
+          <div className="flex gap-2 bg-surface rounded-lg p-1">
             <button
               onClick={() => setMode('summary')}
               className={`px-4 py-2 text-sm rounded-md transition-colors ${
                 mode === 'summary'
-                  ? 'bg-brand text-white'
-                  : 'text-ink hover:bg-paper/80'
+                  ? 'bg-primary text-white'
+                  : 'text-text-primary hover:bg-background/80'
               }`}
             >
               Summary
@@ -58,8 +58,8 @@ export const SharePage: React.FC = () => {
               onClick={() => setMode('breakdown')}
               className={`px-4 py-2 text-sm rounded-md transition-colors ${
                 mode === 'breakdown'
-                  ? 'bg-brand text-white'
-                  : 'text-ink hover:bg-paper/80'
+                  ? 'bg-primary text-white'
+                  : 'text-text-primary hover:bg-background/80'
               }`}
             >
               Breakdown
@@ -90,22 +90,22 @@ export const SharePage: React.FC = () => {
           >
             <Link
               to={`/bill/${id}`}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
             >
               <ExternalLink size={16} />
-              <span>Open in Tabby</span>
+              <span>Open in Billy</span>
             </Link>
           </motion.div>
         )}
 
         {/* Footer */}
         <motion.div
-          className="mt-12 text-center text-sm text-ink-dim"
+          className="mt-12 text-center text-sm text-text-secondary"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-          <p>Powered by Tabby • Split bills with ease</p>
+          <p>Powered by Billy • Split bills with ease</p>
         </motion.div>
       </div>
     </div>

@@ -1,24 +1,20 @@
-import { supabase, isSupabaseAvailable } from './supabaseClient'
+import { apiFetch } from './apiClient'
 
 /**
- * Dev-only health check to verify RPC availability
+ * Dev-only health check to verify API availability
+ * SECURITY: No longer uses legacy RPC calls
  */
 export function runHealthCheck() {
   if (!import.meta.env.DEV) return
   
-  if (!isSupabaseAvailable() || !supabase) {
-    console.warn('[Tabby] RPC check ❌ Supabase not available')
-    return
-  }
-
-  supabase.rpc('list_bills').then(r => {
-    if (r.error) {
-      console.warn('[Tabby] RPC check ❌ list_bills not available:', r.error.message)
+  apiFetch('/api/scan-receipt?health=1').then(response => {
+    if (response.ok && response.data?.ok) {
+      console.log('[Tabby] API health check ✅ Server responsive')
     } else {
-      console.log('[Tabby] RPC check ✅ list_bills OK')
+      console.warn('[Tabby] API health check ❌ Server not responding:', response.status)
     }
-  }, (error: unknown) => {
+  }).catch((error: unknown) => {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    console.warn('[Tabby] RPC check ❌ health probe failed:', errorMessage)
+    console.warn('[Tabby] API health check ❌ Health probe failed:', errorMessage)
   })
 }

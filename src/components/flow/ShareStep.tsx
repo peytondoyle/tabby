@@ -80,24 +80,24 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="text-6xl mb-4">🎉</div>
-        <h1 className="text-4xl font-bold mb-2">Share Bill</h1>
-        <p className="text-lg text-ink-dim">
+        <h1 className="text-4xl font-bold mb-2 text-text-primary">Share Bill</h1>
+        <p className="text-lg text-text-secondary">
           Export clean receipt cards
         </p>
       </motion.div>
 
       {/* People List */}
       <motion.div 
-        className="bg-card rounded-2xl border border-line p-6 mb-8"
+        className="bg-surface rounded-2xl border border-border p-6 mb-8"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.1 }}
       >
         <div className="text-center mb-4">
-          <div className="text-2xl font-bold text-brand">
+          <div className="text-2xl font-bold text-primary">
             {formatPrice(billTotal)}
           </div>
-          <div className="text-sm text-ink-dim">
+          <div className="text-sm text-text-secondary">
             Split between {people.length} people
           </div>
         </div>
@@ -108,14 +108,14 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
             if (!person) return null
             
             return (
-              <div key={person.id} className="flex justify-between items-center py-3 px-4 bg-paper rounded-xl">
+              <div key={person.id} className="flex justify-between items-center py-3 px-4 bg-background rounded-xl">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-brand/20 rounded-full flex items-center justify-center font-bold text-brand">
+                  <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center font-bold text-primary">
                     {person.name.charAt(0).toUpperCase()}
                   </div>
-                  <span className="font-semibold text-lg">{person.name}</span>
+                  <span className="font-semibold text-lg text-text-primary">{person.name}</span>
                 </div>
-                <span className="font-bold text-xl">
+                <span className="font-bold text-xl text-text-primary">
                   {formatPrice(personTotal.total)}
                 </span>
               </div>
@@ -133,7 +133,7 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
       >
         <motion.button
           onClick={handleGroupShare}
-          className="flex-1 flex items-center justify-center gap-3 px-8 py-6 bg-brand hover:bg-brand/90 text-white rounded-2xl font-bold text-lg shadow-lg transition-all"
+          className="flex-1 flex items-center justify-center gap-3 px-8 py-6 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold text-lg transition-all"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
@@ -142,7 +142,7 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
 
         <motion.button
           onClick={handleIndividualShare}
-          className="flex-1 flex items-center justify-center gap-3 px-8 py-6 bg-brand hover:bg-brand/90 text-white rounded-2xl font-bold text-lg shadow-lg transition-all"
+          className="flex-1 flex items-center justify-center gap-3 px-8 py-6 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold text-lg transition-all"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >

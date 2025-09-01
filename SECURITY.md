@@ -2,16 +2,11 @@
 
 ## 🚨 API Key Requirements (UPDATED 2025-08-31)
 
-This application **ONLY** supports the new Supabase API key format:
-- **Publishable keys**: `sb_publishable_*` (client-safe)
-- **Secret keys**: `sb_secret_*` (server-only)
+This application uses standard Supabase API keys:
+- **Anon keys**: `eyJhbGciOiJIUzI1NiIs...` (client-safe, from "anon public")
+- **Secret keys**: `eyJhbGciOiJIUzI1NiIs...` (server-only, from "service_role")
 
-### ❌ Legacy Keys NOT Supported
-
-The following legacy key formats are **NO LONGER SUPPORTED** and will be rejected at runtime:
-- JWT-format anon keys (starting with `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9`)
-- JWT-format service_role keys
-- Any other legacy authentication formats
+All keys are obtained from your Supabase project dashboard under Settings → API.
 
 ## 🔒 Environment Variables & Secrets
 
@@ -23,17 +18,54 @@ The following legacy key formats are **NO LONGER SUPPORTED** and will be rejecte
 
 ### Setup Instructions:
 1. Copy `.env.example` to `.env.local`
-2. Add your new format keys:
-   - `VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...`
-   - `SUPABASE_SECRET_KEY=sb_secret_...`
+2. Add your Supabase keys from the dashboard:
+   - `VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...` (from API settings, "anon public" key)
+   - `SUPABASE_SECRET_KEY=eyJhbGciOiJIUzI1NiIs...` (from API settings, "service_role" key)
 3. Verify `.env.local` is listed in `.gitignore`
 
 ### Key Usage Guidelines
 
 | Context | Use This Key | Never Use |
 |---------|-------------|-----------|
-| Client-Side (Browser) | `VITE_SUPABASE_PUBLISHABLE_KEY` | Secret keys, Legacy JWT keys |
-| Server-Side (API) | `SUPABASE_SECRET_KEY` | Publishable key for privileged ops |
+| Client-Side (Browser) | `VITE_SUPABASE_ANON_KEY` | Secret keys |
+| Server-Side (API) | `SUPABASE_SECRET_KEY` | Anon key for privileged ops |
+
+## 🔐 Environment Variables Security
+
+### Critical Security Rules
+
+- **Only** the anon key (`VITE_SUPABASE_ANON_KEY`) should ever be exposed to the client/browser
+- The service role key (`SUPABASE_SECRET_KEY`) **must remain server-only**
+- **Never check real keys into git**. `.env` and `.env.local.example` contain placeholders for onboarding
+
+### Key Exposure Prevention
+
+```typescript
+// ✅ CORRECT: Frontend usage
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!  // Safe for browser
+)
+
+// ✅ CORRECT: Backend usage  
+const supabaseAdmin = createClient(
+  process.env.VITE_SUPABASE_URL!,
+  process.env.SUPABASE_SECRET_KEY!  // Server-only, never exposed
+)
+
+// ❌ WRONG: Secret key in frontend
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.SUPABASE_SECRET_KEY!  // NEVER expose secret key!
+)
+```
+
+### Environment File Security
+
+- `.env.local` - Real keys, never committed, used locally
+- `.env` - Placeholder examples only, safe to commit
+- `.env.production` - Real keys for production, never committed
+- `.gitignore` - Must include all environment files with real keys
 
 ### Runtime Protection
 

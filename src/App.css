@@ -7,35 +7,26 @@ html, body, #root {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Retro/8-bit inspired font stack with iOS fallback */
+/* Modern, clean font stack */
 body {
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background-color: var(--color-background);
 }
 
-/* 8-bit/retro styling utilities */
-.retro-border {
-  border: 2px solid;
-  border-image: 
-    linear-gradient(45deg, #000 25%, transparent 25%), 
-    linear-gradient(-45deg, #000 25%, transparent 25%), 
-    linear-gradient(45deg, transparent 75%, #000 75%), 
-    linear-gradient(-45deg, transparent 75%, #000 75%);
-  border-image-slice: 2;
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-.pixel-perfect {
-  image-rendering: -moz-crisp-edges;
-  image-rendering: -webkit-crisp-edges;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-}
-
-.retro-shadow {
-  box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
-}
-
-.retro-text-shadow {
-  text-shadow: 1px 1px 0px rgba(0,0,0,0.3);
+/* Focus states for accessibility */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* Mobile touch improvements */
@@ -55,19 +46,12 @@ input, textarea, select {
 
 /* Hide scrollbars for clean UI */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* Internet Explorer 10+ */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Safari and Chrome */
-}
-
-/* Leaders utility for dotted fillers */
-.leaders {
-  flex: 1;
-  border-bottom: 1px dotted #d1d5db;
-  margin: 0 0.5rem;
+  display: none;
 }
 
 /* Currency utility class */

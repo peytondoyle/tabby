@@ -202,11 +202,11 @@ export const PeopleGrid: React.FC<PeopleGridProps> = ({ billToken }) => {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-ink">People</h2>
+          <h2 className="text-lg font-semibold text-text-primary">People</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 bg-card rounded-2xl animate-pulse" />
+            <div key={i} className="h-32 bg-surface rounded-2xl animate-pulse" />
           ))}
         </div>
       </div>
@@ -217,10 +217,10 @@ export const PeopleGrid: React.FC<PeopleGridProps> = ({ billToken }) => {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-ink">People</h2>
+          <h2 className="text-lg font-semibold text-text-primary">People</h2>
         </div>
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="text-sm text-red-700">
+        <div className="p-4 bg-error/10 border border-error/20 rounded-lg">
+          <div className="text-sm text-error">
             Error loading people: {peopleError instanceof Error ? peopleError.message : 'Unknown error'}
           </div>
         </div>
@@ -231,7 +231,7 @@ export const PeopleGrid: React.FC<PeopleGridProps> = ({ billToken }) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-ink">People</h2>
+        <h2 className="text-lg font-semibold text-text-primary">People</h2>
       </div>
 
       {/* Add Person Form */}
@@ -241,7 +241,7 @@ export const PeopleGrid: React.FC<PeopleGridProps> = ({ billToken }) => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-card rounded-2xl p-4 border border-line"
+            className="bg-surface rounded-2xl p-4 border border-border"
           >
             <div className="space-y-3">
               <input
@@ -249,33 +249,33 @@ export const PeopleGrid: React.FC<PeopleGridProps> = ({ billToken }) => {
                 placeholder="Name"
                 value={newPerson.name}
                 onChange={(e) => setNewPerson(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-3 py-2 bg-paper border border-line rounded-lg text-ink placeholder:text-ink-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <input
                 type="text"
                 placeholder="Avatar (emoji)"
                 value={newPerson.avatar_url}
                 onChange={(e) => setNewPerson(prev => ({ ...prev, avatar_url: e.target.value }))}
-                className="w-full px-3 py-2 bg-paper border border-line rounded-lg text-ink placeholder:text-ink-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <input
                 type="text"
                 placeholder="Venmo handle"
                 value={newPerson.venmo}
                 onChange={(e) => setNewPerson(prev => ({ ...prev, venmo: e.target.value }))}
-                className="w-full px-3 py-2 bg-paper border border-line rounded-lg text-ink placeholder:text-ink-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <div className="flex gap-2">
                 <button
                   onClick={handleAddPerson}
                   disabled={addPersonMutation.isPending}
-                  className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand/90 disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 transition-colors"
                 >
                   {addPersonMutation.isPending ? 'Adding...' : 'Add Person'}
                 </button>
                 <button
                   onClick={handleCancelAdd}
-                  className="px-4 py-2 bg-paper text-ink rounded-lg border border-line hover:bg-paper/80 transition-colors"
+                  className="px-4 py-2 bg-background text-text-primary rounded-lg border border-border hover:bg-surface transition-colors"
                 >
                   Cancel
                 </button>
@@ -331,7 +331,7 @@ export const PeopleGrid: React.FC<PeopleGridProps> = ({ billToken }) => {
       </div>
 
       {people.length === 0 && !isAdding && (
-        <div className="text-center py-8 text-ink-dim">
+        <div className="text-center py-8 text-text-secondary">
           <p>No people added yet. Click the + card to add someone!</p>
         </div>
       )}

@@ -1,28 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Legacy key detection regex - matches old JWT format
-const LEGACY_KEY_PATTERN = /^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\./
-
 // Get Supabase configuration
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://evraslbpgcafyvvtbqxy.supabase.co'
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || ''
-
-// Runtime validation to prevent using legacy keys
-if (SUPABASE_PUBLISHABLE_KEY && LEGACY_KEY_PATTERN.test(SUPABASE_PUBLISHABLE_KEY)) {
-  throw new Error(
-    '🚨 SECURITY ERROR: Legacy Supabase API key detected!\n' +
-    'Please update to the new Publishable API key format.\n' +
-    'Legacy keys (anon/service_role) are no longer supported.\n' +
-    'See SECURITY.md for migration instructions.'
-  )
-}
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 // Warn if secret key is accidentally used in client code
-if (SUPABASE_PUBLISHABLE_KEY && SUPABASE_PUBLISHABLE_KEY.startsWith('sb_secret_')) {
+if (SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.startsWith('sb_secret_')) {
   console.error(
     '🚨 CRITICAL SECURITY WARNING: Secret key detected in client code!\n' +
     'The secret key should NEVER be used in client-side code.\n' +
-    'Use the publishable key (sb_publishable_*) instead.'
+    'Use the anon key instead.'
   )
   // In production, we should throw an error here
   if (!import.meta.env.DEV) {
@@ -30,11 +17,11 @@ if (SUPABASE_PUBLISHABLE_KEY && SUPABASE_PUBLISHABLE_KEY.startsWith('sb_secret_'
   }
 }
 
-const hasValidCredentials = SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
+const hasValidCredentials = SUPABASE_URL && SUPABASE_ANON_KEY
 
 // Only create client if we have valid credentials
 export const supabase = hasValidCredentials 
-  ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         autoRefreshToken: false,
         persistSession: false

@@ -23,7 +23,7 @@ export const CompactTotals: React.FC<CompactTotalsProps> = ({ billTotals }) => {
   const showPennyFix = billTotals?.penny_reconciliation.distributed !== 0
 
   return (
-    <div className="sticky bottom-0 z-50 bg-card/95 backdrop-blur border-t border-line">
+    <div className="sticky bottom-0 z-50 bg-surface/95 backdrop-blur border-t border-border">
       <div className="max-w-6xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between gap-4">
           {/* Totals Display */}
@@ -31,11 +31,11 @@ export const CompactTotals: React.FC<CompactTotalsProps> = ({ billTotals }) => {
             {/* Subtotal, Tax, Tip */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1">
-                <span className="text-sm text-ink-dim">Subtotal</span>
+                <span className="text-sm text-text-secondary">Subtotal</span>
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={totals.subtotal}
-                    className="currency text-sm text-ink"
+                    className="currency text-sm text-text-primary"
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 5 }}
@@ -46,11 +46,11 @@ export const CompactTotals: React.FC<CompactTotalsProps> = ({ billTotals }) => {
                 </AnimatePresence>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-sm text-ink-dim">Tax</span>
+                <span className="text-sm text-text-secondary">Tax</span>
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={totals.tax}
-                    className="currency text-sm text-ink"
+                    className="currency text-sm text-text-primary"
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 5 }}
@@ -61,11 +61,11 @@ export const CompactTotals: React.FC<CompactTotalsProps> = ({ billTotals }) => {
                 </AnimatePresence>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-sm text-ink-dim">Tip</span>
+                <span className="text-sm text-text-secondary">Tip</span>
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={totals.tip}
-                    className="currency text-sm text-ink"
+                    className="currency text-sm text-text-primary"
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 5 }}
@@ -78,12 +78,12 @@ export const CompactTotals: React.FC<CompactTotalsProps> = ({ billTotals }) => {
             </div>
 
             {/* Grand Total */}
-            <div className="flex items-center gap-2 border-l border-line pl-4">
-              <span className="text-sm font-medium text-ink">Total</span>
+            <div className="flex items-center gap-2 border-l border-border pl-4">
+              <span className="text-sm font-medium text-text-primary">Total</span>
               <AnimatePresence mode="wait">
                 <motion.span
                   key={totals.total}
-                  className="currency text-xl font-bold text-ink"
+                  className="currency text-xl font-bold text-text-primary"
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 5 }}
@@ -97,7 +97,7 @@ export const CompactTotals: React.FC<CompactTotalsProps> = ({ billTotals }) => {
               <AnimatePresence>
                 {showPennyFix && (
                   <motion.div 
-                    className="inline-flex items-center px-2 py-1 bg-accent/10 text-accent text-xs font-medium rounded-full"
+                    className="inline-flex items-center px-2 py-1 bg-secondary/10 text-secondary text-xs font-medium rounded-full"
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.8, opacity: 0 }}

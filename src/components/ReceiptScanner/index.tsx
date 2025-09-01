@@ -9,22 +9,34 @@ interface ReceiptScannerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onParsed: (result: ParseResult) => void
+  externalError?: string
 }
 
 export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
   open,
   onOpenChange,
-  onParsed
+  onParsed,
+  externalError
 }) => {
   const [state, setState] = useState<'idle' | 'warming' | 'analyzing' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Handle external errors (from bill creation)
+  React.useEffect(() => {
+    if (externalError) {
+      setErrorMessage(externalError)
+      setState('error')
+    }
+  }, [externalError])
 
   const onClose = () => onOpenChange(false)
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    
+    console.log('[scan_start]', { file_name: file.name, file_size: file.size })
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -54,11 +66,13 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
       // Step 2: Analyzing - parse the receipt
       setState('analyzing')
       const parseResult = await parseReceipt(file)
+      console.log('[scan_success]', { items_count: parseResult.items.length, total: parseResult.total })
       onParsed(parseResult)
       onClose()
     } catch (err) {
       setErrorMessage('Failed to scan receipt. Please try again.')
       setState('error')
+      console.error('[scan_api_error]', err)
       console.error('Receipt scanning error:', err)
     }
   }
@@ -76,30 +90,30 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4"
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-card text-ink rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto border-2 border-line shadow-pop retro-shadow"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="bg-card text-ink rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto border-2 border-line shadow-pop retro-shadow mx-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="p-6 border-b-2 border-line bg-paper">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold retro-text-shadow">📷 Scan Receipt</h2>
-                <motion.button
+                <button
                   onClick={onClose}
-                  className="p-2 hover:bg-line rounded-full transition-colors pixel-perfect"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  className="p-2 hover:bg-line rounded-full transition-opacity duration-150 ease-out hover:opacity-75 motion-reduce:transition-none pixel-perfect"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </motion.button>
+                </button>
               </div>
             </div>
 
@@ -107,23 +121,12 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               {/* Warming State */}
               {state === 'warming' && (
                 <div className="text-center py-12">
-                  <motion.div
-                    className="text-8xl mb-8"
-                    animate={{ 
-                      scale: [1, 1.1, 1],
-                      rotate: [0, 5, -5, 0]
-                    }}
-                    transition={{ 
-                      duration: 1.5,
-                      repeat: Infinity,
-                      repeatType: "reverse"
-                    }}
-                  >
-                    🔥⚡
-                  </motion.div>
+                  <div className="text-6xl mb-8">
+                    ⚡
+                  </div>
                   
-                  <h3 className="text-2xl font-bold mb-2 retro-text-shadow">Warming Up</h3>
-                  <p className="text-ink-dim mb-8 font-mono">
+                  <h3 className="text-2xl font-bold mb-2">Warming Up</h3>
+                  <p className="text-ink-dim mb-8">
                     Starting the receipt analyzer… one moment.
                   </p>
 
@@ -139,23 +142,12 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               {/* Analyzing State */}
               {state === 'analyzing' && (
                 <div className="text-center py-12">
-                  <motion.div
-                    className="text-8xl mb-8"
-                    animate={{ 
-                      scale: [1, 1.1, 1],
-                      rotate: [0, 5, -5, 0]
-                    }}
-                    transition={{ 
-                      duration: 2,
-                      repeat: Infinity,
-                      repeatType: "reverse"
-                    }}
-                  >
-                    🔍✨
-                  </motion.div>
+                  <div className="text-6xl mb-8">
+                    🔍
+                  </div>
                   
-                  <h3 className="text-2xl font-bold mb-2 retro-text-shadow">Analyzing Receipt</h3>
-                  <p className="text-ink-dim mb-8 font-mono">
+                  <h3 className="text-2xl font-bold mb-2">Analyzing Receipt</h3>
+                  <p className="text-ink-dim mb-8">
                     AI is reading your receipt and extracting items...
                   </p>
 
@@ -167,137 +159,76 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   />
 
                   {/* Progress steps */}
-                  <motion.div 
-                    className="space-y-4 max-w-md mx-auto"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                  >
-                    <motion.div 
-                      className="flex items-center gap-3 text-left"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.8 }}
-                    >
-                      <motion.div
-                        className="w-6 h-6 bg-brand rounded-full flex items-center justify-center text-white text-sm"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 1 }}
-                      >
+                  <div className="space-y-4 max-w-md mx-auto">
+                    <div className="flex items-center gap-3 text-left">
+                      <div className="w-6 h-6 bg-brand rounded-full flex items-center justify-center text-white text-sm">
                         ✓
-                      </motion.div>
+                      </div>
                       <span className="text-ink-dim">Reading receipt image</span>
-                    </motion.div>
+                    </div>
                     
-                    <motion.div 
-                      className="flex items-center gap-3 text-left"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 1.2 }}
-                    >
-                      <motion.div
-                        className="w-6 h-6 bg-brand rounded-full flex items-center justify-center text-white text-sm"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 1.5 }}
-                      >
+                    <div className="flex items-center gap-3 text-left">
+                      <div className="w-6 h-6 bg-brand rounded-full flex items-center justify-center text-white text-sm">
                         ✓
-                      </motion.div>
+                      </div>
                       <span className="text-ink-dim">Extracting items and prices</span>
-                    </motion.div>
+                    </div>
                     
-                    <motion.div 
-                      className="flex items-center gap-3 text-left"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 1.6 }}
-                    >
+                    <div className="flex items-center gap-3 text-left">
                       <motion.div
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                         className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full"
                       />
                       <span className="text-ink-dim">Preparing your items</span>
-                    </motion.div>
-                  </motion.div>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {/* Upload State */}
               {state === 'idle' && (
                 <div className="text-center">
-                  <motion.div 
-                    className="border-2 border-dashed border-line rounded-2xl p-12 mb-6 bg-paper retro-shadow"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <motion.div 
-                      className="text-6xl mb-4"
-                      animate={{ 
-                        rotate: [0, 5, -5, 0],
-                        scale: [1, 1.1, 1]
-                      }}
-                      transition={{ 
-                        duration: 2,
-                        repeat: Infinity,
-                        repeatType: "reverse"
-                      }}
-                    >
-                      📄✨
-                    </motion.div>
-                    <h3 className="text-xl font-bold mb-2 retro-text-shadow">📷 Upload Receipt</h3>
-                    <p className="text-ink-dim mb-4 font-mono">
-                      🤖 AI will automatically extract items and prices
+                  <div className="border-2 border-dashed border-line rounded-2xl p-12 mb-6 bg-paper">
+                    <div className="text-6xl mb-4">
+                      📷
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">Take Photo</h3>
+                    <p className="text-ink-dim mb-4">
+                      AI will automatically extract items and prices
                     </p>
-                    <motion.button
+                    <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="bg-brand hover:bg-brand/90 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-pop retro-shadow pixel-perfect"
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
+                      className="bg-brand hover:bg-brand/90 text-white px-8 py-3 rounded-xl font-bold transition-all duration-200"
                     >
                       📸 Choose Image
-                    </motion.button>
-                  </motion.div>
+                    </button>
+                  </div>
                   
-                  <div className="text-sm text-ink-dim font-mono space-y-1">
-                    <p>💾 Supports: JPG, PNG, WebP</p>
-                    <p>📏 Max size: 10MB</p>
+                  <div className="text-sm text-ink-dim space-y-1">
+                    <p>Supports: JPG, PNG, WebP</p>
+                    <p>Max size: 10MB</p>
                   </div>
                 </div>
               )}
 
               {/* Error State */}
               {state === 'error' && (
-                <motion.div 
-                  className="text-center py-8"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                >
-                  <motion.div 
-                    className="text-6xl mb-4"
-                    animate={{ 
-                      rotate: [0, -10, 10, 0],
-                      scale: [1, 1.1, 1]
-                    }}
-                    transition={{ 
-                      duration: 2,
-                      repeat: Infinity,
-                      repeatType: "reverse"
-                    }}
-                  >
-                    ❌🔄
-                  </motion.div>
-                  <h3 className="text-xl font-bold mb-2 retro-text-shadow">⚠️ Scanning Failed</h3>
-                  <p className="text-ink-dim mb-6 font-mono">{errorMessage}</p>
-                  <motion.button
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">
+                    ❌
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">
+                    {externalError ? "Couldn't save your bill" : "Scanning Failed"}
+                  </h3>
+                  <p className="text-ink-dim mb-6">{errorMessage}</p>
+                  <button
                     onClick={handleRetry}
-                    className="bg-brand hover:bg-brand/90 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-pop retro-shadow pixel-perfect"
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
+                    className="bg-brand hover:bg-brand/90 text-white px-8 py-3 rounded-xl font-bold transition-all duration-200"
                   >
-                    🔄 Try Again
-                  </motion.button>
-                </motion.div>
+                    Retry
+                  </button>
+                </div>
               )}
             </div>
 
