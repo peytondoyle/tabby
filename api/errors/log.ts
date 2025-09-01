@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
-import { applyCors } from '../_utils/cors'
+import { applyCors } from '../_utils/cors.js'
 
 // Environment variables with fallbacks
 const SB_URL = 
@@ -31,6 +31,14 @@ interface ErrorLogData {
     duration_ms?: number
     [key: string]: any
   }
+}
+
+interface BatchLogData {
+  logs: Array<{
+    level: "error" | "warn" | "info"
+    msg: string
+    meta?: any
+  }>
 }
 
 export default async function handler(
@@ -67,54 +75,100 @@ export default async function handler(
   }
 
   try {
-    const errorData: ErrorLogData = req.body
-
-    // Basic validation
-    if (!errorData || typeof errorData !== 'object') {
-      return res.status(400).json({
-        ok: false,
-        code: 'INVALID_PAYLOAD',
-        message: 'Request body must be a valid error log object'
-      })
-    }
-
-    console.info(`[error_log] Logging error for endpoint: ${errorData.endpoint}`)
-
-    // Insert error log using admin client
-    const { error } = await supabaseAdmin
-      .from('scan_errors')
-      .insert({
-        endpoint: errorData.endpoint,
-        status_code: errorData.status_code,
-        message: errorData.message,
-        meta: errorData.meta
-      })
-
-    if (error) {
-      const duration = Date.now() - requestStart
-      console.error(`[error_log] Failed to log error in ${duration}ms:`, {
-        error: error,
-        code: error.code,
-        message: error.message,
-        details: error.details
-      })
-
-      return res.status(500).json({ 
-        ok: false, 
-        code: 'DATABASE_ERROR',
-        message: `Failed to log error: ${error.message}`,
-        details: error.details,
-        hint: error.hint
-      })
-    }
-
-    const duration = Date.now() - requestStart
-    console.info(`[error_log] Error logged successfully in ${duration}ms for ${errorData.endpoint}`)
+    // Handle both legacy single error format and new batch format
+    const body = req.body as ErrorLogData | BatchLogData
     
-    res.status(200).json({
-      ok: true,
-      message: 'Error logged successfully'
-    })
+    if ('logs' in body && Array.isArray(body.logs)) {
+      // New batch format
+      const logs = body.logs
+      console.info(`[error_log] Processing batch of ${logs.length} logs`)
+      
+      // Process each log entry
+      for (const log of logs) {
+        const errorData: ErrorLogData = {
+          endpoint: '/api/errors/log',
+          status_code: log.level === 'error' ? 500 : log.level === 'warn' ? 400 : 200,
+          message: log.msg,
+          meta: {
+            timestamp: new Date().toISOString(),
+            level: log.level,
+            ...log.meta
+          }
+        }
+        
+        // Insert error log using admin client
+        const { error } = await supabaseAdmin
+          .from('scan_errors')
+          .insert({
+            endpoint: errorData.endpoint,
+            status_code: errorData.status_code,
+            message: errorData.message,
+            meta: errorData.meta
+          })
+
+        if (error) {
+          console.error(`[error_log] Failed to log batch item:`, error)
+        }
+      }
+      
+      const duration = Date.now() - requestStart
+      console.info(`[error_log] Batch of ${logs.length} logs processed in ${duration}ms`)
+      
+      res.status(200).json({
+        ok: true,
+        message: `Batch of ${logs.length} logs processed successfully`
+      })
+    } else {
+      // Legacy single error format
+      const errorData: ErrorLogData = body as ErrorLogData
+
+      // Basic validation
+      if (!errorData || typeof errorData !== 'object') {
+        return res.status(400).json({
+          ok: false,
+          code: 'INVALID_PAYLOAD',
+          message: 'Request body must be a valid error log object'
+        })
+      }
+
+      console.info(`[error_log] Logging error for endpoint: ${errorData.endpoint}`)
+
+      // Insert error log using admin client
+      const { error } = await supabaseAdmin
+        .from('scan_errors')
+        .insert({
+          endpoint: errorData.endpoint,
+          status_code: errorData.status_code,
+          message: errorData.message,
+          meta: errorData.meta
+        })
+
+      if (error) {
+        const duration = Date.now() - requestStart
+        console.error(`[error_log] Failed to log error in ${duration}ms:`, {
+          error: error,
+          code: error.code,
+          message: error.message,
+          details: error.details
+        })
+
+        return res.status(500).json({ 
+          ok: false, 
+          code: 'DATABASE_ERROR',
+          message: `Failed to log error: ${error.message}`,
+          details: error.details,
+          hint: error.hint
+        })
+      }
+
+      const duration = Date.now() - requestStart
+      console.info(`[error_log] Error logged successfully in ${duration}ms for ${errorData.endpoint}`)
+      
+      res.status(200).json({
+        ok: true,
+        message: 'Error logged successfully'
+      })
+    }
 
   } catch (error) {
     const duration = Date.now() - requestStart

@@ -6,6 +6,7 @@ import { ReceiptAnalysis } from '@/components/ReceiptAnalysis'
 import { AddPeopleModal } from '@/components/AddPeopleModal'
 import { scanReceipt, createBillFromReceipt } from '@/lib/receiptScanning'
 import type { ReceiptScanResult } from '@/lib/receiptScanning'
+import { logServer } from '@/lib/errorLogger'
 
 interface Person {
   id: string
@@ -74,6 +75,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
     } catch (err) {
       setError('Failed to scan receipt. Please try again.')
       console.error('Receipt scanning error:', err)
+      logServer('error', 'Receipt scanning failed in onboarding', { error: err, context: 'OnboardingFlow.handleScanReceipt' })
       setCurrentStep('splash')
     }
   }
@@ -105,6 +107,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
       } catch (err) {
         setError('Failed to create bill. Please try again.')
         console.error('Bill creation error:', err)
+        logServer('error', 'Bill creation failed in onboarding', { error: err, context: 'OnboardingFlow.handleAddPeople' })
       }
     }
   }

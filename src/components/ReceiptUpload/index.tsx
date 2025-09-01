@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, FileImage, X, Camera, Loader } from 'lucide-react'
+import { logServer } from '@/lib/errorLogger'
 
 interface ReceiptUploadProps {
   onFileSelect: (files: File[]) => void
@@ -101,6 +102,7 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       onUploadComplete?.(results)
     } catch (error) {
       console.error('Error processing files:', error)
+      logServer('error', 'Failed to process files', { error, context: 'ReceiptUpload.handleUpload' })
     } finally {
       setUploading(false)
     }
@@ -173,6 +175,7 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       return canvas.toDataURL('image/jpeg', 0.8)
     } catch (error) {
       console.error('Error creating PDF thumbnail:', error)
+      logServer('error', 'Failed to create PDF thumbnail', { error, context: 'ReceiptUpload.createPdfThumbnail' })
       return ''
     }
   }

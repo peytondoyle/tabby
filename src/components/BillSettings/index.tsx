@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabaseClient'
 import { showSuccess, showError } from '@/lib/exportUtils'
+import { logServer } from '@/lib/errorLogger'
 import type { Bill } from '@/lib/billUtils'
 
 interface BillSettingsProps {
@@ -34,6 +35,7 @@ export const BillSettings: React.FC<BillSettingsProps> = ({ bill, editorToken, o
     },
     onError: (error) => {
       console.error('Error updating bill settings:', error)
+      logServer('error', 'Failed to update bill settings', { error, context: 'BillSettings.updateBill' })
       showError('Failed to update settings')
     }
   })

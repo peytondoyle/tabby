@@ -17,14 +17,20 @@ export type ErrorResponse = z.infer<typeof ErrorResponseSchema>
 // Bill creation request schema
 export const CreateBillRequestSchema = z.object({
   items: z.array(z.object({
-    label: z.string().min(1, "Item label is required"),
+    id: z.string().optional(),
+    name: z.string().min(1, "Item name is required"),
     price: z.number().positive("Price must be positive"),
-    emoji: z.string().optional(),
-    quantity: z.number().int().positive().default(1)
+    icon: z.string().optional()
   })).min(1, "At least one item is required"),
-  place: z.string().optional(),
-  total: z.number().positive().optional(),
-  date: z.string().optional()
+  place: z.string().nullable().optional(),
+  total: z.number().nullable().optional(),
+  date: z.string().optional(),
+  people: z.array(z.object({
+    id: z.string(),
+    name: z.string()
+  })).default([]),
+  tax: z.number().default(0),
+  tip: z.number().default(0)
 })
 
 export type CreateBillRequest = z.infer<typeof CreateBillRequestSchema>

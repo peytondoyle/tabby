@@ -32,7 +32,8 @@ export const DevBanner: React.FC = () => {
       setHealthStatus('checking')
       const response = await apiFetch('/api/scan-receipt?health=1')
       
-      if (response.ok && response.data && typeof response.data === 'object' && 'ok' in response.data && response.data.ok) {
+      // apiFetch returns the raw response data, so check if it has the expected structure
+      if (response && typeof response === 'object' && 'ok' in response && response.ok) {
         setHealthStatus('healthy')
         setLastCheck(new Date())
       } else {
@@ -40,8 +41,8 @@ export const DevBanner: React.FC = () => {
         const error: ApiError = {
           timestamp: new Date().toISOString(),
           endpoint: '/api/scan-receipt?health=1',
-          status: response.status,
-          message: response.error || 'Health check failed'
+          status: 0,
+          message: 'Health check failed - invalid response format'
         }
         setLastErrors(prev => [error, ...prev.slice(0, 2)]) // Keep last 3
         

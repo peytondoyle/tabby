@@ -11,6 +11,7 @@ import { SplashScreen } from '@/components/SplashScreen'
 import { createBillFromParse, fetchBillByToken } from '@/lib/bills'
 import { isLocalId } from '@/lib/id'
 import { Button } from "@/components/ui/Button";
+import { logServer } from '@/lib/errorLogger'
 
 export const Flow: React.FC = () => {
   const { token } = useParams<{ token: string }>()
@@ -144,8 +145,10 @@ export const Flow: React.FC = () => {
     setIsProcessingReceipt(true)
     
     try {
-      // Create bill via server API (respects VITE_ALLOW_LOCAL_FALLBACK)
-      const billId = await createBillFromParse(result)
+      // Create bill via server API using new schema-aligned functions
+      const { createBill, buildCreatePayload } = await import('@/lib/bills')
+      const payload = buildCreatePayload(result)
+      const { id: billId } = await createBill(payload)
       console.info(`[flow] Bill created with ID: ${billId}`)
       
       // Replace store items and set meta using helpers
@@ -189,24 +192,11 @@ export const Flow: React.FC = () => {
       
     } catch (error) {
       setIsProcessingReceipt(false)
-      console.error('[flow] Failed to create bill:', error)
-      // Set scanner error instead of throwing - show safe substring
-      let errorMessage = 'Failed to save your bill. Please try again.'
-      
-      if (error instanceof Error) {
-        // Extract safe substring from server error message
-        const serverMessage = error.message
-        if (serverMessage.includes('not configured')) {
-          errorMessage = 'Service not configured. Please try again later.'
-        } else if (serverMessage.includes('network') || serverMessage.includes('timeout')) {
-          errorMessage = 'Network error. Please check your connection.'
-        } else if (serverMessage.length > 0 && serverMessage.length < 100) {
-          // Use server message if it's reasonable length and looks safe
-          errorMessage = serverMessage
-        }
-      }
-      
-      setScannerError(errorMessage)
+      const msg = error instanceof Error ? error.message : 'Request validation failed'
+      logServer('warn', 'bill_create_failed', { msg })
+      setScannerError(`Bill creation failed: ${msg}`)
+      console.error('[flow] Bill creation failed:', error)
+      logServer('error', 'Failed to create bill', { error, context: 'Flow.handleParsed' })
     }
   }
   

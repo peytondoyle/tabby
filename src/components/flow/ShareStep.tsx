@@ -1,6 +1,7 @@
 import React, { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useFlowStore } from '@/lib/flowStore'
+import { logServer } from '@/lib/errorLogger'
 import { PersonCard, GroupCard } from '@/components/ShareCards'
 import { exportReceiptCard, exportGroupReceipt } from '@/lib/exportUtils'
 import { Button } from "@/components/ui/Button";
@@ -49,6 +50,7 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
         )
       } catch (error) {
         console.error('Export failed:', error)
+        logServer('error', 'Group export failed', { error, context: 'ShareStep.handleGroupShare' })
         alert('Export failed. Please try again.')
       }
     }
@@ -67,6 +69,7 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
           )
         } catch (error) {
           console.error(`Export failed for ${person.name}:`, error)
+          logServer('error', 'Individual export failed', { error, personName: person.name, context: 'ShareStep.handleIndividualShare' })
         }
       }
     }

@@ -8,10 +8,11 @@ export function runHealthCheck() {
   if (!import.meta.env.DEV) return
   
   apiFetch('/api/scan-receipt?health=1').then(response => {
-    if (response.ok && response.data && typeof response.data === 'object' && 'ok' in response.data && response.data.ok) {
+    // apiFetch returns the raw response data, so check if it has the expected structure
+    if (response && typeof response === 'object' && 'ok' in response && response.ok) {
       console.log('[Tabby] API health check ✅ Server responsive')
     } else {
-      console.warn('[Tabby] API health check ❌ Server not responding:', response.status)
+      console.warn('[Tabby] API health check ❌ Server not responding: invalid response format')
     }
   }).catch((error: unknown) => {
     const errorMessage = error instanceof Error ? error.message : String(error)

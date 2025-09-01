@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
-import { applyCors } from '../_utils/cors'
+import { applyCors } from '../_utils/cors.js'
 
 // Server-side Supabase client using secret key
 const supabaseAdmin = process.env.SUPABASE_SECRET_KEY 

@@ -2,10 +2,10 @@ import { VercelRequest, VercelResponse } from '@vercel/node'
 import { IncomingForm } from 'formidable'
 import { promises as fs } from 'fs'
 import { createClient } from '@supabase/supabase-js'
-import { applyCors } from '../_utils/cors'
-import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from '../_utils/request'
-import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit'
-import { FILE_LIMITS, HealthResponseSchema } from '../_utils/schemas'
+import { applyCors } from '../_utils/cors.js'
+import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from '../_utils/request.js'
+import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit.js'
+import { FILE_LIMITS, HealthResponseSchema } from '../_utils/schemas.js'
 import { processWithOpenAI, isOpenAIConfigured } from './openai-ocr.js'
 
 // Server-side Supabase client using secret key
@@ -99,44 +99,7 @@ async function parseFormData(req: VercelRequest): Promise<{ file: any } | null> 
   })
 }
 
-// Real OCR processing with OpenAI or other providers
-async function processWithOCR(filePath: string, mimeType?: string): Promise<ScanReceiptResponse> {
-  try {
-    // Read the file buffer
-    const fileBuffer = await fs.readFile(filePath)
-    console.log(`[scan_api] OCR processing file: ${filePath}, size: ${fileBuffer.length} bytes`)
-    
-    // Use OpenAI if configured
-    if (isOpenAIConfigured()) {
-      console.log('[scan_api] Using OpenAI Vision for OCR')
-      return await processWithOpenAI(fileBuffer, mimeType || 'image/jpeg')
-    }
-    
-    // TODO: Add other OCR providers here (Google Vision, AWS Textract, etc.)
-    
-    // Fallback to mock data if no OCR provider is configured
-    console.log('[scan_api] No OCR provider configured, using mock data')
-    await new Promise(resolve => setTimeout(resolve, 800))
-    
-    return {
-      place: "Chick-fil-A Store #02849",
-      date: "2025-08-29",
-      subtotal: 22.85,
-      tax: 1.37,
-      tip: 0,
-      total: 24.22,
-      rawText: `Mock receipt (configure OCR provider for real scanning)`,
-      items: [
-        { label: "Cobb Salad w/ Nuggets", price: 9.95 },
-        { label: "Medium Waffle Fries", price: 2.75 },
-        { label: "Chick-fil-A Deluxe Meal", price: 10.15 }
-      ]
-    }
-  } catch (error) {
-    console.error('[scan_api] OCR file processing failed:', error)
-    throw error
-  }
-}
+// This function is no longer used - we use processWithOpenAI directly
 
 const startTime = Date.now()
 
@@ -253,19 +216,32 @@ export default async function handler(
     // Example: await supabaseAdmin?.from('receipts').insert({ ... })
 
     // Check if OCR is configured
-    const ocrConfigured = process.env.OCR_ENABLED === 'true' || 
-                         process.env.GOOGLE_VISION_API_KEY || 
-                         process.env.AWS_TEXTRACT_ENABLED ||
-                         process.env.OPENAI_API_KEY ||
-                         process.env.OCR_SPACE_API_KEY
+    const ocrConfigured = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim() !== ''
 
     let result: ScanReceiptResponse
 
     if (ocrConfigured) {
       // Use real OCR
-      console.log('[scan_api] Using OCR processing')
-      result = await processWithOCR(file.filepath, file.mimetype)
-      console.log(`[scan_api] OCR processing completed - ${result.items.length} items extracted`)
+      console.log('[scan_api] Using OpenAI OCR processing')
+      try {
+        // Read file as buffer for OpenAI processing
+        const imageBuffer = await fs.readFile(file.filepath)
+        console.log(`[scan_api] File read successfully, size: ${imageBuffer.length} bytes`)
+        
+        // Add timeout to OpenAI processing
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('OpenAI API timeout after 30 seconds')), 30000)
+        )
+        
+        const ocrPromise = processWithOpenAI(imageBuffer, file.mimetype)
+        result = await Promise.race([ocrPromise, timeoutPromise])
+        
+        console.log(`[scan_api] OpenAI OCR processing completed - ${result.items.length} items extracted`)
+      } catch (ocrError) {
+        console.error('[scan_api] OCR processing failed:', ocrError)
+        // Fall back to dev data if OCR fails
+        result = getDEVFallback()
+      }
     } else {
       // DEV fallback
       console.log('[scan_api] Using DEV fallback (OCR not configured)')

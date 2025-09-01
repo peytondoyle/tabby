@@ -9,6 +9,7 @@ import { showError } from '@/lib/exportUtils'
 import { deriveAssignedMap } from '@/lib/computeTotals'
 import { useUpsertItemShareMutation } from '@/lib/queryClient'
 import { PersonChip, type PersonChipRef } from './PersonChip.tsx'
+import { logServer } from '@/lib/errorLogger'
 
 interface PeopleDockProps {
   billToken?: string
@@ -208,6 +209,7 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
     },
     onError: (error) => {
       console.error('Error adding person:', error)
+      logServer('error', 'Failed to add person', { error, context: 'PeopleDock.addPerson' })
       showError('Failed to add person')
     }
   })
@@ -258,6 +260,7 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
         })
         .catch((error) => {
           console.error('Error assigning items:', error)
+          logServer('error', 'Failed to assign items', { error, context: 'PeopleDock.handleAssignSelected' })
           showError('Failed to assign items')
         })
     }

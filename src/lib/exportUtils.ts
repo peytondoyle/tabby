@@ -1,4 +1,5 @@
 import html2canvas from 'html2canvas'
+import { logServer } from './errorLogger'
 
 /**
  * Convert oklch colors to hex fallbacks for html2canvas compatibility
@@ -148,6 +149,7 @@ export async function exportElementAsImage(
     document.body.removeChild(link)
   } catch (error) {
     console.error('Export failed:', error)
+    logServer('error', 'Export failed', { error, context: 'exportElementAsImage' })
     throw new Error('Failed to export receipt. Please try again.')
   }
 }

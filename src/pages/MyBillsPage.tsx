@@ -7,6 +7,7 @@ import { ReceiptScanner } from '@/components/ReceiptScanner'
 import type { ParseResult } from '@/lib/receiptScanning'
 import { useFlowStore } from '@/lib/flowStore'
 import { apiFetch } from '@/lib/apiClient'
+import { logServer } from '@/lib/errorLogger'
 // import { OnboardingFlow } from '@/components/OnboardingFlow'
 import { getCurrentDate } from '@/lib/receiptScanning'
 import { fetchBills, deleteBill, type BillListItem } from '@/lib/bills'
@@ -240,11 +241,12 @@ export const MyBillsPage: React.FC = () => {
         body: JSON.stringify({ parsed })
       })
 
-      if (!response.ok) {
-        throw new Error(response.error || 'Failed to create bill')
+      // apiFetch returns the raw response data directly
+      if (!response || typeof response !== 'object' || !('bill' in response)) {
+        throw new Error('Invalid response from server')
       }
 
-      return (response.data as { bill: Record<string, unknown> }).bill
+      return response.bill
     },
     onSuccess: (bill) => {
       queryClient.invalidateQueries({ queryKey: ['my-bills'] })
@@ -272,8 +274,10 @@ export const MyBillsPage: React.FC = () => {
         // Auto-hide error toast after 5 seconds
         setTimeout(() => setToast(null), 5000)
       }
-    } catch (_error) {
-      setToast({ message: 'Error deleting bill. Please try again.', type: 'error' })
+    } catch (error: any) {
+      const msg = error?.message || 'Failed to delete bill'
+      logServer('warn', 'bill_delete_failed', { msg })
+      setToast({ message: `Error deleting bill: ${msg}`, type: 'error' })
       setTimeout(() => setToast(null), 5000)
     } finally {
       setIsDeleting(false)
@@ -287,44 +291,37 @@ export const MyBillsPage: React.FC = () => {
     const flowStore = useFlowStore.getState()
     
     try {
-      // Use the server API to create the bill
-      const response = await apiFetch('/api/bills/create', {
-        method: 'POST',
-        body: JSON.stringify({ parsed: result })
+      // Use the new schema-aligned createBill function
+      const { createBill, buildCreatePayload } = await import('@/lib/bills')
+      const payload = buildCreatePayload(result)
+      const created = await createBill(payload)
+      
+      // Set bill metadata using helper
+      flowStore.setBillMeta({
+        token: created.id,
+        title: result.place || 'Scanned Receipt',
+        place: result.place || undefined,
+        date: result.date || undefined,
+        subtotal: result.subtotal || undefined,
+        tax: result.tax || undefined,
+        tip: result.tip || undefined,
+        total: result.total || undefined
       })
       
-      if (response.ok && response.data && typeof response.data === 'object' && 'bill' in response.data && response.data.bill) {
-        const bill = response.data.bill
-        
-        // Set bill metadata using helper
-        flowStore.setBillMeta({
-          token: (bill as any).editor_token,
-          title: result.place || 'Scanned Receipt',
-          place: result.place || undefined,
-          date: result.date || undefined,
-          subtotal: result.subtotal || undefined,
-          tax: result.tax || undefined,
-          tip: result.tip || undefined,
-          total: result.total || undefined
-        })
-        
-        // Replace items using helper
-        const flowItems = result.items.map(item => ({
-          id: item.id,
-          label: item.label,
-          price: item.price,
-          emoji: item.emoji || '🍽️'
-        }))
-        flowStore.replaceItems(flowItems)
-        
-        return (bill as any).editor_token
-      }
+      // Replace items using helper
+      const flowItems = result.items.map(item => ({
+        id: item.id,
+        label: item.label,
+        price: item.price,
+        emoji: item.emoji || '🍽️'
+      }))
+      flowStore.replaceItems(flowItems)
       
-      // If response not ok, throw error for fallback handling
-      throw new Error(response.error || 'Failed to create bill via server API')
+      return created.id
       
     } catch (error) {
       console.error('[scan_api_error] Failed to create bill via server API:', error)
+      logServer('error', 'Failed to create bill via server API', { error, context: 'MyBillsPage.createDraftFromScan' })
       
       // Check if local fallback is allowed
       const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'

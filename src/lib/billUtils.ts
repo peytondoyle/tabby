@@ -1,5 +1,6 @@
 import { supabase, isSupabaseAvailable } from './supabaseClient'
 import type { OcrParsedReceipt, OcrLineItem } from '@/types/domain'
+import { logServer } from './errorLogger'
 
 export interface Bill {
   id: string
@@ -61,6 +62,7 @@ export const getBillByToken = async (token: string): Promise<Bill | null> => {
         }
       } catch (error) {
         console.error('Error parsing stored bill data:', error)
+        logServer('error', 'Failed to parse stored bill data', { error, context: 'getBillByToken.localStorage' })
       }
     } else {
       console.warn('Scanned bill not found in localStorage for token:', token)
@@ -118,6 +120,7 @@ export const getBillByToken = async (token: string): Promise<Bill | null> => {
     return data?.[0] || null
   } catch (error) {
     console.error('Error fetching bill, falling back to mock data:', error)
+    logServer('error', 'Failed to fetch bill, falling back to mock data', { error, context: 'getBillByToken.supabase' })
     // Fall back to mock data on any error
     return {
       id: 'mock-bill-id',

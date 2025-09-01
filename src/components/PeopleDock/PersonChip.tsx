@@ -2,6 +2,7 @@ import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { motion } from 'framer-motion'
 import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
 import { showError, showSuccess } from '@/lib/exportUtils'
+import { logServer } from '@/lib/errorLogger'
 import { useUnassignItem } from '@/api/mutations'
 
 interface PersonChipProps {
@@ -104,6 +105,7 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
       onUpdate()
     } catch (error) {
       console.error('Error updating person:', error)
+      logServer('error', 'Failed to update person', { error, context: 'PersonChip.handleSave' })
       showError('Failed to update person')
     }
   }
@@ -131,6 +133,7 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
       onUpdate()
     } catch (error) {
       console.error('Error deleting person:', error)
+      logServer('error', 'Failed to delete person', { error, context: 'PersonChip.handleDelete' })
       showError('Failed to delete person')
     } finally {
       setIsDeleting(false)
@@ -164,12 +167,14 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
     
     if (!editorToken) {
       console.error('No editor token available')
+      logServer('error', 'No editor token available', { context: 'PersonChip.handleBadgeClick' })
       showError('Cannot unassign: missing editor token')
       return
     }
     
     if (!itemId) {
       console.error('No item ID provided')
+      logServer('error', 'No item ID provided', { context: 'PersonChip.handleBadgeClick' })
       showError('Cannot unassign: missing item ID')
       return
     }
@@ -185,6 +190,7 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
         },
         onError: (error) => {
           console.error('PersonChip unassign error:', error)
+          logServer('error', 'Failed to unassign item', { error, context: 'PersonChip.handleBadgeClick' })
           showError('Failed to unassign item')
         }
       }

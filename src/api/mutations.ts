@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { showError, showSuccess as _showSuccess } from '@/lib/exportUtils';
 import { apiFetch } from '@/lib/apiClient';
+import { logServer } from '@/lib/errorLogger';
 // import { mockDataStore } from '@/lib/mockData'; // DEPRECATED - removed
 
 
@@ -24,6 +25,7 @@ export function useUnassignItem(billToken: string) {
 
       if (!response.ok) {
         console.error('[item_unassign] Server API failed:', response.error)
+        logServer('error', 'Server API failed for item unassign', { error: response.error, context: 'useUnassignItem' })
         throw new Error(response.error || 'Failed to unassign item via server API')
       }
       
@@ -38,6 +40,7 @@ export function useUnassignItem(billToken: string) {
     },
     onError: (error) => {
       console.error('Unassign mutation failed:', error);
+      logServer('error', 'Unassign mutation failed', { error, context: 'useUnassignItem.onError' })
       showError('Failed to unassign item');
     }
   });

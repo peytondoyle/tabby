@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useFlowStore } from '@/lib/flowStore'
+import { logServer } from '@/lib/errorLogger'
 import { ShareGraphics } from '@/components/ShareGraphics'
 
 interface BillyShareSheetProps {
@@ -76,6 +77,7 @@ export const BillyShareSheet: React.FC<BillyShareSheetProps> = ({ isOpen, onClos
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           console.error('Share failed:', err)
+          logServer('error', 'Share failed', { error: err, context: 'BillyShareSheet.handleShare' })
           navigator.clipboard.writeText(shareText)
           alert('Copied to clipboard!')
         }

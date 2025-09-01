@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppShell } from './components/AppShell'
 import { runHealthCheck } from './lib/healthCheck'
+import ApiOfflineBanner from './components/system/ApiOfflineBanner'
 
 // Lazy load route components for code splitting
 const MyBillsPage = lazy(() => import('./pages/MyBillsPage').then(m => ({ default: m.MyBillsPage })))
@@ -66,6 +67,7 @@ function App() {
             <Route path="*" element={<Navigate to="/bills" replace />} />
           </Route>
         </Routes>
+        <ApiOfflineBanner />
       </Router>
     </QueryClientProvider>
   )

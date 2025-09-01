@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient'
 import { showError, showSuccess } from '@/lib/exportUtils'
+import { logServer } from '@/lib/errorLogger'
 
 interface ItemRowProps {
   item: {
@@ -52,6 +53,7 @@ export const ItemRow: React.FC<ItemRowProps> = ({ item, editorToken, onUpdate })
       onUpdate()
     } catch (error) {
       console.error('Error updating item:', error)
+      logServer('error', 'Failed to update item', { error, context: 'ItemRow.handleSave' })
       showError('Failed to update item')
     }
   }
@@ -80,6 +82,7 @@ export const ItemRow: React.FC<ItemRowProps> = ({ item, editorToken, onUpdate })
       onUpdate()
     } catch (error) {
       console.error('Error deleting item:', error)
+      logServer('error', 'Failed to delete item', { error, context: 'ItemRow.handleDelete' })
       showError('Failed to delete item')
     } finally {
       setIsDeleting(false)

@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { parseReceipt } from '@/lib/receiptScanning'
 import type { ParseResult } from '@/lib/receiptScanning'
+import { logServer } from '@/lib/errorLogger'
 
 export type { ParseResult }
 
@@ -66,6 +67,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
       setState('error')
       console.error('[scan_api_error]', err)
       console.error('Receipt scanning error:', err)
+      logServer('error', 'Receipt scanning failed', { error: err, context: 'ReceiptScanner' })
     }
   }
 

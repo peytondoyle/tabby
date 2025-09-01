@@ -1,296 +1,95 @@
-/**
- * Centralized API client for all server requests
- * 
- * This replaces direct fetch() calls to ensure:
- * 1. Consistent absolute URL handling (bypasses Vite proxy issues)
- * 2. Proper error handling and logging
- * 3. Request/response standardization
- */
+import { API_BASE } from "./apiBase";
 
-import { buildApiUrl, logApiConfig } from './apiBase'
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-export interface ApiResponse<T> {
-  data?: T
-  error?: string
-  status: number
-  ok: boolean
-}
+let healthy = false;
+let nextProbeAt = 0;
+let backoffMs = 500; // doubles up to 10s
 
-interface ErrorLogData {
-  endpoint: string
-  status_code: number
-  message: string
-  meta: {
-    timestamp: string
-    user_agent?: string
-    method?: string
-    duration_ms?: number
-    error_type?: string
-    full_url?: string
-  }
-}
-
-/**
- * Log API errors to server endpoint for debugging and monitoring
- * SECURITY: No direct client-side Supabase writes allowed
- */
-async function logErrorToServer(errorData: ErrorLogData): Promise<void> {
-  // Only log in development or if explicitly enabled
-  if (import.meta.env.PROD && import.meta.env.VITE_LOG_API_ERRORS !== '1') {
-    return
-  }
-
+async function probe(): Promise<boolean> {
+  const now = Date.now();
+  if (now < nextProbeAt) return healthy;
   try {
-    // Route through server API instead of direct Supabase write
-    await fetch(buildApiUrl('/api/errors/log'), {
-      method: 'POST',
-      mode: 'cors',
-      credentials: 'omit',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(errorData)
-    })
-    
-    console.info('[api_client] Error logged via server API:', errorData.endpoint, errorData.status_code)
-  } catch (error) {
-    console.warn('[api_client] Failed to log error via server API:', error)
+    const u = `${API_BASE}/api/scan-receipt?health=1`;
+    const r = await fetch(u, { method: "GET", cache: "no-store" });
+    healthy = r.ok;
+  } catch {
+    healthy = false;
   }
+  // backoff scheduling
+  if (!healthy) {
+    nextProbeAt = now + backoffMs;
+    backoffMs = Math.min(backoffMs * 2, 10_000);
+  } else {
+    backoffMs = 500;
+    nextProbeAt = now + 5_000; // probe again later
+  }
+  // broadcast status
+  window.dispatchEvent(new CustomEvent("api:health", { detail: { healthy } }));
+  return healthy;
 }
 
-/**
- * Enhanced fetch wrapper that handles absolute URLs and consistent error handling
- */
-export async function apiFetch<T>(
-  endpoint: string, 
-  options: RequestInit = {}
-): Promise<ApiResponse<T>> {
-  const url = buildApiUrl(endpoint)
-  const startTime = Date.now()
-
-  try {
-    // Log the request for debugging
-    console.info(`[api_client] ${options.method || 'GET'} ${url}`)
-
-    const response = await fetch(url, {
-      ...options,
-      mode: 'cors',
-      credentials: 'omit',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    })
-
-    const duration = Date.now() - startTime
-    const contentType = response.headers.get('content-type') || ''
-    
-    let data: T | undefined
-    
-    // Handle JSON responses
-    if (contentType.includes('application/json')) {
-      try {
-        data = await response.json()
-      } catch (jsonError) {
-        console.warn(`[api_client] Failed to parse JSON response in ${duration}ms:`, jsonError)
-      }
-    }
-
-    const result: ApiResponse<T> = {
-      data,
-      status: response.status,
-      ok: response.ok
-    }
-
-    if (response.ok) {
-      console.info(`[api_client] ${response.status} ${url} completed in ${duration}ms`)
-    } else {
-      const errorMsg = (data as { error?: string })?.error || response.statusText || 'Request failed'
-      result.error = errorMsg
-      console.warn(`[api_client] ${response.status} ${url} failed in ${duration}ms: ${errorMsg}`)
-      
-      // Log error to server API
-      logErrorToServer({
-        endpoint: endpoint,
-        status_code: response.status,
-        message: errorMsg,
-        meta: {
-          timestamp: new Date().toISOString(),
-          user_agent: typeof window !== 'undefined' ? window.navigator?.userAgent : undefined,
-          method: options.method || 'GET',
-          duration_ms: duration,
-          full_url: url
-        }
-      })
-      
-      // Emit error event for dev banner
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('api-error', {
-          detail: {
-            timestamp: new Date().toISOString(),
-            endpoint: url,
-            status: response.status,
-            message: errorMsg
-          }
-        }))
-      }
-    }
-
-    return result
-
-  } catch (error) {
-    const duration = Date.now() - startTime
-    const errorMsg = error instanceof Error ? error.message : 'Network error'
-    
-    console.error(`[api_client] ${url} network error in ${duration}ms:`, error)
-    
-    // Log network error to server API
-    logErrorToServer({
-      endpoint: endpoint,
-      status_code: 0,
-      message: errorMsg,
-      meta: {
-        timestamp: new Date().toISOString(),
-        user_agent: typeof window !== 'undefined' ? window.navigator?.userAgent : undefined,
-        method: options.method || 'GET',
-        duration_ms: duration,
-        full_url: url,
-        error_type: 'network_error'
-      }
-    })
-    
-    // Emit error event for dev banner
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('api-error', {
-        detail: {
-          timestamp: new Date().toISOString(),
-          endpoint: url,
-          status: 0,
-          message: errorMsg
-        }
-      }))
-    }
-    
-    return {
-      error: errorMsg,
-      status: 0,
-      ok: false
-    }
+export async function apiFetch<T = any>(
+  path: string,
+  opts: { method?: HttpMethod; body?: any; headers?: Record<string, string> } = {}
+): Promise<T> {
+  const ok = await probe();
+  if (!ok) {
+    throw new Error("API_OFFLINE");
   }
+  const url = path.startsWith("http") ? path : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(opts.headers || {}),
+  };
+  const resp = await fetch(url, {
+    method: opts.method || "GET",
+    headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  if (!resp.ok) {
+    let payload: any = null;
+    try { payload = await resp.json(); } catch {}
+    const err = new Error(payload?.error || `HTTP_${resp.status}`);
+    (err as any).status = resp.status;
+    (err as any).payload = payload;
+    throw err;
+  }
+  return (await resp.json()) as T;
 }
 
-/**
- * POST multipart form data (for file uploads)
- */
-export async function apiUpload<T>(
-  endpoint: string,
+export function onApiHealth(cb: (v: boolean) => void) {
+  const handler = (e: any) => cb(!!e?.detail?.healthy);
+  window.addEventListener("api:health", handler);
+  // initial
+  cb(healthy);
+  return () => window.removeEventListener("api:health", handler);
+}
+
+export async function apiUpload<T = any>(
+  path: string,
   formData: FormData
-): Promise<ApiResponse<T>> {
-  const url = buildApiUrl(endpoint)
-  const startTime = Date.now()
-
-  try {
-    console.info(`[api_client] POST ${url} (multipart upload)`)
-
-    const response = await fetch(url, {
-      method: 'POST',
-      mode: 'cors',
-      credentials: 'omit',
-      body: formData
-      // Don't set Content-Type header for FormData - browser will set it with boundary
-    })
-
-    const duration = Date.now() - startTime
-    
-    let data: T | undefined
-    
-    try {
-      data = await response.json()
-    } catch (jsonError) {
-      console.warn(`[api_client] Failed to parse upload response in ${duration}ms:`, jsonError)
-    }
-
-    const result: ApiResponse<T> = {
-      data,
-      status: response.status,
-      ok: response.ok
-    }
-
-    if (response.ok) {
-      console.info(`[api_client] Upload ${response.status} ${url} completed in ${duration}ms`)
-    } else {
-      const errorMsg = (data as { error?: string })?.error || response.statusText || 'Upload failed'
-      result.error = errorMsg
-      console.warn(`[api_client] Upload ${response.status} ${url} failed in ${duration}ms: ${errorMsg}`)
-      
-      // Log upload error to server API
-      logErrorToServer({
-        endpoint: endpoint,
-        status_code: response.status,
-        message: errorMsg,
-        meta: {
-          timestamp: new Date().toISOString(),
-          user_agent: typeof window !== 'undefined' ? window.navigator?.userAgent : undefined,
-          method: 'POST',
-          duration_ms: duration,
-          full_url: url,
-          error_type: 'upload_error'
-        }
-      })
-      
-      // Emit error event for dev banner
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('api-error', {
-          detail: {
-            timestamp: new Date().toISOString(),
-            endpoint: url,
-            status: response.status,
-            message: errorMsg
-          }
-        }))
-      }
-    }
-
-    return result
-
-  } catch (error) {
-    const duration = Date.now() - startTime
-    const errorMsg = error instanceof Error ? error.message : 'Upload network error'
-    
-    console.error(`[api_client] Upload ${url} network error in ${duration}ms:`, error)
-    
-    // Log upload network error to server API
-    logErrorToServer({
-      endpoint: endpoint,
-      status_code: 0,
-      message: errorMsg,
-      meta: {
-        timestamp: new Date().toISOString(),
-        user_agent: typeof window !== 'undefined' ? window.navigator?.userAgent : undefined,
-        method: 'POST',
-        duration_ms: duration,
-        full_url: url,
-        error_type: 'upload_network_error'
-      }
-    })
-    
-    // Emit error event for dev banner
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('api-error', {
-        detail: {
-          timestamp: new Date().toISOString(),
-          endpoint: url,
-          status: 0,
-          message: errorMsg
-        }
-      }))
-    }
-    
-    return {
-      error: errorMsg,
-      status: 0,
-      ok: false
-    }
+): Promise<T> {
+  const ok = await probe();
+  if (!ok) {
+    throw new Error("API_OFFLINE");
   }
+  const url = path.startsWith("http") ? path : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+  
+  // Don't set Content-Type for FormData - let the browser set it with boundary
+  const resp = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+  
+  if (!resp.ok) {
+    let payload: any = null;
+    try { payload = await resp.json(); } catch {}
+    const err = new Error(payload?.error || `HTTP_${resp.status}`);
+    (err as any).status = resp.status;
+    (err as any).payload = payload;
+    throw err;
+  }
+  
+  return (await resp.json()) as T;
 }
-
-// Initialize API client configuration logging
-logApiConfig()

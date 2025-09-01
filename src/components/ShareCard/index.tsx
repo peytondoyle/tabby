@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient'
+import { logServer } from '@/lib/errorLogger'
 
 interface ShareCardProps {
   billToken: string
@@ -157,6 +158,7 @@ export const ShareCard: React.FC<ShareCardProps> = ({
         setLoading(false)
       } catch (err) {
         console.error('Error fetching share data:', err)
+        logServer('error', 'Failed to fetch share data', { error: err, context: 'ShareCard.fetchData' })
         setError('Failed to load receipt data')
         setLoading(false)
       }

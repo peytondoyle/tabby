@@ -2,6 +2,7 @@
 import { nanoid } from 'nanoid'
 import { isSupabaseAvailable as _isSupabaseAvailable } from './supabaseClient'
 import { apiFetch, apiUpload } from './apiClient'
+import { logServer } from './errorLogger'
 
 // New normalized ParseResult type
 export type ParseResult = {
@@ -129,13 +130,14 @@ export async function ensureApiHealthy({ tries = 3, delayMs = 1000 }: { tries?: 
     try {
       const response = await apiFetch('/api/scan-receipt?health=1')
       
-      if (response.ok && response.data && typeof response.data === 'object' && 'ok' in response.data && response.data.ok) {
-        const uptimeMs = (response.data as { uptimeMs?: number }).uptimeMs
+      // apiFetch returns the raw response data, so check if it has the expected structure
+      if (response && typeof response === 'object' && 'ok' in response && response.ok) {
+        const uptimeMs = (response as { uptimeMs?: number }).uptimeMs
         console.info(`[scan_ok] API healthy after ${attempt} attempts (uptime: ${uptimeMs || 0}ms)`)
         return true
       }
       
-      console.warn(`[scan_api_error] Health check attempt ${attempt}: ${response.status}`)
+      console.warn(`[scan_api_error] Health check attempt ${attempt}: invalid response format`)
     } catch (error) {
       // Expected during startup or when API is unavailable
       if (attempt % 5 === 0) {
@@ -192,30 +194,8 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
     // Call the API endpoint using apiUpload
     const response = await apiUpload('/api/scan-receipt', formData)
 
-    if (!response.ok) {
-      const duration = Date.now() - startTime
-      console.warn(`[scan_api_error] ${response.status} ${response.error} after ${duration}ms`)
-      
-      // Check for OCR not configured error
-      const errorData = response.data || {}
-      if (errorData && typeof errorData === 'object' && 'code' in errorData && errorData.code === 'OCR_NOT_CONFIGURED') {
-        throw new Error('Receipt scanning is not available. OCR service is not configured.')
-      }
-      
-      // Don't use dev fallback if we're in production-like mode
-      const allowDevFallback = import.meta.env.VITE_ALLOW_DEV_FALLBACK !== '0'
-      
-      if (!allowDevFallback) {
-        throw new Error(response.error || 'Failed to scan receipt. Please try again.')
-      }
-      
-      // Return fallback for any API error
-      const fallbackResult = getDEVFallback()
-      console.info(`[scan_ok] Using dev fallback due to API error - ${fallbackResult.items.length} items`)
-      return fallbackResult
-    }
-
-    const data = response.data
+    // apiUpload returns the response data directly, not a wrapped response object
+    const data = response
     const duration = Date.now() - startTime
     
     console.info(`[scan_ok] API response received in ${duration}ms - parsing data...`)
@@ -263,6 +243,7 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
   } catch (error) {
     const duration = Date.now() - startTime
     console.error(`[scan_exception] Receipt parsing failed after ${duration}ms:`, error)
+    logServer('error', 'Receipt parsing failed', { error, duration, context: 'parseReceipt' })
     
     // Don't use dev fallback if we're in production-like mode
     const allowDevFallback = import.meta.env.VITE_ALLOW_DEV_FALLBACK !== '0'
@@ -327,25 +308,19 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
       total: receiptData.total
     }
 
-    // Use the server API to create the bill
-    const response = await apiFetch('/api/bills/create', {
-      method: 'POST',
-      body: JSON.stringify({ parsed: parseResult })
-    })
-
-    if (!response.ok) {
-      console.error('[scan_api_error] Server API failed:', response.error)
-      throw new Error(response.error || 'Failed to create bill via server API')
-    }
-
-    const { bill } = response.data as { bill: { id: string } }
-    console.info(`[scan_ok] Bill created successfully via server API - bill ID: ${bill.id}`)
+    // Use the new schema-aligned createBill function
+    const { createBill, buildCreatePayload } = await import('./bills')
+    const payload = buildCreatePayload(parseResult)
+    const result = await createBill(payload)
+    
+    console.info(`[scan_ok] Bill created successfully via server API - bill ID: ${result.id}`)
     
     // Return the bill ID (not editor token since that's server-side only now)
-    return bill.id
+    return result.id
 
   } catch (error) {
     console.error('[scan_exception] Failed to create bill via server API:', error)
+    logServer('error', 'Failed to create bill via server API', { error, context: 'createBillFromReceipt' })
     
     // Check if local fallback is allowed
     const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'

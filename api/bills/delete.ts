@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
-import { applyCors } from '../_utils/cors'
+import { applyCors } from '../_utils/cors.js'
 
 // Server-side Supabase client using secret key
 const SB_URL = 
@@ -47,13 +47,14 @@ export default async function handler(
   }
 
   try {
-    const { token } = req.body
+    // Get token from query parameters (DELETE requests typically don't have bodies)
+    const { token } = req.query
 
-    if (!token) {
+    if (!token || typeof token !== 'string') {
       return res.status(400).json({
         ok: false,
         code: 'TOKEN_REQUIRED',
-        message: 'Token is required'
+        message: 'Token is required as query parameter'
       })
     }
 

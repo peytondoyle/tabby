@@ -1,9 +1,9 @@
 // api/bills/create.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { applyCors } from "../_utils/cors";
-import { createRequestContext, validateRequest, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from "../_utils/request";
-import { checkRateLimit, addRateLimitHeaders } from "../_utils/rateLimit";
-import { CreateBillRequestSchema, CreateBillRequest, BillSchema, BillItemSchema, FILE_LIMITS } from "../_utils/schemas";
+import { applyCors } from "../_utils/cors.js";
+import { createRequestContext, validateRequest, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from "../_utils/request.js";
+import { checkRateLimit, addRateLimitHeaders } from "../_utils/rateLimit.js";
+import { CreateBillRequestSchema, CreateBillRequest, BillSchema, BillItemSchema, FILE_LIMITS } from "../_utils/schemas.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Apply CORS first
@@ -37,13 +37,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Parse and validate request body
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
     
-    const validation = validateRequest(body, CreateBillRequestSchema, ctx);
+    // Handle both direct format and wrapped format
+    let requestData: any;
+    if (body.parsed) {
+      // Frontend sends { parsed: { items, place, total, date } }
+      const parsed = body.parsed;
+      requestData = {
+        items: parsed.items || [],
+        place: parsed.place,
+        total: parsed.total,
+        date: parsed.date
+      };
+    } else {
+      // Direct format { items, place, total, date, people, tax, tip }
+      requestData = body;
+    }
+    
+    // Log the data being validated for debugging
+    console.log('[bill_create] Request data:', JSON.stringify(requestData, null, 2))
+    
+    const validation = validateRequest(requestData, CreateBillRequestSchema, ctx);
     if (!validation.success) {
+      console.error('[bill_create] Validation failed:', validation.error)
       sendErrorResponse(res as any, validation.error, 400, ctx);
       return;
     }
 
-    const { items, place, total, date } = validation.data as CreateBillRequest;
+    const { items, place, total, date, people, tax, tip } = validation.data as CreateBillRequest;
 
     // Generate bill ID
     const billId = `bill_${Date.now()}`;
@@ -56,21 +76,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       date: date || new Date().toISOString().split('T')[0],
       created_at: new Date().toISOString(),
       subtotal: null,
-      sales_tax: null,
-      tip: null,
+      sales_tax: tax || null,
+      tip: tip || null,
       total_amount: total || null,
       item_count: items.length,
-      people_count: 0,
+      people_count: people.length,
       currency: 'USD'
     };
 
     // Transform items to consistent schema
     const billItems = items.map((item, index) => ({
-      id: `item_${Date.now()}_${index}`,
-      label: item.label,
+      id: item.id || `item_${Date.now()}_${index}`,
+      label: item.name,
       price: item.price,
-      emoji: item.emoji || '🍽️',
-      quantity: item.quantity || 1
+      emoji: item.icon || '🍽️',
+      quantity: 1
     }));
 
     // Add rate limit headers

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react'
 import { useFlowStore } from '@/lib/flowStore'
+import { logServer } from '@/lib/errorLogger'
 
 interface ShareGraphicsProps {
   isOpen: boolean
@@ -159,6 +160,7 @@ export const ShareGraphics: React.FC<ShareGraphicsProps> = ({ isOpen, onClose })
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           console.error('Share failed:', err)
+          logServer('error', 'Share failed', { error: err, context: 'ShareGraphics.handleShare' })
           handleDownload()
         }
       }

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useDroppable } from '@dnd-kit/core'
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient'
 import { showError, showSuccess } from '@/lib/exportUtils'
+import { logServer } from '@/lib/errorLogger'
 
 interface PersonCardProps {
   person: {
@@ -97,6 +98,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({
       onUpdate()
     } catch (error) {
       console.error('Error updating person:', error)
+      logServer('error', 'Failed to update person', { error, context: 'PersonCard.handleSave' })
       showError('Failed to update person')
     }
   }
@@ -125,6 +127,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({
       onUpdate()
     } catch (error) {
       console.error('Error deleting person:', error)
+      logServer('error', 'Failed to delete person', { error, context: 'PersonCard.handleDelete' })
       showError('Failed to delete person')
     } finally {
       setIsDeleting(false)

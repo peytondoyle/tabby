@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { nanoid } from 'nanoid'
 import type { ParseResult, Bill, OcrParsedReceipt } from '@/types/domain'
 import { apiFetch } from './apiClient'
+import { logServer } from './errorLogger'
+import { BillCreatePayload, BillItemPayload, toMoney } from './types'
 
 export interface BillListItem {
   id: string
@@ -47,14 +49,7 @@ function loadBillsFromLocalStorage(): BillSummary[] {
 export async function fetchBillByToken(token: string): Promise<{ bill: Bill; items: unknown[]; people?: unknown[]; shares?: unknown[] } | null> {
   try {
     const response = await apiFetch<{ bill: Bill; items: unknown[]; people?: unknown[]; shares?: unknown[] }>(`/api/bills/${token}`)
-    
-    if (response.ok && response.data) {
-      // Return the full response data
-      return response.data
-    } else {
-      console.warn('[Tabby] bill API failed, using local fallback:', response.error)
-      return null // Local fallback removed for now
-    }
+    return response
   } catch (error) {
     console.warn('[Tabby] bill API error, using local fallback:', error)
     return null // Local fallback removed for now
@@ -97,17 +92,57 @@ export function loadBillFromLocalStorage(token: string): BillListItem | null {
 export async function fetchBills(_client?: SupabaseClient): Promise<BillSummary[]> {
   try {
     const response = await apiFetch<{ bills: BillSummary[] }>('/api/bills/list')
-    
-    if (response.ok && response.data?.bills) {
-      return response.data.bills
-    } else {
-      console.warn('[Tabby] bills API failed, using local fallback:', response.error)
-      return loadBillsFromLocalStorage()
-    }
+    return response.bills
   } catch (error) {
     console.warn('[Tabby] bills API error, using local fallback:', error)
     return loadBillsFromLocalStorage()
   }
+}
+
+/**
+ * Build a schema-correct payload from your scan/parse result
+ */
+export function buildCreatePayload(scan: {
+  place?: string | null;
+  total?: number | string | null;
+  items: Array<{ id?: string; label?: string; name?: string; title?: string; price?: number | string; cost?: number | string; icon?: string; emoji?: string }>;
+  subtotal?: number | string | null;
+  tax?: number | string | null;
+  tip?: number | string | null;
+}): BillCreatePayload {
+  const items: BillItemPayload[] = (scan.items || []).map((i, idx) => ({
+    id: String(i.id ?? `it_${idx}`),
+    name: String(i.label ?? i.name ?? i.title ?? "Item"),
+    price: toMoney(i.price ?? i.cost ?? 0),
+    icon: i.icon ?? i.emoji,
+  }));
+  const total = scan.total == null ? null : toMoney(scan.total);
+  const tax = scan.tax == null ? 0 : toMoney(scan.tax);
+  const tip = scan.tip == null ? 0 : toMoney(scan.tip);
+  
+  return {
+    place: scan.place ?? null,
+    total,
+    items,
+    people: [],   // IMPORTANT: backend expects array (can be empty)
+    tax,
+    tip,
+  };
+}
+
+/**
+ * Create a bill; surfaces Zod issue if validation fails
+ */
+export async function createBill(payload: BillCreatePayload) {
+  const res = await apiFetch<{ id: string; token?: string }>("/api/bills/create", {
+    method: "POST",
+    body: payload,
+  });
+  if (!res.ok) {
+    const firstIssue = (res as any)?.data?.issues?.[0]?.message || (res as any)?.error || "Validation failed";
+    throw new Error(firstIssue);
+  }
+  return res.data!;
 }
 
 /**
@@ -118,42 +153,19 @@ export async function createBillFromParse(parsed: ParseResult, storage_path?: st
   const startTime = Date.now()
   
   try {
-    // Check if local fallback is allowed
-    const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'
+    // Use the new schema-aligned createBill function
+    const payload = buildCreatePayload(parsed)
+    const result = await createBill(payload)
     
-    // Call the new server endpoint
-    const response = await apiFetch('/api/bills/create', {
-      method: 'POST',
-      body: JSON.stringify({
-        parsed,
-        storage_path,
-        ocr_json
-      })
-    })
-
-    if (!response.ok) {
-      const duration = Date.now() - startTime
-      const errorDetails = response.data as { code?: string } || {}
-      console.error(`[bill_create_error] code=${errorDetails.code || 'UNKNOWN'} message=${response.error}`)
-      console.error(`[bill_create] Server API failed in ${duration}ms:`, response.error)
-      
-      if (allowLocalFallback) {
-        console.info('[bill_create] Falling back to local storage...')
-        return createLocalBill(parsed)
-      } else {
-        throw new Error(response.error || 'Failed to create bill on server')
-      }
-    }
-
-    const { bill } = response.data as { bill: { id: string }; items: unknown[] }
     const duration = Date.now() - startTime
-    console.info(`[bill_create] Bill created successfully via server API in ${duration}ms - bill ID: ${bill.id}`)
+    console.info(`[bill_create] Bill created successfully via server API in ${duration}ms - bill ID: ${result.id}`)
     
-    return bill.id
+    return result.id
 
   } catch (error) {
     const duration = Date.now() - startTime
     console.error(`[bill_create] Bill creation failed in ${duration}ms:`, error)
+    logServer('error', 'Bill creation failed', { error, duration, context: 'createBill' })
     
     // Check if local fallback is allowed
     const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'
@@ -224,37 +236,35 @@ function createLocalBill(parsed: ParseResult): string {
 }
 
 /**
- * Delete a bill (server or local)
+ * Delete by server token via RESTful path param; DO NOT send JSON body on DELETE
+ */
+export async function deleteBillByToken(token: string) {
+  const res = await apiFetch<{ ok: boolean }>(`/api/bills/${encodeURIComponent(token)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const msg = (res as any)?.data?.error || res.error || "Delete failed";
+    throw new Error(msg);
+  }
+  return res.data!;
+}
+
+/**
+ * Delete a bill (server or local) - legacy function now uses deleteBillByToken
  */
 export async function deleteBill(token: string): Promise<boolean> {
   try {
-    // Try server API first
-    const response = await apiFetch('/api/bills/delete', {
-      method: 'DELETE',
-      body: JSON.stringify({ token })
-    })
-
-    if (response.ok) {
-      return true
-    }
-
+    // Use the new schema-aligned delete function
+    await deleteBillByToken(token)
+    return true
+    
+  } catch (error) {
+    console.error('Error deleting bill:', error)
+    
     // If server fails and local fallback is allowed, handle locally
     const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'
     if (allowLocalFallback && token.startsWith('local-')) {
       // Remove from local storage
-      const localBills = loadBillsFromLocalStorage()
-      const updatedBills = localBills.filter((bill: BillListItem) => bill.token !== token)
-      localStorage.setItem('local-bills', JSON.stringify(updatedBills))
-      return true
-    }
-
-    return false
-  } catch (error) {
-    console.error('Error deleting bill:', error)
-    
-    // Fallback to local storage if allowed
-    const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'
-    if (allowLocalFallback && token.startsWith('local-')) {
       const localBills = loadBillsFromLocalStorage()
       const updatedBills = localBills.filter((bill: BillListItem) => bill.token !== token)
       localStorage.setItem('local-bills', JSON.stringify(updatedBills))

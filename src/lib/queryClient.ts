@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseAvailable } from './supabaseClient'
+import { logServer } from './errorLogger'
 // import { getBillByToken } from './billUtils' // unused
 
 // Create a client
@@ -27,6 +28,7 @@ export const useItemsQuery = (billToken: string) => ({
           return billData.items || []
         } catch (error) {
           console.error('Error parsing stored bill items:', error)
+          logServer('error', 'Failed to parse stored bill items', { error, context: 'useItemsQuery.localStorage' })
         }
       }
       return []
