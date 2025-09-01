@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppShell } from './components/AppShell'
+import { DevBanner } from './components/DevBanner'
 import { runHealthCheck } from './lib/healthCheck'
 
 // Lazy load route components for code splitting
@@ -35,6 +36,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <DevBanner />
       <Router>
         <Routes>
           <Route path="/" element={<AppShell />}>

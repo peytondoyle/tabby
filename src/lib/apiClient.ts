@@ -8,12 +8,60 @@
  */
 
 import { buildApiUrl, logApiConfig } from './apiBase'
+import { supabase, isSupabaseAvailable } from './supabaseClient'
 
 export interface ApiResponse<T = any> {
   data?: T
   error?: string
   status: number
   ok: boolean
+}
+
+interface ErrorLogData {
+  endpoint: string
+  status_code: number
+  message: string
+  meta: {
+    timestamp: string
+    user_agent?: string
+    method?: string
+    duration_ms?: number
+    [key: string]: any
+  }
+}
+
+/**
+ * Log API errors to Supabase for debugging and monitoring
+ */
+async function logErrorToSupabase(errorData: ErrorLogData): Promise<void> {
+  // Only log in development or if explicitly enabled
+  if (import.meta.env.PROD && import.meta.env.VITE_LOG_API_ERRORS !== '1') {
+    return
+  }
+
+  if (!isSupabaseAvailable()) {
+    console.warn('[api_client] Supabase unavailable, skipping error logging')
+    return
+  }
+
+  try {
+    const { error } = await supabase!
+      .from('scan_errors')
+      .insert({
+        endpoint: errorData.endpoint,
+        status_code: errorData.status_code,
+        message: errorData.message,
+        meta: errorData.meta
+      })
+
+    if (error) {
+      console.warn('[api_client] Failed to log error to Supabase:', error)
+    } else {
+      console.info('[api_client] Error logged to Supabase:', errorData.endpoint, errorData.status_code)
+    }
+  } catch (error) {
+    console.warn('[api_client] Exception logging error to Supabase:', error)
+  }
 }
 
 /**
@@ -66,6 +114,32 @@ export async function apiFetch<T = any>(
       const errorMsg = (data as any)?.error || response.statusText || 'Request failed'
       result.error = errorMsg
       console.warn(`[api_client] ${response.status} ${url} failed in ${duration}ms: ${errorMsg}`)
+      
+      // Log error to Supabase
+      logErrorToSupabase({
+        endpoint: endpoint,
+        status_code: response.status,
+        message: errorMsg,
+        meta: {
+          timestamp: new Date().toISOString(),
+          user_agent: typeof window !== 'undefined' ? window.navigator?.userAgent : undefined,
+          method: options.method || 'GET',
+          duration_ms: duration,
+          full_url: url
+        }
+      })
+      
+      // Emit error event for dev banner
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('api-error', {
+          detail: {
+            timestamp: new Date().toISOString(),
+            endpoint: url,
+            status: response.status,
+            message: errorMsg
+          }
+        }))
+      }
     }
 
     return result
@@ -75,6 +149,33 @@ export async function apiFetch<T = any>(
     const errorMsg = error instanceof Error ? error.message : 'Network error'
     
     console.error(`[api_client] ${url} network error in ${duration}ms:`, error)
+    
+    // Log network error to Supabase
+    logErrorToSupabase({
+      endpoint: endpoint,
+      status_code: 0,
+      message: errorMsg,
+      meta: {
+        timestamp: new Date().toISOString(),
+        user_agent: typeof window !== 'undefined' ? window.navigator?.userAgent : undefined,
+        method: options.method || 'GET',
+        duration_ms: duration,
+        full_url: url,
+        error_type: 'network_error'
+      }
+    })
+    
+    // Emit error event for dev banner
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('api-error', {
+        detail: {
+          timestamp: new Date().toISOString(),
+          endpoint: url,
+          status: 0,
+          message: errorMsg
+        }
+      }))
+    }
     
     return {
       error: errorMsg,
@@ -127,6 +228,33 @@ export async function apiUpload<T = any>(
       const errorMsg = (data as any)?.error || response.statusText || 'Upload failed'
       result.error = errorMsg
       console.warn(`[api_client] Upload ${response.status} ${url} failed in ${duration}ms: ${errorMsg}`)
+      
+      // Log upload error to Supabase
+      logErrorToSupabase({
+        endpoint: endpoint,
+        status_code: response.status,
+        message: errorMsg,
+        meta: {
+          timestamp: new Date().toISOString(),
+          user_agent: typeof window !== 'undefined' ? window.navigator?.userAgent : undefined,
+          method: 'POST',
+          duration_ms: duration,
+          full_url: url,
+          error_type: 'upload_error'
+        }
+      })
+      
+      // Emit error event for dev banner
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('api-error', {
+          detail: {
+            timestamp: new Date().toISOString(),
+            endpoint: url,
+            status: response.status,
+            message: errorMsg
+          }
+        }))
+      }
     }
 
     return result
@@ -136,6 +264,33 @@ export async function apiUpload<T = any>(
     const errorMsg = error instanceof Error ? error.message : 'Upload network error'
     
     console.error(`[api_client] Upload ${url} network error in ${duration}ms:`, error)
+    
+    // Log upload network error to Supabase
+    logErrorToSupabase({
+      endpoint: endpoint,
+      status_code: 0,
+      message: errorMsg,
+      meta: {
+        timestamp: new Date().toISOString(),
+        user_agent: typeof window !== 'undefined' ? window.navigator?.userAgent : undefined,
+        method: 'POST',
+        duration_ms: duration,
+        full_url: url,
+        error_type: 'upload_network_error'
+      }
+    })
+    
+    // Emit error event for dev banner
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('api-error', {
+        detail: {
+          timestamp: new Date().toISOString(),
+          endpoint: url,
+          status: 0,
+          message: errorMsg
+        }
+      }))
+    }
     
     return {
       error: errorMsg,

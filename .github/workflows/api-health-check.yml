@@ -1,0 +1,167 @@
+name: API Health Check
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'api/**'
+      - '.github/workflows/api-health-check.yml'
+      - 'vercel.json'
+      - 'package.json'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'api/**'
+      - '.github/workflows/api-health-check.yml'
+      - 'vercel.json'
+      - 'package.json'
+
+jobs:
+  api-health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Install Vercel CLI
+      run: npm install -g vercel@latest
+      
+    - name: Start Vercel dev server
+      run: |
+        # Start vercel dev in background
+        vercel dev --listen 3000 --yes &
+        VERCEL_PID=$!
+        echo "VERCEL_PID=$VERCEL_PID" >> $GITHUB_ENV
+        
+        # Wait for server to start (max 60 seconds)
+        echo "Waiting for Vercel dev server to start..."
+        for i in {1..60}; do
+          if curl -s http://127.0.0.1:3000/api/scan-receipt-health > /dev/null 2>&1; then
+            echo "Vercel dev server started successfully after ${i} seconds"
+            break
+          fi
+          if [ $i -eq 60 ]; then
+            echo "Timeout waiting for Vercel dev server to start"
+            exit 1
+          fi
+          sleep 1
+        done
+      env:
+        # Set environment variables for API
+        CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+        CORS_ALLOW_ALL: "1"  # Allow all origins for CI testing
+        
+    - name: Run health check
+      run: |
+        echo "Testing basic health endpoint..."
+        HEALTH_RESPONSE=$(curl -s http://127.0.0.1:3000/api/scan-receipt?health=1)
+        echo "Health response: $HEALTH_RESPONSE"
+        
+        # Check if response contains expected JSON
+        if echo "$HEALTH_RESPONSE" | jq -e '.ok == true' > /dev/null 2>&1; then
+          echo "✅ Basic health check passed"
+        else
+          echo "❌ Basic health check failed"
+          echo "Expected: {\"ok\": true, ...}"
+          echo "Got: $HEALTH_RESPONSE"
+          exit 1
+        fi
+        
+        echo "Testing health alias endpoint..."
+        ALIAS_RESPONSE=$(curl -s http://127.0.0.1:3000/api/scan-receipt-health)
+        echo "Alias response: $ALIAS_RESPONSE"
+        
+        # Check if alias response contains expected JSON
+        if echo "$ALIAS_RESPONSE" | jq -e '.ok == true and .service == "scan-receipt"' > /dev/null 2>&1; then
+          echo "✅ Health alias check passed"
+        else
+          echo "❌ Health alias check failed"
+          echo "Expected: {\"ok\": true, \"service\": \"scan-receipt\", ...}"
+          echo "Got: $ALIAS_RESPONSE"
+          exit 1
+        fi
+        
+    - name: Run CORS preflight check
+      run: |
+        echo "Testing CORS preflight..."
+        PREFLIGHT_RESPONSE=$(curl -i -s -X OPTIONS http://127.0.0.1:3000/api/scan-receipt \
+          -H 'Origin: http://localhost:5173' \
+          -H 'Access-Control-Request-Method: POST' \
+          -H 'Access-Control-Request-Headers: Content-Type')
+          
+        echo "Preflight response:"
+        echo "$PREFLIGHT_RESPONSE"
+        
+        # Check for 204 status code
+        if echo "$PREFLIGHT_RESPONSE" | grep -q "HTTP/1.1 204"; then
+          echo "✅ Preflight returns 204 No Content"
+        else
+          echo "❌ Preflight should return 204 No Content"
+          exit 1
+        fi
+        
+        # Check required CORS headers
+        if echo "$PREFLIGHT_RESPONSE" | grep -q "Access-Control-Allow-Origin:"; then
+          echo "✅ Access-Control-Allow-Origin header present"
+        else
+          echo "❌ Missing Access-Control-Allow-Origin header"
+          exit 1
+        fi
+        
+        if echo "$PREFLIGHT_RESPONSE" | grep -q "Access-Control-Allow-Methods:.*POST"; then
+          echo "✅ Access-Control-Allow-Methods includes POST"
+        else
+          echo "❌ Access-Control-Allow-Methods should include POST"
+          exit 1
+        fi
+        
+        if echo "$PREFLIGHT_RESPONSE" | grep -q "Access-Control-Allow-Headers:.*Content-Type"; then
+          echo "✅ Access-Control-Allow-Headers includes Content-Type"
+        else
+          echo "❌ Access-Control-Allow-Headers should include Content-Type"
+          exit 1
+        fi
+        
+        if echo "$PREFLIGHT_RESPONSE" | grep -q "Access-Control-Max-Age:"; then
+          echo "✅ Access-Control-Max-Age header present"
+        else
+          echo "❌ Missing Access-Control-Max-Age header"
+          exit 1
+        fi
+        
+        echo "✅ All CORS preflight checks passed"
+        
+    - name: Test error handling
+      run: |
+        echo "Testing error handling with invalid endpoint..."
+        ERROR_RESPONSE=$(curl -s -w "%{http_code}" http://127.0.0.1:3000/api/nonexistent)
+        
+        if [[ "$ERROR_RESPONSE" =~ 404 ]]; then
+          echo "✅ 404 error handling works correctly"
+        else
+          echo "❌ Expected 404 for nonexistent endpoint, got: $ERROR_RESPONSE"
+          exit 1
+        fi
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        if [ ! -z "$VERCEL_PID" ]; then
+          echo "Stopping Vercel dev server (PID: $VERCEL_PID)"
+          kill $VERCEL_PID || true
+          # Wait for graceful shutdown
+          sleep 2
+          # Force kill if still running
+          kill -9 $VERCEL_PID 2>/dev/null || true
+        fi
