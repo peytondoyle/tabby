@@ -50,32 +50,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-let healthy = false;
-let nextProbeAt = 0;
-let backoffMs = 500; // doubles up to 10s
-
-async function probe(): Promise<boolean> {
-  const now = Date.now();
-  if (now < nextProbeAt) return healthy;
-  try {
-    const u = `${API_BASE}/api/scan-receipt?health=1`;
-    const r = await fetch(u, { method: "GET", cache: "no-store" });
-    healthy = r.ok;
-  } catch {
-    healthy = false;
-  }
-  // backoff scheduling
-  if (!healthy) {
-    nextProbeAt = now + backoffMs;
-    backoffMs = Math.min(backoffMs * 2, 10_000);
-  } else {
-    backoffMs = 500;
-    nextProbeAt = now + 5_000; // probe again later
-  }
-  // broadcast status
-  window.dispatchEvent(new CustomEvent("api:health", { detail: { healthy } }));
-  return healthy;
-}
+// Health check variables removed - no longer needed
 
 export async function apiFetch<T = any>(
   path: string,
@@ -210,8 +185,8 @@ export async function apiFetch<T = any>(
 export function onApiHealth(cb: (v: boolean) => void) {
   const handler = (e: any) => cb(!!e?.detail?.healthy);
   window.addEventListener("api:health", handler);
-  // initial
-  cb(healthy);
+  // initial - assume healthy since we removed the probe system
+  cb(true);
   return () => window.removeEventListener("api:health", handler);
 }
 

@@ -1,7 +1,8 @@
 // AI Receipt Scanning with OCR
 import { nanoid } from 'nanoid'
 import { isSupabaseAvailable as _isSupabaseAvailable } from './supabaseClient'
-import { apiFetch, apiUpload } from './apiClient'
+import { apiUpload } from './apiClient'
+import { API_BASE } from './apiBase'
 import { logServer } from './errorLogger'
 import { normalizeFile } from './imageNormalizer'
 
