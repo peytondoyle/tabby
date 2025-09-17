@@ -59,16 +59,9 @@ async function probe(): Promise<boolean> {
   if (now < nextProbeAt) return healthy;
   try {
     const u = `${API_BASE}/api/scan-receipt?health=1`;
-    console.log('[probe] Checking API health at:', u);
     const r = await fetch(u, { method: "GET", cache: "no-store" });
-    console.log('[probe] Response status:', r.status, 'ok:', r.ok);
     healthy = r.ok;
-    if (r.ok) {
-      const data = await r.json();
-      console.log('[probe] Response data:', data);
-    }
-  } catch (error) {
-    console.error('[probe] Error:', error);
+  } catch {
     healthy = false;
   }
   // backoff scheduling
@@ -81,7 +74,6 @@ async function probe(): Promise<boolean> {
   }
   // broadcast status
   window.dispatchEvent(new CustomEvent("api:health", { detail: { healthy } }));
-  console.log('[probe] Final healthy status:', healthy);
   return healthy;
 }
 
@@ -111,10 +103,7 @@ export async function apiFetch<T = any>(
         throw new Error("Request timeout exceeded");
       }
       
-      const ok = await probe();
-      if (!ok) {
-        throw new Error("API_OFFLINE");
-      }
+      // Skip probe() call - make request directly
       
       const resp = await fetch(url, {
         method,
@@ -244,10 +233,7 @@ export async function apiUpload<T = any>(
         throw new Error("Request timeout exceeded");
       }
       
-      const ok = await probe();
-      if (!ok) {
-        throw new Error("API_OFFLINE");
-      }
+      // Skip probe() call - make request directly
       
       // Don't set Content-Type for FormData - let the browser set it with boundary
       const resp = await fetch(url, {

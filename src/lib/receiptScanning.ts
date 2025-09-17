@@ -438,23 +438,31 @@ export async function ensureApiHealthy({ tries = 3, delayMs = 1000 }: { tries?: 
   for (let attempt = 1; attempt <= tries; attempt++) {
     try {
       console.log(`[scan_start] Health check attempt ${attempt}/${tries}...`)
-      const response = await apiFetch('/api/scan-receipt?health=1')
-      console.log(`[scan_start] Health check response:`, response)
       
-      // apiFetch returns the raw response data, so check if it has the expected structure
-      if (response && typeof response === 'object' && 'ok' in response && response.ok) {
-        const uptimeMs = (response as { uptimeMs?: number }).uptimeMs
-        console.info(`[scan_ok] API healthy after ${attempt} attempts (uptime: ${uptimeMs || 0}ms)`)
-        return true
+      // Make direct fetch request instead of using apiFetch
+      const url = `${API_BASE}/api/scan-receipt?health=1`
+      const response = await fetch(url, { 
+        method: 'GET', 
+        cache: 'no-store',
+        headers: {
+          'Accept': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log(`[scan_start] Health check response:`, data)
+        
+        if (data && typeof data === 'object' && 'ok' in data && data.ok) {
+          const uptimeMs = data.uptimeMs || 0
+          console.info(`[scan_ok] API healthy after ${attempt} attempts (uptime: ${uptimeMs}ms)`)
+          return true
+        }
       }
       
-      console.warn(`[scan_api_error] Health check attempt ${attempt}: invalid response format`, response)
+      console.warn(`[scan_api_error] Health check attempt ${attempt}: status ${response.status}`)
     } catch (error) {
-      // Expected during startup or when API is unavailable
       console.error(`[scan_exception] Health check attempt ${attempt} failed:`, error)
-      if (attempt === tries) {
-        console.error(`[scan_exception] Health check failed after ${tries} attempts:`, error)
-      }
     }
     
     // Wait before next attempt
