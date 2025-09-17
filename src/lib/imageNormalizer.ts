@@ -46,9 +46,10 @@ class ImageNormalizerWorker {
       }
       
       this.worker.onerror = (error) => {
+        console.error('[imageNormalizer] Worker error:', error)
         const pending = Array.from(this.pendingOperations.values())[0]
         if (pending) {
-          pending.reject(new Error(`Worker error: ${error.message}`))
+          pending.reject(new Error(`Worker error: ${error.message || 'Unknown worker error'}`))
           this.pendingOperations.clear()
         }
       }

@@ -103,6 +103,10 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
         setErrorMessage('Service temporarily unavailable. Please try again later.')
       } else if (errorMessage.includes('Request timeout exceeded')) {
         setErrorMessage('Scan timed out. Please try with a smaller image.')
+      } else if (errorMessage.includes('Unsupported image format') || errorMessage.includes('corrupted file')) {
+        setErrorMessage('This image format isn\'t supported. Please try a JPG or PNG file instead.')
+      } else if (errorMessage.includes('Worker error')) {
+        setErrorMessage('Image processing failed. Please try a different image format.')
       } else {
         setErrorMessage(errorMessage)
       }

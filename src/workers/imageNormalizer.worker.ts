@@ -163,20 +163,28 @@ async function normalizeImage(file: File): Promise<NormalizationResult> {
         file.name.toLowerCase().match(/\.(heic|heif)$/)) {
       console.log('[worker] Converting HEIC/HEIF to JPEG')
       
-      // Create image bitmap from file
-      const imageBitmap = await createImageBitmap(file)
-      
-      // Create canvas and draw image
-      const canvas = createCanvas(imageBitmap.width, imageBitmap.height)
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(imageBitmap, 0, 0)
-      
-      // Convert to JPEG blob
-      currentFile = new File([await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 })], 
-                           file.name.replace(/\.(heic|heif)$/i, '.jpg'), 
-                           { type: 'image/jpeg' })
-      steps.push('HEIC→JPEG')
-      console.log(`[worker] Converted HEIC to JPEG - new size: ${currentFile.size} bytes`)
+      try {
+        // Create image bitmap from file
+        const imageBitmap = await createImageBitmap(file)
+        
+        // Create canvas and draw image
+        const canvas = createCanvas(imageBitmap.width, imageBitmap.height)
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(imageBitmap, 0, 0)
+        
+        // Convert to JPEG blob
+        currentFile = new File([await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 })], 
+                             file.name.replace(/\.(heic|heif)$/i, '.jpg'), 
+                             { type: 'image/jpeg' })
+        steps.push('HEIC→JPEG')
+        console.log(`[worker] Converted HEIC to JPEG - new size: ${currentFile.size} bytes`)
+      } catch (heicError) {
+        console.warn('[worker] HEIC conversion failed, trying to process as-is:', heicError)
+        // If HEIC conversion fails, try to process the original file
+        // This might work if the browser has native HEIC support
+        currentFile = file
+        steps.push('HEIC→failed, using original')
+      }
     }
     
     // Step 2: Get EXIF orientation
@@ -187,7 +195,14 @@ async function normalizeImage(file: File): Promise<NormalizationResult> {
     }
     
     // Step 3: Create image bitmap and canvas
-    const imageBitmap = await createImageBitmap(currentFile)
+    let imageBitmap: ImageBitmap
+    try {
+      imageBitmap = await createImageBitmap(currentFile)
+    } catch (bitmapError) {
+      console.error('[worker] Failed to create image bitmap:', bitmapError)
+      throw new Error(`Unsupported image format or corrupted file: ${bitmapError instanceof Error ? bitmapError.message : 'Unknown error'}`)
+    }
+    
     const canvas = createCanvas(imageBitmap.width, imageBitmap.height)
     const ctx = canvas.getContext('2d')!
     
