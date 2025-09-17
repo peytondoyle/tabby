@@ -437,7 +437,9 @@ export async function ensureApiHealthy({ tries = 3, delayMs = 1000 }: { tries?: 
   
   for (let attempt = 1; attempt <= tries; attempt++) {
     try {
+      console.log(`[scan_start] Health check attempt ${attempt}/${tries}...`)
       const response = await apiFetch('/api/scan-receipt?health=1')
+      console.log(`[scan_start] Health check response:`, response)
       
       // apiFetch returns the raw response data, so check if it has the expected structure
       if (response && typeof response === 'object' && 'ok' in response && response.ok) {
@@ -446,19 +448,20 @@ export async function ensureApiHealthy({ tries = 3, delayMs = 1000 }: { tries?: 
         return true
       }
       
-      console.warn(`[scan_api_error] Health check attempt ${attempt}: invalid response format`)
+      console.warn(`[scan_api_error] Health check attempt ${attempt}: invalid response format`, response)
     } catch (error) {
       // Expected during startup or when API is unavailable
-      if (attempt % 5 === 0) {
-        console.info(`[scan_start] Health check attempt ${attempt}/${tries}...`)
-      }
+      console.error(`[scan_exception] Health check attempt ${attempt} failed:`, error)
       if (attempt === tries) {
         console.error(`[scan_exception] Health check failed after ${tries} attempts:`, error)
       }
     }
     
     // Wait before next attempt
-    await new Promise(resolve => setTimeout(resolve, delayMs))
+    if (attempt < tries) {
+      console.log(`[scan_start] Waiting ${delayMs}ms before next attempt...`)
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
   }
   
   console.warn(`[scan_api_error] API not healthy after ${tries} attempts`)

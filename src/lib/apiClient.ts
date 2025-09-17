@@ -59,9 +59,16 @@ async function probe(): Promise<boolean> {
   if (now < nextProbeAt) return healthy;
   try {
     const u = `${API_BASE}/api/scan-receipt?health=1`;
+    console.log('[probe] Checking API health at:', u);
     const r = await fetch(u, { method: "GET", cache: "no-store" });
+    console.log('[probe] Response status:', r.status, 'ok:', r.ok);
     healthy = r.ok;
-  } catch {
+    if (r.ok) {
+      const data = await r.json();
+      console.log('[probe] Response data:', data);
+    }
+  } catch (error) {
+    console.error('[probe] Error:', error);
     healthy = false;
   }
   // backoff scheduling
@@ -74,6 +81,7 @@ async function probe(): Promise<boolean> {
   }
   // broadcast status
   window.dispatchEvent(new CustomEvent("api:health", { detail: { healthy } }));
+  console.log('[probe] Final healthy status:', healthy);
   return healthy;
 }
 
