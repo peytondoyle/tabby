@@ -8,7 +8,7 @@
 
 export const API_BASE =
   import.meta.env.VITE_API_BASE ??
-  (location.hostname === "127.0.0.1" || location.hostname === "localhost"
+  (import.meta.env.DEV
     ? "http://127.0.0.1:3000"
     : "");
 
