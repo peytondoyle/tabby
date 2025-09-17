@@ -250,12 +250,31 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       const result = await normalizeImage(file)
       self.postMessage({ type: 'success', result })
     } catch (error) {
+      console.error('[worker] Error in worker:', error)
       self.postMessage({ 
         type: 'error', 
         error: error instanceof Error ? error.message : 'Unknown error' 
       })
     }
   }
+}
+
+// Add global error handler to prevent worker crashes
+self.onerror = (error) => {
+  console.error('[worker] Global worker error:', error)
+  self.postMessage({ 
+    type: 'error', 
+    error: 'Worker crashed: ' + (error.message || 'Unknown error')
+  })
+}
+
+self.onunhandledrejection = (event) => {
+  console.error('[worker] Unhandled promise rejection:', event.reason)
+  event.preventDefault()
+  self.postMessage({ 
+    type: 'error', 
+    error: 'Unhandled promise rejection: ' + (event.reason?.message || 'Unknown error')
+  })
 }
 
 // Export types for use in main thread
