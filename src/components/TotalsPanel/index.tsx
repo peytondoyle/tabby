@@ -1,9 +1,22 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Share, Download, Printer } from 'lucide-react'
+import { Share, Download, Printer } from '@/lib/icons'
+import { useReducedMotion } from '@/lib/accessibility'
+
+interface PersonTotal {
+  personId: string
+  name: string
+  total: number
+}
 
 interface TotalsPanelProps {
   billId?: string
+  subtotal: number
+  tax: number
+  tip: number
+  total: number
+  personTotals: PersonTotal[]
+  distributed: number
 }
 
 type SplitOption = 'even' | 'proportional'
@@ -14,7 +27,17 @@ interface CoupleMode {
   active: boolean
 }
 
-export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => {
+export const TotalsPanel: React.FC<TotalsPanelProps> = ({ 
+  billId: _billId, 
+  subtotal, 
+  tax, 
+  tip, 
+  total, 
+  personTotals, 
+  distributed 
+}) => {
+  const prefersReducedMotion = useReducedMotion()
+  
   const [taxSplit, setTaxSplit] = useState<SplitOption>('even')
   const [tipSplit, setTipSplit] = useState<SplitOption>('proportional')
   const [includeZeroItems, setIncludeZeroItems] = useState(false)
@@ -24,29 +47,26 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
     { id: '3', name: 'Casey & Morgan', active: false }
   ])
   
-  // Mock totals data - in real app, this would come from props or context
-  const [totals, setTotals] = useState({
-    subtotal: 45.67,
-    tax: 3.65,
-    tip: 9.13,
-    total: 58.45
-  })
-  
-  const [showPennyFix, setShowPennyFix] = useState(false)
-  
-  // Simulate totals updates (in real app, this would be triggered by item assignments)
+  // Dev-only validation: check if person totals sum matches grand total
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTotals(prev => ({
-        ...prev,
-        total: prev.total + (Math.random() - 0.5) * 0.02
-      }))
-      setShowPennyFix(true)
-      setTimeout(() => setShowPennyFix(false), 2000)
-    }, 5000)
-    
-    return () => clearInterval(interval)
-  }, [])
+    if (import.meta.env.DEV) {
+      const personTotalsSum = personTotals.reduce((sum, person) => sum + person.total, 0)
+      const difference = Math.abs(personTotalsSum - total)
+      
+      if (difference > 0.01) { // Allow for small floating point differences
+        console.warn(
+          `[TotalsPanel] Person totals don't match grand total:\n` +
+          `  Person totals sum: $${personTotalsSum.toFixed(2)}\n` +
+          `  Grand total: $${total.toFixed(2)}\n` +
+          `  Difference: $${difference.toFixed(2)}\n` +
+          `  This may indicate a calculation error in the totals computation.`
+        )
+      }
+    }
+  }, [personTotals, total])
+  
+  // Show penny fix only when distributed amount is non-zero
+  const showPennyFix = distributed !== 0
 
   const toggleCouple = (id: string) => {
     setCoupleMode(prev => 
@@ -86,8 +106,8 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
                   ? 'bg-surface text-text-primary' 
                   : 'text-text-secondary hover:text-text-primary'
               }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+              whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
             >
               Even
             </motion.button>
@@ -98,8 +118,8 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
                   ? 'bg-surface text-text-primary' 
                   : 'text-text-secondary hover:text-text-primary'
               }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+              whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
             >
               Proportional
             </motion.button>
@@ -117,8 +137,8 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
                   ? 'bg-surface text-text-primary' 
                   : 'text-text-secondary hover:text-text-primary'
               }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+              whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
             >
               Even
             </motion.button>
@@ -129,8 +149,8 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
                   ? 'bg-surface text-text-primary' 
                   : 'text-text-secondary hover:text-text-primary'
               }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+              whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
             >
               Proportional
             </motion.button>
@@ -186,22 +206,29 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
+        aria-live="polite"
+        role="status"
       >
         <h3 className="text-lg font-semibold text-text-primary">📊 Bill Summary</h3>
+        
+        {/* Screen reader announcement for totals updates */}
+        <div className="sr-only" aria-live="polite">
+          Subtotal: ${subtotal.toFixed(2)}, Tax: ${tax.toFixed(2)}, Tip: ${tip.toFixed(2)}, Total: ${total.toFixed(2)}
+        </div>
         
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-sm text-text-secondary">Subtotal</span>
             <AnimatePresence mode="wait">
               <motion.span
-                key={totals.subtotal}
+                key={subtotal}
                 className="font-mono text-sm text-text-primary"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.1 }}
+                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                transition={{ duration: prefersReducedMotion ? 0 : 0.1 }}
               >
-                ${totals.subtotal.toFixed(2)}
+                ${subtotal.toFixed(2)}
               </motion.span>
             </AnimatePresence>
           </div>
@@ -209,14 +236,14 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
             <span className="text-sm text-text-secondary">Tax</span>
             <AnimatePresence mode="wait">
               <motion.span
-                key={totals.tax}
+                key={tax}
                 className="font-mono text-sm text-text-primary"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.1 }}
+                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                transition={{ duration: prefersReducedMotion ? 0 : 0.1 }}
               >
-                ${totals.tax.toFixed(2)}
+                ${tax.toFixed(2)}
               </motion.span>
             </AnimatePresence>
           </div>
@@ -224,14 +251,14 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
             <span className="text-sm text-text-secondary">Tip</span>
             <AnimatePresence mode="wait">
               <motion.span
-                key={totals.tip}
+                key={tip}
                 className="font-mono text-sm text-text-primary"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.1 }}
+                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                transition={{ duration: prefersReducedMotion ? 0 : 0.1 }}
               >
-                ${totals.tip.toFixed(2)}
+                ${tip.toFixed(2)}
               </motion.span>
             </AnimatePresence>
           </div>
@@ -241,20 +268,20 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
               <span className="text-text-primary font-medium">Grand Total</span>
               <AnimatePresence mode="wait">
                 <motion.span
-                  key={totals.total}
+                  key={total}
                   className="font-mono text-xl font-bold text-text-primary"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ duration: 0.1 }}
+                  initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                  animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                  exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.1 }}
                 >
-                  ${totals.total.toFixed(2)}
+                  ${total.toFixed(2)}
                 </motion.span>
               </AnimatePresence>
             </div>
           </div>
 
-          {/* Penny Fix Badge */}
+          {/* Exact-sum adjustment badge */}
           <AnimatePresence>
             {showPennyFix && (
               <motion.div 
@@ -264,7 +291,7 @@ export const TotalsPanel: React.FC<TotalsPanelProps> = ({ billId: _billId }) => 
                 exit={{ scale: 0.8, opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                ✨ Penny fix applied
+                ✨ Exact-sum adjustment: ${distributed.toFixed(2)}
               </motion.div>
             )}
           </AnimatePresence>

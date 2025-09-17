@@ -3,6 +3,190 @@ import { nanoid } from 'nanoid'
 import { isSupabaseAvailable as _isSupabaseAvailable } from './supabaseClient'
 import { apiFetch, apiUpload } from './apiClient'
 import { logServer } from './errorLogger'
+import { normalizeFile } from './imageNormalizer'
+
+// Note: Image normalization is now handled by Web Worker in imageNormalizer.ts
+// Old functions removed - see imageNormalizer.ts for Web Worker implementation
+
+// Convert HEIC/HEIF to JPEG using canvas (DEPRECATED - use Web Worker)
+/* async function _convertHeicToJpeg(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+    
+    img.onload = () => {
+      canvas.width = img.width
+      canvas.height = img.height
+      ctx?.drawImage(img, 0, 0)
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const newFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), {
+            type: 'image/jpeg',
+            lastModified: file.lastModified
+          })
+          resolve(newFile)
+        } else {
+          reject(new Error('Failed to convert HEIC to JPEG'))
+        }
+      }, 'image/jpeg', 0.9)
+    }
+    
+    img.onerror = () => reject(new Error('Failed to load HEIC image'))
+    img.src = URL.createObjectURL(file)
+  })
+} */
+
+// Auto-rotate image based on EXIF orientation
+/* async function _autoRotateImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+    
+    img.onload = () => {
+      // Get EXIF orientation (simplified - in real implementation, you'd use a library like exif-js)
+      const orientation: number = 1 // Default orientation
+      
+      let { width, height } = img
+      
+      // Apply rotation based on orientation
+      switch (orientation) {
+        case 3:
+        case 4:
+          canvas.width = width
+          canvas.height = height
+          ctx?.translate(width, height)
+          ctx?.rotate(Math.PI)
+          break
+        case 5:
+        case 6:
+          canvas.width = height
+          canvas.height = width
+          ctx?.translate(height, 0)
+          ctx?.rotate(Math.PI / 2)
+          break
+        case 7:
+        case 8:
+          canvas.width = height
+          canvas.height = width
+          ctx?.translate(0, width)
+          ctx?.rotate(-Math.PI / 2)
+          break
+        default:
+          canvas.width = width
+          canvas.height = height
+      }
+      
+      ctx?.drawImage(img, 0, 0)
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const newFile = new File([blob], file.name, {
+            type: file.type,
+            lastModified: file.lastModified
+          })
+          resolve(newFile)
+        } else {
+          reject(new Error('Failed to rotate image'))
+        }
+      }, file.type, 0.9)
+    }
+    
+    img.onerror = () => reject(new Error('Failed to load image for rotation'))
+    img.src = URL.createObjectURL(file)
+  })
+} */
+
+// Downscale image if longest edge > 2000px
+/* async function _downscaleImage(file: File, maxSize: number = 2000): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+    
+    img.onload = () => {
+      const { width, height } = img
+      const longestEdge = Math.max(width, height)
+      
+      if (longestEdge <= maxSize) {
+        // No downscaling needed
+        resolve(file)
+        return
+      }
+      
+      const scale = maxSize / longestEdge
+      const newWidth = Math.round(width * scale)
+      const newHeight = Math.round(height * scale)
+      
+      canvas.width = newWidth
+      canvas.height = newHeight
+      ctx?.drawImage(img, 0, 0, newWidth, newHeight)
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const newFile = new File([blob], file.name, {
+            type: file.type,
+            lastModified: file.lastModified
+          })
+          resolve(newFile)
+        } else {
+          reject(new Error('Failed to downscale image'))
+        }
+      }, file.type, 0.9)
+    }
+    
+    img.onerror = () => reject(new Error('Failed to load image for downscaling'))
+    img.src = URL.createObjectURL(file)
+  })
+} */
+
+// Compress image to target size (max 4MB)
+/* async function _compressImage(file: File, targetSizeBytes: number = 4 * 1024 * 1024): Promise<File> {
+  if (file.size <= targetSizeBytes) {
+    return file
+  }
+  
+  let quality = 0.82
+  let compressedFile = file
+  
+  // Try different quality levels until we get under the target size
+  while (compressedFile.size > targetSizeBytes && quality > 0.1) {
+    compressedFile = await new Promise<File>((resolve, reject) => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      const img = new Image()
+      
+      img.onload = () => {
+        canvas.width = img.width
+        canvas.height = img.height
+        ctx?.drawImage(img, 0, 0)
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const newFile = new File([blob], file.name, {
+              type: file.type,
+              lastModified: file.lastModified
+            })
+            resolve(newFile)
+          } else {
+            reject(new Error('Failed to compress image'))
+          }
+        }, file.type, quality)
+      }
+      
+      img.onerror = () => reject(new Error('Failed to load image for compression'))
+      img.src = URL.createObjectURL(file)
+    })
+    
+    quality -= 0.1
+  }
+  
+  return compressedFile
+} */
+
+// Note: normalizeFile is now imported from imageNormalizer.ts (Web Worker implementation)
 
 // New normalized ParseResult type
 export type ParseResult = {
@@ -13,6 +197,8 @@ export type ParseResult = {
     label: string
     price: number
     emoji?: string | null
+    quantity: number
+    unit_price: number
   }>
   subtotal?: number | null
   tax?: number | null
@@ -98,6 +284,129 @@ export function generateId(): string {
   return `item-${nanoid()}`
 }
 
+// Configuration for service charge mapping
+const SERVICE_CHARGE_CONFIG = {
+  mapToTip: true, // Set to false to keep as line item
+  keywords: ['service charge', 'service fee', 'gratuity', 'tip']
+} as const
+
+// Check if an item is a service charge
+function isServiceCharge(label: string): boolean {
+  const lowerLabel = label.toLowerCase().trim()
+  return SERVICE_CHARGE_CONFIG.keywords.some(keyword => 
+    lowerLabel.includes(keyword)
+  )
+}
+
+// Check if an item is a discount/BOGO
+function isDiscount(label: string): boolean {
+  const lowerLabel = label.toLowerCase().trim()
+  const discountKeywords = ['discount', 'bogo', 'buy one get one', 'promo', 'coupon', 'off', '% off']
+  return discountKeywords.some(keyword => lowerLabel.includes(keyword))
+}
+
+// Check if two items are duplicates (same label and price)
+function areDuplicates(item1: { label: string; price: number }, item2: { label: string; price: number }): boolean {
+  const normalizeLabel = (label: string) => label.toLowerCase().trim().replace(/\s+/g, ' ')
+  return normalizeLabel(item1.label) === normalizeLabel(item2.label) && 
+         Math.abs(item1.price - item2.price) < 0.01 // Allow for small floating point differences
+}
+
+// Process and normalize items
+function processItems(rawItems: Array<{ label?: string; price?: unknown }>): Array<{
+  id: string
+  label: string
+  price: number
+  emoji?: string | null
+  quantity: number
+  unit_price: number
+}> {
+  console.log(`[process_items] Processing ${rawItems.length} raw items`)
+  
+  // Step 1: Normalize and filter items
+  const normalizedItems = rawItems
+    .map((item, _index) => {
+      const label = String(item.label || '').trim()
+      const price = normalizeNumber(item.price)
+      
+      return {
+        id: generateId(),
+        label,
+        price,
+        emoji: getEmojiForItem(label),
+        quantity: 1,
+        unit_price: price
+      }
+    })
+    .filter(item => {
+      // Filter out empty labels and zero-price items (unless they're discounts)
+      const isEmpty = !item.label || item.label.length === 0
+      const isZeroPrice = Math.abs(item.price) < 0.01
+      const isDiscountItem = isDiscount(item.label)
+      
+      if (isEmpty) {
+        console.log(`[process_items] Filtered out empty item: ${JSON.stringify(item)}`)
+        return false
+      }
+      
+      if (isZeroPrice && !isDiscountItem) {
+        console.log(`[process_items] Filtered out zero-price item: ${item.label}`)
+        return false
+      }
+      
+      return true
+    })
+  
+  console.log(`[process_items] After filtering: ${normalizedItems.length} items`)
+  
+  // Step 2: Coalesce duplicates
+  const coalescedItems: Array<{
+    id: string
+    label: string
+    price: number
+    emoji?: string | null
+    quantity: number
+    unit_price: number
+  }> = []
+  
+  for (const item of normalizedItems) {
+    // Check if this item is a service charge that should be mapped to tip
+    if (isServiceCharge(item.label) && SERVICE_CHARGE_CONFIG.mapToTip) {
+      console.log(`[process_items] Service charge mapped to tip: ${item.label} - $${item.price}`)
+      // We'll handle this in the main processing logic
+      continue
+    }
+    
+    // Check if this item is a discount (keep as negative line item)
+    if (isDiscount(item.label) && item.price > 0) {
+      // Make discount negative
+      item.price = -Math.abs(item.price)
+      item.unit_price = item.price
+      console.log(`[process_items] Discount item: ${item.label} - $${item.price}`)
+    }
+    
+    // Look for existing duplicate
+    const existingIndex = coalescedItems.findIndex(existing => 
+      areDuplicates(existing, item)
+    )
+    
+    if (existingIndex >= 0) {
+      // Merge with existing item
+      const existing = coalescedItems[existingIndex]
+      existing.quantity += item.quantity
+      existing.price += item.price
+      console.log(`[process_items] Coalesced duplicate: ${item.label} (qty: ${existing.quantity}, total: $${existing.price})`)
+    } else {
+      // Add as new item
+      coalescedItems.push(item)
+    }
+  }
+  
+  console.log(`[process_items] After coalescing: ${coalescedItems.length} items`)
+  
+  return coalescedItems
+}
+
 // Normalize number values, convert NaN to 0
 export function normalizeNumber(value: unknown): number {
   const num = Number(value)
@@ -110,9 +419,9 @@ function getDEVFallback(): ParseResult {
     place: "Demo Restaurant",
     date: new Date().toISOString().split('T')[0],
     items: [
-      { id: generateId(), label: "Margherita Pizza", price: 18.00, emoji: "🍕" },
-      { id: generateId(), label: "Caesar Salad", price: 12.00, emoji: "🥗" },
-      { id: generateId(), label: "Craft Beer", price: 6.00, emoji: "🥤" }
+      { id: generateId(), label: "Margherita Pizza", price: 18.00, emoji: "🍕", quantity: 1, unit_price: 18.00 },
+      { id: generateId(), label: "Caesar Salad", price: 12.00, emoji: "🥗", quantity: 1, unit_price: 12.00 },
+      { id: generateId(), label: "Craft Beer", price: 6.00, emoji: "🥤", quantity: 1, unit_price: 6.00 }
     ],
     subtotal: 36.00,
     tax: 2.88,
@@ -156,8 +465,12 @@ export async function ensureApiHealthy({ tries = 3, delayMs = 1000 }: { tries?: 
   return false
 }
 
-// New normalized parseReceipt function
-export async function parseReceipt(file: File): Promise<ParseResult> {
+// New normalized parseReceipt function with file normalization
+export async function parseReceipt(
+  file: File, 
+  onProgress?: (step: string) => void,
+  signal?: AbortSignal
+): Promise<ParseResult> {
   const startTime = Date.now()
   const fileSize = file.size
   const fileType = file.type
@@ -166,7 +479,18 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
   console.info(`[scan_start] Starting receipt parse - file: ${fileName} (${fileSize} bytes, ${fileType})`)
   
   try {
-    // Ensure API is healthy before making request (quick check)
+    // Step 1: Select file
+    onProgress?.('Selecting…')
+    console.info('[scan_step] File selected for processing...')
+    
+    // Step 2: Normalize file (off-main-thread)
+    onProgress?.('Normalizing…')
+    console.info('[scan_step] Normalizing file in Web Worker...')
+    const normalizedFile = await normalizeFile(file)
+    console.info(`[scan_step] File normalized - original: ${normalizedFile.originalSize} bytes, normalized: ${normalizedFile.normalizedSize} bytes`)
+    
+    // Step 3: Ensure API is healthy
+    onProgress?.('Uploading…')
     const isHealthy = await ensureApiHealthy({ tries: 2, delayMs: 500 })
     
     if (!isHealthy) {
@@ -185,54 +509,75 @@ export async function parseReceipt(file: File): Promise<ParseResult> {
       return fallbackResult
     }
     
-    // Create FormData for multipart upload
+    // Step 4: Upload and analyze
+    onProgress?.('Analyzing…')
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', normalizedFile.file)
     
     console.info('[scan_start] Sending POST request to API endpoint...')
 
-    // Call the API endpoint using apiUpload
-    const response = await apiUpload('/api/scan-receipt', formData)
+    // Call the API endpoint using apiUpload with AbortSignal
+    const response = await apiUpload('/api/scan-receipt', formData, { signal })
 
-    // apiUpload returns the response data directly, not a wrapped response object
+    // Step 5: Map results
+    onProgress?.('Mapping…')
     const data = response
     const duration = Date.now() - startTime
     
     console.info(`[scan_ok] API response received in ${duration}ms - parsing data...`)
     
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response format from receipt scanning API')
+    }
+    
     // Normalize the response data
     const responseData = data as { items?: unknown[]; place?: string; date?: string; subtotal?: unknown; tax?: unknown; tip?: unknown; total?: unknown; rawText?: string }
-    const items = Array.isArray(responseData.items) ? responseData.items : []
-    const normalizedItems = items.map((item: unknown, index: number) => {
-      const itemObj = item as { label?: string; price?: unknown }
-      const normalized = {
-        id: generateId(),
-        label: String(itemObj.label || ''),
-        price: normalizeNumber(itemObj.price),
-        emoji: getEmojiForItem(itemObj.label || '')
-      }
-      console.info(`[scan_ok] Normalized item ${index + 1}: ${normalized.label} - $${normalized.price}`)
-      return normalized
-    })
-
-    // Ensure at least one item exists
-    const finalItems = normalizedItems.length > 0 
-      ? normalizedItems 
-      : [{ id: generateId(), label: '', price: 0, emoji: '🍽️' }]
-
-    if (normalizedItems.length === 0) {
-      console.warn('[scan_api_error] No items found in response, added empty fallback item')
+    const rawItems = Array.isArray(responseData.items) ? responseData.items : []
+    
+    // Validate that we have valid items
+    if (rawItems.length === 0) {
+      throw new Error('No items found in receipt. Please try a clearer photo or add items manually.')
     }
-
+    
+    // Process items with filtering, coalescing, and special handling
+    const processedItems = processItems(rawItems.map(item => item as { label?: string; price?: unknown }))
+    
+    // Calculate service charges that were mapped to tip
+    let serviceChargeTotal = 0
+    const itemsWithServiceCharges = rawItems.map(item => item as { label?: string; price?: unknown })
+    for (const item of itemsWithServiceCharges) {
+      const label = String(item.label || '').trim()
+      const price = normalizeNumber(item.price)
+      if (isServiceCharge(label) && SERVICE_CHARGE_CONFIG.mapToTip) {
+        serviceChargeTotal += price
+      }
+    }
+    
+    // Calculate totals
+    // const _itemTotal = processedItems.reduce((sum, item) => sum + item.price, 0)
+    const originalSubtotal = normalizeNumber(responseData.subtotal)
+    const originalTax = normalizeNumber(responseData.tax)
+    const originalTip = normalizeNumber(responseData.tip)
+    const originalTotal = normalizeNumber(responseData.total)
+    
+    // Adjust tip to include service charges
+    const adjustedTip = originalTip + serviceChargeTotal
+    
     const result: ParseResult = {
       place: responseData.place || null,
       date: responseData.date || null,
-      items: finalItems,
-      subtotal: normalizeNumber(responseData.subtotal),
-      tax: normalizeNumber(responseData.tax),
-      tip: normalizeNumber(responseData.tip),
-      total: normalizeNumber(responseData.total),
+      items: processedItems,
+      subtotal: originalSubtotal,
+      tax: originalTax,
+      tip: adjustedTip,
+      total: originalTotal,
       rawText: responseData.rawText || null
+    }
+    
+    // Log service charge mapping if any
+    if (serviceChargeTotal > 0) {
+      console.log(`[scan_ok] Mapped $${serviceChargeTotal} in service charges to tip bucket`)
     }
 
     const totalDuration = Date.now() - startTime
@@ -274,8 +619,8 @@ export async function scanReceipt(file: File): Promise<ReceiptScanResult> {
       emoji: item.emoji || '🍽️',
       label: item.label,
       price: item.price,
-      quantity: 1,
-      unit_price: item.price
+      quantity: item.quantity,
+      unit_price: item.unit_price
     })),
     subtotal: parseResult.subtotal || 0,
     tax: parseResult.tax || 0,
@@ -300,7 +645,9 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
         id: `item-${nanoid()}`,
         label: item.label,
         price: item.price,
-        emoji: item.emoji
+        emoji: item.emoji,
+        quantity: item.quantity,
+        unit_price: item.unit_price
       })),
       subtotal: receiptData.subtotal,
       tax: receiptData.tax,

@@ -4,6 +4,7 @@ import { useDroppable } from '@dnd-kit/core'
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient'
 import { showError, showSuccess } from '@/lib/exportUtils'
 import { logServer } from '@/lib/errorLogger'
+import { TextWithTooltip } from '@/components/ui/Tooltip'
 
 interface PersonCardProps {
   person: {
@@ -11,7 +12,7 @@ interface PersonCardProps {
     name: string
     avatar_url?: string
     venmo_handle?: string
-    is_archived: boolean
+    is_archived?: boolean
   }
   editorToken: string
   onUpdate: () => void
@@ -154,7 +155,8 @@ export const PersonCard: React.FC<PersonCardProps> = ({
   if (isAddPerson) {
     return (
       <motion.div 
-        className="rounded-2xl bg-card shadow-soft border-2 border-dashed border-line p-5 hover:shadow-pop hover:-translate-y-1 transition-all duration-200 cursor-pointer h-full min-h-[200px] flex flex-col"
+        className="p-5 hover:-translate-y-1 transition-all duration-200 cursor-pointer h-full min-h-[200px] flex flex-col border-2 border-dashed"
+        style={{background: 'var(--ui-panel)', border: '2px dashed var(--ui-border)', borderRadius: 'var(--ui-radius)', boxShadow: 'var(--ui-elev-shadow)'}}
         onClick={onAddPerson}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
@@ -176,7 +178,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({
 
   if (isEditing) {
     return (
-      <div className="rounded-2xl bg-card shadow-soft border-line p-5">
+      <div className="p-5" style={{background: 'var(--ui-panel)', border: '1px solid var(--ui-border)', borderRadius: 'var(--ui-radius)', boxShadow: 'var(--ui-elev-shadow)'}}>
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <input
@@ -226,7 +228,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({
   }
 
   const cardClasses = [
-    "rounded-2xl bg-card shadow-soft border-line p-5 transition-all duration-200 h-full flex flex-col",
+    "p-5 transition-all duration-200 h-full flex flex-col",
     (isDragOver || isOver) && "shadow-pop ring-2 ring-brand/30 -translate-y-1",
     isDropSuccess && "bg-accent/10",
     !isDragOver && !isOver && !isDropSuccess && "hover:shadow-pop hover:-translate-y-1"
@@ -236,6 +238,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({
     <motion.div 
       ref={setNodeRef}
       className={cardClasses}
+      style={{background: 'var(--ui-panel)', border: '1px solid var(--ui-border)', borderRadius: 'var(--ui-radius)', boxShadow: 'var(--ui-elev-shadow)'}}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={handleDrop}
@@ -256,7 +259,11 @@ export const PersonCard: React.FC<PersonCardProps> = ({
             {person.avatar_url || '👤'}
           </motion.div>
           <div>
-            <h3 className="font-medium text-ink text-base">{person.name}</h3>
+            <h3 className="font-medium text-ink text-base">
+              <TextWithTooltip maxLength={15}>
+                {person.name}
+              </TextWithTooltip>
+            </h3>
             {person.venmo_handle && (
               <p className="text-sm text-ink-dim">@{person.venmo_handle}</p>
             )}
@@ -307,7 +314,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({
                 )}
               </div>
               <span className="font-mono text-xs text-ink">
-                ${item.share_amount.toFixed(2)}
+                <span style={{fontVariantNumeric: 'tabular-nums'}}>${item.share_amount.toFixed(2)}</span>
               </span>
             </div>
           ))
@@ -326,13 +333,13 @@ export const PersonCard: React.FC<PersonCardProps> = ({
             <div className="flex justify-between text-sm">
               <span className="text-ink-dim">Subtotal</span>
               <span className="font-mono text-xs text-ink">
-                ${totals.subtotal.toFixed(2)}
+                <span style={{fontVariantNumeric: 'tabular-nums'}}>${totals.subtotal.toFixed(2)}</span>
               </span>
             </div>
             <div className="flex justify-between text-lg font-semibold">
               <span className="text-ink">Total</span>
               <span className="text-ink">
-                ${totals.total.toFixed(2)}
+                <span style={{fontVariantNumeric: 'tabular-nums'}}>${totals.total.toFixed(2)}</span>
               </span>
             </div>
           </div>

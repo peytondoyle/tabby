@@ -5,11 +5,11 @@ import { createClient } from '@supabase/supabase-js'
 import { applyCors } from '../_utils/cors.js'
 import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from '../_utils/request.js'
 import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit.js'
-import { FILE_LIMITS, HealthResponseSchema } from '../_utils/schemas.js'
-import { processWithOpenAI, isOpenAIConfigured } from './openai-ocr.js'
+import { FILE_LIMITS } from '../_utils/schemas.js'
+import { processWithOpenAI } from './openai-ocr.js'
 
 // Server-side Supabase client using secret key
-const supabaseAdmin = process.env.SUPABASE_SECRET_KEY 
+const _supabaseAdmin = process.env.SUPABASE_SECRET_KEY 
   ? createClient(
       process.env.VITE_SUPABASE_URL || 'https://evraslbpgcafyvvtbqxy.supabase.co',
       process.env.SUPABASE_SECRET_KEY,
@@ -53,7 +53,7 @@ interface ScanReceiptResponse {
   }>
 }
 
-interface HealthResponse {
+interface _HealthResponse {
   ok: boolean
   uptimeMs: number
 }

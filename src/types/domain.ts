@@ -30,6 +30,8 @@ export interface Item {
   bill_id: string
   label: string
   price: number
+  quantity: number
+  unit_price: number
   emoji?: string
   created_at: string
   updated_at: string
@@ -39,6 +41,8 @@ export interface NewItemInput {
   bill_id: string
   label: string
   price: number
+  quantity: number
+  unit_price: number
   emoji?: string
 }
 

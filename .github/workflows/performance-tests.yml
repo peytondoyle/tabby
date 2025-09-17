@@ -1,0 +1,142 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run performance tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  performance-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps
+      
+    - name: Start development server
+      run: npm run dev &
+      env:
+        CI: true
+        
+    - name: Wait for server
+      run: npx wait-on http://localhost:5173 --timeout 60000
+      
+    - name: Run performance tests
+      run: npm run test:performance
+      env:
+        CI: true
+        
+    - name: Run Lighthouse tests
+      run: npm run test:lighthouse
+      env:
+        CI: true
+        
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-results
+        path: test-results/
+        
+    - name: Comment PR with performance results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          try {
+            const resultsPath = 'test-results/performance-results.json';
+            if (fs.existsSync(resultsPath)) {
+              const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+              
+              let comment = '## 🚀 Performance Test Results\n\n';
+              
+              results.suites.forEach(suite => {
+                comment += `### ${suite.title}\n`;
+                comment += `- **Status**: ${suite.ok ? '✅ Passed' : '❌ Failed'}\n`;
+                comment += `- **Duration**: ${suite.duration}ms\n\n`;
+                
+                suite.specs.forEach(spec => {
+                  comment += `#### ${spec.title}\n`;
+                  comment += `- **Status**: ${spec.ok ? '✅ Passed' : '❌ Failed'}\n`;
+                  comment += `- **Duration**: ${spec.duration}ms\n`;
+                  
+                  if (spec.tests && spec.tests.length > 0) {
+                    spec.tests.forEach(test => {
+                      comment += `- **${test.title}**: ${test.ok ? '✅ Passed' : '❌ Failed'}\n`;
+                    });
+                  }
+                  comment += '\n';
+                });
+              });
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+          } catch (error) {
+            console.log('Could not read performance results:', error);
+          }
+
+  lighthouse-ci:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Start development server
+      run: npm run dev &
+      env:
+        CI: true
+        
+    - name: Wait for server
+      run: npx wait-on http://localhost:5173 --timeout 60000
+      
+    - name: Run Lighthouse CI
+      run: npm run lighthouse:ci
+      env:
+        CI: true
+        
+    - name: Upload Lighthouse results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: lighthouse-results
+        path: .lighthouseci/

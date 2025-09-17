@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ArrowLeft } from 'lucide-react'
+import { X, ArrowLeft } from '@/lib/icons'
 import { ReceiptUpload } from '../ReceiptUpload'
 import { OcrEditor } from '../OcrEditor'
 import { processReceiptOcr } from '../../lib/ocr'

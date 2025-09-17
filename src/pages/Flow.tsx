@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useFlowStore } from '@/lib/flowStore'
-import { ReceiptScanner, type ParseResult } from '@/components/ReceiptScanner'
+import { LazyReceiptScanner } from '@/components/ReceiptScanner/LazyReceiptScanner'
+import type { ParseResult } from '@/lib/receiptScanning'
 import { BillyAssignScreen } from '@/components/flow/BillyAssignScreen'
+import { KeyboardFlow } from '@/components/flow/KeyboardFlow'
 import { ShareStep } from '@/components/flow/ShareStep'
 import { AddPeopleModal } from '@/components/AddPeopleModal'
 import { PeopleDock } from '@/components/PeopleDock'
 import { PageContainer } from '@/components/PageContainer'
 import { SplashScreen } from '@/components/SplashScreen'
-import { createBillFromParse, fetchBillByToken } from '@/lib/bills'
+import { fetchBillByToken } from '@/lib/bills'
 import { isLocalId } from '@/lib/id'
 import { Button } from "@/components/ui/Button";
 import { logServer } from '@/lib/errorLogger'
+// import { useReducedMotion } from '@/lib/accessibility'
+import { flowItemToItem } from '@/lib/types'
 
 export const Flow: React.FC = () => {
   const { token } = useParams<{ token: string }>()
@@ -21,6 +25,10 @@ export const Flow: React.FC = () => {
   const [addPeopleOpen, setAddPeopleOpen] = useState(false)
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false)
   const [isLoadingBill, setIsLoadingBill] = useState(false)
+  const [selectedItems, setSelectedItems] = useState<string[]>([])
+  const [useKeyboardNavigation, setUseKeyboardNavigation] = useState(false)
+  
+  // const _prefersReducedMotion = useReducedMotion()
   
   const {
     bill,
@@ -32,8 +40,55 @@ export const Flow: React.FC = () => {
     replaceItems,
     addPerson,
     setPeople,
-    assign
+    assign,
+    getItemAssignments,
+    computeTotals
   } = useFlowStore()
+
+  // Keyboard navigation handlers
+  const handleToggleItemSelection = (item: any, _index: number) => {
+    setSelectedItems(prev => {
+      const isSelected = prev.includes(item.id)
+      if (isSelected) {
+        return prev.filter(id => id !== item.id)
+      } else {
+        return [...prev, item.id]
+      }
+    })
+  }
+
+  const handleClearSelection = () => {
+    setSelectedItems([])
+  }
+
+  const handleAssignItem = (itemId: string, personId: string) => {
+    assign(itemId, personId, 1)
+  }
+
+  const handleUnassignItem = (itemId: string, personId: string) => {
+    // This would need to be implemented in the store
+    console.log('Unassign item', itemId, personId)
+  }
+
+  const handlePersonClick = (person: any) => {
+    console.log('Person clicked', person)
+  }
+
+  const handlePersonTotalClick = (person: any) => {
+    console.log('Person total clicked', person)
+  }
+
+  // Compute totals for keyboard flow
+  const billTotals = computeTotals()
+  const personTotals = people.map(person => ({
+    personId: person.id,
+    personName: person.name,
+    name: person.name,
+    total: billTotals.personTotals[person.id] || 0,
+    subtotal: billTotals.personTotals[person.id] || 0,
+    tax_share: 0,
+    tip_share: 0
+  }))
 
   // Load existing bill data when token is provided
   useEffect(() => {
@@ -323,7 +378,40 @@ export const Flow: React.FC = () => {
           </PageContainer>
         )
       case 'assign':
-        return <BillyAssignScreen onNext={handleNext} onBack={handleBack} />
+        return (
+          <div className="space-y-4">
+            {/* Keyboard Navigation Toggle */}
+            <div className="flex justify-center">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setUseKeyboardNavigation(!useKeyboardNavigation)}
+                className="mb-4"
+              >
+                {useKeyboardNavigation ? 'Switch to Mouse Mode' : 'Switch to Keyboard Mode'}
+              </Button>
+            </div>
+            
+            {useKeyboardNavigation ? (
+              <KeyboardFlow
+                items={items.map(item => flowItemToItem(item, 'bill-id'))}
+                people={people}
+                personTotals={personTotals}
+                billTotals={billTotals}
+                selectedItems={selectedItems}
+                onToggleItemSelection={handleToggleItemSelection}
+                onClearSelection={handleClearSelection}
+                onAssignItem={handleAssignItem}
+                onUnassignItem={handleUnassignItem}
+                onPersonClick={handlePersonClick}
+                onPersonTotalClick={handlePersonTotalClick}
+                getItemAssignments={getItemAssignments}
+              />
+            ) : (
+              <BillyAssignScreen onNext={handleNext} onBack={handleBack} />
+            )}
+          </div>
+        )
       case 'share':
         return <ShareStep onPrev={handlePrev} onBack={handleBack} />
       default:
@@ -350,7 +438,7 @@ export const Flow: React.FC = () => {
       {renderContent()}
 
       {/* Receipt Scanner Modal */}
-      <ReceiptScanner
+      <LazyReceiptScanner
         open={scannerOpen}
         onOpenChange={setScannerOpen}
         onParsed={handleParsed}

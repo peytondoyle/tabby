@@ -8,8 +8,11 @@ import ApiOfflineBanner from './components/system/ApiOfflineBanner'
 // Lazy load route components for code splitting
 const MyBillsPage = lazy(() => import('./pages/MyBillsPage').then(m => ({ default: m.MyBillsPage })))
 const Flow = lazy(() => import('./pages/Flow').then(m => ({ default: m.Flow })))
-const SharePage = lazy(() => import('./pages/SharePage').then(m => ({ default: m.SharePage })))
+const SharePage = lazy(() => import('./pages/LazySharePage').then(m => ({ default: m.LazySharePage })))
 const DevHealthPage = lazy(() => import('./pages/DevHealthPage').then(m => ({ default: m.DevHealthPage })))
+const UISandbox = lazy(() => import('./pages/UISandbox').then(m => ({ default: m.UISandbox })))
+const Ui = lazy(() => import('./pages/Ui').then(m => ({ default: m.default })))
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
 
 // Lightweight loading skeleton
 const PageSkeleton = () => (
@@ -62,6 +65,21 @@ function App() {
             <Route path="dev-health" element={
               <Suspense fallback={<PageSkeleton />}>
                 <DevHealthPage />
+              </Suspense>
+            } />
+            <Route path="ui-sandbox" element={
+              <Suspense fallback={<PageSkeleton />}>
+                <UISandbox />
+              </Suspense>
+            } />
+            <Route path="ui" element={
+              <Suspense fallback={<PageSkeleton />}>
+                <Ui />
+              </Suspense>
+            } />
+            <Route path="profile" element={
+              <Suspense fallback={<PageSkeleton />}>
+                <ProfilePage />
               </Suspense>
             } />
             <Route path="*" element={<Navigate to="/bills" replace />} />

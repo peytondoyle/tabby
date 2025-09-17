@@ -1,0 +1,202 @@
+name: UI Style Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**/*.{ts,tsx}'
+      - 'src/**/*.css'
+      - 'eslint.config.js'
+      - 'eslint-rules/**'
+      - '.github/workflows/ui-style-validation.yml'
+  pull_request:
+    branches: [ main, develop ]  
+    paths:
+      - 'src/**/*.{ts,tsx}'
+      - 'src/**/*.css'
+      - 'eslint.config.js'
+      - 'eslint-rules/**'
+      - '.github/workflows/ui-style-validation.yml'
+
+jobs:
+  style-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run ESLint style validation
+      run: |
+        echo "🔍 Running ESLint with custom UI style rules..."
+        npm run validate:styles
+        
+        if [ $? -eq 0 ]; then
+          echo "✅ No hard-coded styles found!"
+        else
+          echo "❌ Hard-coded styles detected! Please use design tokens instead."
+          echo ""
+          echo "Common fixes:"
+          echo "  • Replace hex colors like #ffffff with var(--ui-bg)"
+          echo "  • Replace hex colors like #3b82f6 with var(--ui-primary)" 
+          echo "  • Replace pixel radii like 8px with var(--r-md)"
+          echo "  • Use rounded-[var(--r-md)] instead of rounded-md for custom radii"
+          echo ""
+          echo "Allowed files for hard-coded styles:"
+          echo "  • **/theme.css (design token definitions)"
+          echo "  • **/global.css (global styles)" 
+          echo "  • **/tailwind.config.* (Tailwind configuration)"
+          echo ""
+          exit 1
+        fi
+    
+    - name: Check for backend imports in frontend
+      run: |
+        echo "🚫 Checking for forbidden backend imports..."
+        
+        # Run ESLint specifically for no-restricted-imports rule
+        npx eslint src/**/*.{ts,tsx} --rule 'no-restricted-imports: error' --rule '@typescript-eslint/no-explicit-any: off' --rule 'react-hooks/exhaustive-deps: off' --max-warnings=0
+        
+        if [ $? -eq 0 ]; then
+          echo "✅ No forbidden backend imports found!"
+        else
+          echo "❌ Backend imports detected in frontend code!"
+          echo ""
+          echo "Frontend files must NOT import from:"
+          echo "  • api/** (backend API routes)"
+          echo "  • api/_utils/** (backend utilities)"
+          echo ""
+          echo "Instead use:"
+          echo "  • @/lib/schemas for BillCreatePayload and other types"
+          echo "  • @/lib/* for frontend utilities"
+          echo ""
+          echo "This prevents runtime crashes due to missing backend modules."
+          exit 1
+        fi
+    
+    - name: Check for hard-coded styles with grep
+      run: |
+        echo "🔍 Running additional grep-based checks for hard-coded styles..."
+        
+        # Check for hex colors in TypeScript/React files (excluding allowed patterns)
+        echo "Checking for hex colors..."
+        HEX_VIOLATIONS=$(find src -name "*.{ts,tsx}" -type f -exec grep -l "#[0-9A-Fa-f]\{3,6\}" {} \; | grep -v -E "(theme\.|global\.)" || true)
+        
+        if [ -n "$HEX_VIOLATIONS" ]; then
+          echo "❌ Found potential hex color violations in:"
+          echo "$HEX_VIOLATIONS"
+          echo ""
+          echo "Files with hex colors:"
+          find src -name "*.{ts,tsx}" -type f -exec grep -Hn "#[0-9A-Fa-f]\{3,6\}" {} \; | grep -v -E "(theme\.|global\.)" || true
+          echo ""
+          echo "Please replace hex colors with design tokens like var(--ui-primary)"
+          exit 1
+        else
+          echo "✅ No hex color violations found"
+        fi
+        
+        # Check for hard-coded pixel values in border-radius
+        echo "Checking for hard-coded border-radius pixels..."
+        RADIUS_VIOLATIONS=$(find src -name "*.{ts,tsx}" -type f -exec grep -l "border-radius.*[0-9]\+px\|rounded-[0-9]" {} \; | grep -v -E "(theme\.|global\.)" || true)
+        
+        if [ -n "$RADIUS_VIOLATIONS" ]; then
+          echo "❌ Found potential border-radius pixel violations in:"
+          echo "$RADIUS_VIOLATIONS"
+          echo ""
+          echo "Files with hard-coded radius pixels:"
+          find src -name "*.{ts,tsx}" -type f -exec grep -Hn "border-radius.*[0-9]\+px\|rounded-[0-9]" {} \; | grep -v -E "(theme\.|global\.)" || true
+          echo ""
+          echo "Please replace pixel radii with design tokens like var(--r-md)"
+          exit 1
+        else
+          echo "✅ No border-radius pixel violations found"
+        fi
+        
+        # Check for inline style objects with hard-coded values
+        echo "Checking for inline styles with hard-coded values..."
+        INLINE_STYLE_VIOLATIONS=$(find src -name "*.{ts,tsx}" -type f -exec grep -l "style={{.*\(backgroundColor.*#\|borderRadius.*[0-9]px\)" {} \; || true)
+        
+        if [ -n "$INLINE_STYLE_VIOLATIONS" ]; then
+          echo "❌ Found potential inline style violations in:"
+          echo "$INLINE_STYLE_VIOLATIONS"
+          echo ""
+          echo "Files with hard-coded inline styles:"
+          find src -name "*.{ts,tsx}" -type f -exec grep -Hn "style={{.*\(backgroundColor.*#\|borderRadius.*[0-9]px\)" {} \; || true
+          echo ""
+          echo "Please use CSS custom properties or design tokens"
+          exit 1
+        else
+          echo "✅ No inline style violations found"
+        fi
+        
+        echo "🎉 All style validation checks passed!"
+    
+    - name: Run smoke test to verify app boots
+      run: |
+        echo "🚀 Running smoke test to verify app loads without crashes..."
+        npm run build
+        npx playwright test tests/smoke-test.spec.ts --reporter=line
+        
+        if [ $? -eq 0 ]; then
+          echo "✅ App boots successfully - no crashes detected!"
+        else
+          echo "❌ App failed to boot properly - check for import or runtime errors"
+          exit 1
+        fi
+    
+    - name: Run Playwright visual tests (if changed)
+      if: contains(github.event.commits[0].modified, 'src/pages/UISandbox.tsx') || contains(github.event.commits[0].modified, 'src/components/ui/')
+      run: |
+        echo "🎭 UI components changed - running visual regression tests..."
+        npx playwright test tests/ui-sandbox.spec.ts --reporter=html
+    
+    - name: Upload Playwright report
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 30
+        
+    - name: Comment PR with style validation results
+      if: github.event_name == 'pull_request' && failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const { number: pull_number } = context.payload.pull_request;
+          
+          const comment = `
+          ## ❌ UI Style Validation Failed
+          
+          Your PR contains hard-coded styles that violate our design system conventions.
+          
+          ### Common Issues and Fixes:
+          - **Hex Colors**: Replace \`#ffffff\` with \`var(--ui-bg)\`
+          - **Primary Colors**: Replace \`#3b82f6\` with \`var(--ui-primary)\`
+          - **Border Radius**: Replace \`8px\` with \`var(--r-md)\`
+          - **Tailwind Radius**: Use \`rounded-[var(--r-md)]\` instead of \`rounded-md\`
+          
+          ### Design Tokens Available:
+          **Colors**: \`--ui-bg\`, \`--ui-text\`, \`--ui-primary\`, \`--ui-danger\`, \`--ui-panel\`, \`--ui-border\`, \`--ui-subtle\`
+          **Radii**: \`--r-sm\`, \`--r-md\`, \`--r-lg\`, \`--r-xl\`, \`--r-full\`
+          
+          See the CI logs above for specific files and lines that need to be fixed.
+          `;
+          
+          await github.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: pull_number,
+            body: comment
+          });

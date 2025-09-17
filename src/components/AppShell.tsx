@@ -1,6 +1,6 @@
 import React from 'react'
 import { Outlet, useLocation, useParams, useNavigate } from 'react-router-dom'
-import { Settings, Share2 } from 'lucide-react'
+import { Settings, Share2 } from '@/lib/icons'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 

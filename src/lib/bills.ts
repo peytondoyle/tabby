@@ -3,7 +3,8 @@ import { nanoid } from 'nanoid'
 import type { ParseResult, Bill, OcrParsedReceipt } from '@/types/domain'
 import { apiFetch } from './apiClient'
 import { logServer } from './errorLogger'
-import { BillCreatePayload, BillItemPayload, toMoney } from './types'
+import { BillCreateSchema, type BillCreatePayload, type BillItemPayload } from '@/lib/schemas'
+import { toMoney } from './types'
 
 export interface BillListItem {
   id: string
@@ -105,7 +106,7 @@ export async function fetchBills(_client?: SupabaseClient): Promise<BillSummary[
 export function buildCreatePayload(scan: {
   place?: string | null;
   total?: number | string | null;
-  items: Array<{ id?: string; label?: string; name?: string; title?: string; price?: number | string; cost?: number | string; icon?: string; emoji?: string }>;
+  items: Array<{ id?: string; label?: string; name?: string; title?: string; price?: number | string; cost?: number | string; icon?: string; emoji?: string | null }>;
   subtotal?: number | string | null;
   tax?: number | string | null;
   tip?: number | string | null;
@@ -114,13 +115,13 @@ export function buildCreatePayload(scan: {
     id: String(i.id ?? `it_${idx}`),
     name: String(i.label ?? i.name ?? i.title ?? "Item"),
     price: toMoney(i.price ?? i.cost ?? 0),
-    icon: i.icon ?? i.emoji,
+    icon: i.icon ?? (i.emoji || undefined),
   }));
   const total = scan.total == null ? null : toMoney(scan.total);
   const tax = scan.tax == null ? 0 : toMoney(scan.tax);
   const tip = scan.tip == null ? 0 : toMoney(scan.tip);
   
-  return {
+  const payload = {
     place: scan.place ?? null,
     total,
     items,
@@ -128,6 +129,15 @@ export function buildCreatePayload(scan: {
     tax,
     tip,
   };
+
+  if (import.meta?.env?.MODE !== "production") {
+    const parsed = BillCreateSchema.safeParse(payload);
+    if (!parsed.success) {
+      console.warn("[BillCreateSchema] validation failed:", parsed.error.issues);
+    }
+  }
+
+  return payload;
 }
 
 /**
@@ -138,17 +148,13 @@ export async function createBill(payload: BillCreatePayload) {
     method: "POST",
     body: payload,
   });
-  if (!res.ok) {
-    const firstIssue = (res as any)?.data?.issues?.[0]?.message || (res as any)?.error || "Validation failed";
-    throw new Error(firstIssue);
-  }
-  return res.data!;
+  return res;
 }
 
 /**
  * Create a bill from parsed receipt data
  */
-export async function createBillFromParse(parsed: ParseResult, storage_path?: string | null, ocr_json?: OcrParsedReceipt | null): Promise<string> {
+export async function createBillFromParse(parsed: ParseResult, _storage_path?: string | null, _ocr_json?: OcrParsedReceipt | null): Promise<string> {
   console.info('[bill_create] Creating bill from parsed data via server API...')
   const startTime = Date.now()
   
@@ -243,10 +249,10 @@ export async function deleteBillByToken(token: string) {
     method: "DELETE",
   });
   if (!res.ok) {
-    const msg = (res as any)?.data?.error || res.error || "Delete failed";
+    const msg = (res as any)?.data?.error || "Delete failed";
     throw new Error(msg);
   }
-  return res.data!;
+  return (res as any).data;
 }
 
 /**

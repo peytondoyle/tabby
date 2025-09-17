@@ -1,230 +1,279 @@
-import React, { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import React from 'react'
+import { motion } from 'framer-motion'
 import { useFlowStore } from '@/lib/flowStore'
-import { logServer } from '@/lib/errorLogger'
-import { ShareGraphics } from '@/components/ShareGraphics'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
 
 interface BillyShareSheetProps {
-  isOpen: boolean
-  onClose: () => void
-  onDone: () => void
+  onNext?: () => void
+  onPrev?: () => void
+  isOpen?: boolean
+  onClose?: () => void
+  onDone?: () => void
+  selectedItems?: string[]
+  onAssignSelected?: (selectedItems: string[], personId?: string) => void
 }
 
-export const BillyShareSheet: React.FC<BillyShareSheetProps> = ({ isOpen, onClose }) => {
-  const { 
-    people, 
-    items, 
-    bill,
-    computeBillTotals,
-    getItemAssignments
-  } = useFlowStore()
+interface ReceiptLineItemProps {
+  name: string
+  price: number
+  className?: string
+}
+
+const ReceiptLineItem: React.FC<ReceiptLineItemProps> = ({ name, price, className = '' }) => {
+  return (
+    <div className={`flex items-center justify-between gap-4 py-2 ${className}`}>
+      <span className="flex-1 text-black">{name}</span>
+      <div className="flex-1 border-b border-dotted border-gray-400 mx-2 min-w-[20px]" />
+      <span className="font-mono text-black font-medium">${price.toFixed(2)}</span>
+    </div>
+  )
+}
+
+interface TotalLineProps {
+  label: string
+  amount: number
+  isGrandTotal?: boolean
+}
+
+const TotalLine: React.FC<TotalLineProps> = ({ label, amount, isGrandTotal = false }) => {
+  const className = isGrandTotal 
+    ? "font-bold text-lg text-black border-t-2 border-black pt-3 mt-2"
+    : "text-gray-700 text-sm"
+    
+  return (
+    <div className={`flex justify-between items-center py-1 ${className}`}>
+      <span>{label}</span>
+      <span className="font-mono font-medium">${amount.toFixed(2)}</span>
+    </div>
+  )
+}
+
+export const BillyShareSheet: React.FC<BillyShareSheetProps> = ({ onNext, onPrev }) => {
+  const { items, people, getItemAssignments, getTotalForPerson } = useFlowStore()
   
-  const [showGraphics, setShowGraphics] = useState(false)
-  const { personTotals, billTotal } = computeBillTotals()
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2
-    }).format(price)
-  }
-
-  const getPersonItems = (personId: string) => {
-    return items.filter(item => {
-      const assignments = getItemAssignments(item.id)
-      return assignments.includes(personId)
-    })
-  }
-
-  const generateShareText = () => {
-    const billName = bill?.title || 'Bill'
-    const date = bill?.date ? new Date(bill.date).toLocaleDateString() : 'Today'
-    
-    let text = `🧾 ${billName}\n`
-    text += `📅 ${date}\n`
-    text += `💰 Total: ${formatPrice(billTotal)}\n\n`
-    
-    personTotals.forEach(personTotal => {
-      const person = people.find(p => p.id === personTotal.personId)
-      if (person) {
-        text += `${person.name}: ${formatPrice(personTotal.total)}\n`
-        const personItems = getPersonItems(person.id)
-        personItems.forEach(item => {
-          const assignments = getItemAssignments(item.id)
-          const splitCount = assignments.length
-          const itemShare = item.price / splitCount
-          text += `  • ${item.emoji || '🍽️'} ${item.label}: ${formatPrice(itemShare)}`
-          if (splitCount > 1) text += ` (1/${splitCount} split)`
-          text += '\n'
-        })
-        text += '\n'
-      }
-    })
-    
-    return text
-  }
-
-  const handleShare = async () => {
-    const shareText = generateShareText()
-    
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: bill?.title || 'Split Bill',
-          text: shareText
-        })
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          console.error('Share failed:', err)
-          logServer('error', 'Share failed', { error: err, context: 'BillyShareSheet.handleShare' })
-          navigator.clipboard.writeText(shareText)
-          alert('Copied to clipboard!')
-        }
-      }
-    } else {
-      navigator.clipboard.writeText(shareText)
-      alert('Copied to clipboard!')
-    }
-  }
+  // Calculate totals
+  const subtotal = items.reduce((sum, item) => sum + item.price, 0)
+  const taxRate = 0.08875 // NY tax rate as example
+  const tipRate = 0.18 // 18% tip as example
+  const tax = subtotal * taxRate
+  const tip = subtotal * tipRate
+  const total = subtotal + tax + tip
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-          
-          <motion.div
-            className="fixed bottom-0 left-0 right-0 bg-surface-elevated rounded-t-xl z-50 max-h-[90vh] overflow-hidden border-t border-border shadow-xl"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          >
-            {/* Handle bar */}
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-12 h-1 bg-border rounded-full" />
-            </div>
-            
-            {/* Header */}
-            <div className="px-6 pb-4 border-b border-border">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-text-primary">Share Receipt</h2>
-                <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-surface rounded-lg transition-colors text-text-secondary hover:text-text-primary"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            {/* Content */}
-            <div className="px-6 py-6 overflow-y-auto max-h-[60vh]">
-              {/* Success Message */}
-              <div className="text-center mb-8">
-                <div className="text-6xl mb-4">🎉</div>
-                <h3 className="text-xl font-bold mb-2 text-text-primary">Your bill has been split!</h3>
-                <p className="text-text-secondary">Ready to share with your group</p>
-              </div>
+    <div className="max-w-2xl mx-auto">
+      {/* Header */}
+      <motion.div 
+        className="text-center mb-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="text-6xl mb-4">🧾</div>
+        <h2 className="text-2xl font-bold text-[var(--ui-text)] mb-2">Receipt Ready</h2>
+        <p className="text-[var(--ui-text-dim)]">
+          Review your bill split and share the receipt
+        </p>
+      </motion.div>
 
-              {/* Bill Summary */}
-              <div className="bg-surface rounded-lg p-4 mb-8 border border-border">
-                <div className="text-center mb-4">
-                  <h4 className="text-lg font-bold text-text-primary">{bill?.title || 'Bill'}</h4>
-                  <p className="text-sm text-text-secondary">{bill?.place || 'Restaurant'}</p>
-                </div>
+      {/* Receipt Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="mb-8"
+      >
+        <Card className="p-8 bg-white text-black shadow-xl max-w-md mx-auto" style={{ fontFamily: 'monospace' }}>
+          {/* Receipt Header */}
+          <div className="text-center mb-8 pb-6 border-b-2 border-black">
+            <h3 className="text-2xl font-bold mb-2">TABBY RECEIPT</h3>
+            <p className="text-gray-600 text-sm">
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              })} • {new Date().toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
+          </div>
+
+          {/* Items Section */}
+          <div className="mb-8">
+            <h4 className="font-bold text-black mb-4 text-center text-sm tracking-wide">
+              ═══ ITEMS ═══
+            </h4>
+            <div className="space-y-1">
+              {items.map((item) => {
+                const assignments = getItemAssignments(item.id)
+                const assigneeNames = assignments
+                  .map(personId => people.find(p => p.id === personId)?.name)
+                  .filter(Boolean)
+                  .join(', ')
                 
-                {/* Person breakdown */}
-                <div className="space-y-3">
-                  {personTotals.map(personTotal => {
-                    const person = people.find(p => p.id === personTotal.personId)
-                    if (!person) return null
-                    
-                    return (
-                      <div key={person.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-primary-light rounded-full flex items-center justify-center text-sm font-bold text-primary">
-                            {person.name.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="font-medium text-text-primary">{person.name}</span>
-                        </div>
-                        <span className="font-semibold text-lg text-text-primary">{formatPrice(personTotal.total)}</span>
+                return (
+                  <div key={item.id} className="space-y-1">
+                    <ReceiptLineItem
+                      name={`${item.emoji} ${item.label}`}
+                      price={item.price}
+                    />
+                    {assigneeNames && (
+                      <div className="text-xs text-gray-500 ml-4 italic">
+                        → {assigneeNames}
                       </div>
-                    )
-                  })}
-                </div>
-                
-                <div className="border-t border-border mt-4 pt-4">
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-text-primary">Total</span>
-                    <span className="font-bold text-lg text-text-primary">{formatPrice(billTotal)}</span>
+                    )}
                   </div>
-                </div>
-              </div>
-              
-              {/* Share buttons */}
-              <div className="space-y-3 mb-8">
-                <button
-                  onClick={handleShare}
-                  className="w-full py-4 bg-primary hover:bg-primary-hover text-text-inverse rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-md"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                  </svg>
-                  <span>Share Receipt</span>
-                </button>
-                
-                <button
-                  onClick={() => setShowGraphics(true)}
-                  className="w-full py-4 bg-surface border border-border text-text-primary rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 hover:bg-surface-elevated"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span>Share Graphic</span>
-                </button>
-              </div>
-
-              {/* Individual share options */}
-              <div className="text-center">
-                <p className="text-sm text-text-secondary mb-4">or share individually:</p>
-                <div className="flex justify-center gap-6">
-                  {personTotals.map(personTotal => {
-                    const person = people.find(p => p.id === personTotal.personId)
-                    if (!person) return null
-                    
-                    return (
-                      <div key={person.id} className="text-center">
-                        <div className="w-12 h-12 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-2">
-                          <span className="text-sm font-bold text-primary">
-                            {person.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <p className="text-xs text-text-secondary">{person.name}</p>
-                        <p className="text-sm font-semibold text-text-primary">{formatPrice(personTotal.total)}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+                )
+              })}
             </div>
-          </motion.div>
-        </>
-      )}
+          </div>
 
-      <ShareGraphics
-        isOpen={showGraphics}
-        onClose={() => setShowGraphics(false)}
-      />
-    </AnimatePresence>
+          {/* People Section */}
+          <div className="mb-8 border-t border-dashed border-gray-400 pt-6">
+            <h4 className="font-bold text-black mb-4 text-center text-sm tracking-wide">
+              ═══ SPLIT BY PERSON ═══
+            </h4>
+            <div className="space-y-3">
+              {people.map((person) => {
+                const personTotal = getTotalForPerson(person.id)
+                const personTax = personTotal * (tax / subtotal)
+                const personTip = personTotal * (tip / subtotal)
+                const personGrandTotal = personTotal + personTax + personTip
+                
+                return (
+                  <div key={person.id} className="bg-gray-50 p-3 rounded border">
+                    <ReceiptLineItem
+                      name={`${person.name.charAt(0).toUpperCase()}. ${person.name}`}
+                      price={personGrandTotal}
+                      className="font-bold"
+                    />
+                    {person.venmo_handle && (
+                      <div className="text-xs text-gray-500 mt-1 text-center">
+                        💳 Venmo: @{person.venmo_handle}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Totals Section */}
+          <div className="border-t-2 border-black pt-4">
+            <div className="space-y-2">
+              <TotalLine label="SUBTOTAL" amount={subtotal} />
+              <TotalLine label="TAX (8.875%)" amount={tax} />
+              <TotalLine label="TIP (18%)" amount={tip} />
+              <TotalLine label="TOTAL" amount={total} isGrandTotal />
+            </div>
+          </div>
+
+          {/* Receipt Footer */}
+          <div className="text-center mt-8 pt-6 border-t border-dashed border-gray-400">
+            <p className="text-xs text-gray-600 mb-2 tracking-wide">
+              ═══════════════════════
+            </p>
+            <p className="text-xs text-gray-500 mb-1">
+              SPLIT WITH TABBY
+            </p>
+            <p className="text-xs text-gray-400">
+              tabby.app • Thank you!
+            </p>
+            <p className="text-xs text-gray-600 mt-2 tracking-wide">
+              ═══════════════════════
+            </p>
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Share Actions */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="mb-8"
+      >
+        <Card className="p-6">
+          <div className="text-center mb-6">
+            <h3 className="text-lg font-semibold text-[var(--ui-text)] mb-2">
+              Share Receipt
+            </h3>
+            <p className="text-[var(--ui-text-dim)] text-sm">
+              Send this receipt to everyone or individual payment requests
+            </p>
+          </div>
+          
+          <div className="space-y-3">
+            <Button
+              full
+              leftIcon={
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                  <polyline points="16,6 12,2 8,6"/>
+                  <line x1="12" y1="2" x2="12" y2="15"/>
+                </svg>
+              }
+            >
+              Share Receipt
+            </Button>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                }
+              >
+                Send Requests
+              </Button>
+              
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                }
+              >
+                Copy Link
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Navigation */}
+      <div className="flex gap-4">
+        <Button
+          variant="secondary"
+          onClick={onPrev}
+          leftIcon={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          }
+        >
+          Back
+        </Button>
+        
+        <Button
+          onClick={onNext}
+          full
+          rightIcon={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          }
+        >
+          Finish & Share
+        </Button>
+      </div>
+    </div>
   )
 }

@@ -77,6 +77,66 @@ The app includes API routes (like `/api/scan-receipt`) that only work in product
 - ✅ **`npm run dev`**: Uses `vercel dev` for full API support
 - ⚠️  **`npm run dev:vite`**: API calls use fallback data or proxy to `vercel dev`
 
+## Design Tokens and Primitives
+
+### Design Tokens
+The app uses a centralized design token system in `src/styles/theme.css` for consistent theming:
+
+**Color Tokens:**
+- `--ui-bg` - Page background
+- `--ui-panel` - Card/modal backgrounds  
+- `--ui-panel-2` - Secondary surfaces
+- `--ui-border` - Primary borders
+- `--ui-border-strong` - Emphasized borders
+- `--ui-text` - Primary text color
+- `--ui-text-dim` - Secondary/muted text
+- `--ui-primary` - Brand/accent color
+- `--ui-primary-press` - Pressed state
+- `--ui-success` - Success states (mint green)
+- `--ui-danger` - Error states (coral red)
+- `--ui-warning` - Warning states
+- `--ui-focus` - Focus ring color
+
+**Layout Tokens:**
+- `--ui-radius` - Primary border radius (8px)
+- `--ui-elev-shadow` - Standard elevation shadow
+
+### How to Use Design Tokens
+
+**Preferred approach** - Use CSS variables with the style prop:
+```tsx
+<div style={{
+  background: 'var(--ui-panel)',
+  border: '1px solid var(--ui-border)',
+  borderRadius: 'var(--ui-radius)',
+  color: 'var(--ui-text)'
+}}>
+  Content
+</div>
+```
+
+**For financial values**, always use tabular numbers:
+```tsx
+<span style={{fontVariantNumeric: 'tabular-nums'}}>
+  ${amount.toFixed(2)}
+</span>
+```
+
+### UI Primitives Catalog
+
+**Core Components** (`src/components/ui/`):
+- `Button` - Primary actions with variants (primary, secondary, subtle, ghost, destructive)
+- `IconButton` - Compact icon-only actions
+- `Card` - Container with consistent styling
+- `Modal` - Dialog overlays with backdrop
+- `Badge` - Status indicators
+- `Avatar` - User profile pictures
+- `ItemPill` - Receipt line items with drag/drop
+- `Skeleton` - Loading states
+- `Tooltip` - Contextual help
+
+All components use the design token system and support both light/dark modes automatically.
+
 ## Migrations
 
 Database migrations are timestamp-ordered SQL files in `supabase/migrations/`. PostgREST RPC names are applied in chronological order, and future-dated files won't apply until their timestamp is reached.

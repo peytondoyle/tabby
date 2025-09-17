@@ -21,7 +21,9 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
 }) => {
   const [state, setState] = useState<'idle' | 'analyzing' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
+  const [currentStep, setCurrentStep] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // Handle external errors (from bill creation)
   React.useEffect(() => {
@@ -31,7 +33,22 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     }
   }, [externalError])
 
-  const onClose = () => onOpenChange(false)
+  // Cleanup AbortController when component unmounts or modal closes
+  React.useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [])
+
+  const onClose = () => {
+    // Abort any ongoing scan when modal closes
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    onOpenChange(false)
+  }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -54,16 +71,42 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     }
 
     setErrorMessage(undefined)
+    setCurrentStep('')
 
     try {
-      // Analyzing - parse the receipt
+      // Create new AbortController for this scan
+      abortControllerRef.current = new AbortController()
+      
+      // Analyzing - parse the receipt with progress callback and AbortSignal
       setState('analyzing')
-      const parseResult = await parseReceipt(file)
+      const parseResult = await parseReceipt(file, (step) => {
+        setCurrentStep(step)
+      }, abortControllerRef.current.signal)
+      
       console.log('[scan_success]', { items_count: parseResult.items.length, total: parseResult.total })
       onParsed(parseResult)
       onClose()
     } catch (err) {
-      setErrorMessage('Failed to scan receipt. Please try again.')
+      // Don't show error if scan was aborted (user closed modal)
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('[scan_aborted] Scan was cancelled by user')
+        return
+      }
+      
+      // Check if it's a specific error message from the API
+      const errorMessage = err instanceof Error ? err.message : 'Failed to scan receipt. Please try again.'
+      
+      // Show specific error message for common issues
+      if (errorMessage.includes('No items found') || errorMessage.includes('Invalid response format')) {
+        setErrorMessage('Couldn\'t read that receipt—try a clearer photo or type it in')
+      } else if (errorMessage.includes('API_OFFLINE')) {
+        setErrorMessage('Service temporarily unavailable. Please try again later.')
+      } else if (errorMessage.includes('Request timeout exceeded')) {
+        setErrorMessage('Scan timed out. Please try with a smaller image.')
+      } else {
+        setErrorMessage(errorMessage)
+      }
+      
       setState('error')
       console.error('[scan_api_error]', err)
       console.error('Receipt scanning error:', err)
@@ -74,7 +117,14 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
   const handleRetry = () => {
     setState('idle')
     setErrorMessage(undefined)
+    setCurrentStep('')
     fileInputRef.current?.click()
+  }
+
+  const handleManualEntry = () => {
+    // Close the scanner and let the parent handle manual entry
+    onClose()
+    // You might want to emit an event or call a callback here for manual entry
   }
 
   return (
@@ -93,7 +143,8 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="bg-card text-ink rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto border-2 border-line shadow-pop retro-shadow mx-auto"
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto border-2 mx-auto"
+            style={{background: 'var(--ui-panel)', color: 'var(--ui-text)', borderRadius: 'var(--ui-radius)', border: '2px solid var(--ui-border)', boxShadow: 'var(--ui-elev-shadow)'}}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -123,7 +174,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   
                   <h3 className="text-2xl font-bold mb-2">Analyzing Receipt</h3>
                   <p className="text-ink-dim mb-8">
-                    AI is reading your receipt and extracting items...
+                    {currentStep || 'AI is reading your receipt and extracting items...'}
                   </p>
 
                   {/* Loading indicator */}
@@ -136,26 +187,92 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   {/* Progress steps */}
                   <div className="space-y-4 max-w-md mx-auto">
                     <div className="flex items-center gap-3 text-left">
-                      <div className="w-6 h-6 bg-brand rounded-full flex items-center justify-center text-white text-sm">
-                        ✓
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm ${
+                        currentStep === 'Selecting…' ? 'bg-brand' : 
+                        currentStep === 'Normalizing…' || currentStep === 'Uploading…' || currentStep === 'Analyzing…' || currentStep === 'Mapping…' ? 'bg-brand' : 'bg-gray-400'
+                      }`}>
+                        {currentStep === 'Selecting…' ? (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
+                          />
+                        ) : (
+                          '✓'
+                        )}
                       </div>
-                      <span className="text-ink-dim">Reading receipt image</span>
+                      <span className="text-ink-dim">Selecting…</span>
                     </div>
                     
                     <div className="flex items-center gap-3 text-left">
-                      <div className="w-6 h-6 bg-brand rounded-full flex items-center justify-center text-white text-sm">
-                        ✓
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm ${
+                        currentStep === 'Normalizing…' ? 'bg-brand' :
+                        currentStep === 'Uploading…' || currentStep === 'Analyzing…' || currentStep === 'Mapping…' ? 'bg-brand' : 'bg-gray-400'
+                      }`}>
+                        {currentStep === 'Normalizing…' ? (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
+                          />
+                        ) : (
+                          '✓'
+                        )}
                       </div>
-                      <span className="text-ink-dim">Extracting items and prices</span>
+                      <span className="text-ink-dim">Normalizing…</span>
                     </div>
                     
                     <div className="flex items-center gap-3 text-left">
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full"
-                      />
-                      <span className="text-ink-dim">Preparing your items</span>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm ${
+                        currentStep === 'Uploading…' ? 'bg-brand' :
+                        currentStep === 'Analyzing…' || currentStep === 'Mapping…' ? 'bg-brand' : 'bg-gray-400'
+                      }`}>
+                        {currentStep === 'Uploading…' ? (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
+                          />
+                        ) : (
+                          '✓'
+                        )}
+                      </div>
+                      <span className="text-ink-dim">Uploading…</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-3 text-left">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm ${
+                        currentStep === 'Analyzing…' ? 'bg-brand' :
+                        currentStep === 'Mapping…' ? 'bg-brand' : 'bg-gray-400'
+                      }`}>
+                        {currentStep === 'Analyzing…' ? (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
+                          />
+                        ) : (
+                          '✓'
+                        )}
+                      </div>
+                      <span className="text-ink-dim">Analyzing…</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-3 text-left">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm ${
+                        currentStep === 'Mapping…' ? 'bg-brand' : 'bg-gray-400'
+                      }`}>
+                        {currentStep === 'Mapping…' ? (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
+                          />
+                        ) : (
+                          '✓'
+                        )}
+                      </div>
+                      <span className="text-ink-dim">Mapping…</span>
                     </div>
                   </div>
                 </div>
@@ -181,8 +298,8 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   </div>
                   
                   <div className="text-sm text-ink-dim space-y-1">
-                    <p>Supports: JPG, PNG, WebP</p>
-                    <p>Max size: 10MB</p>
+                    <p>Supports: JPG, PNG, WebP, HEIC, HEIF</p>
+                    <p>Max size: 10MB (auto-optimized)</p>
                   </div>
                 </div>
               )}
@@ -197,12 +314,22 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                     {externalError ? "Couldn't save your bill" : "Scanning Failed"}
                   </h3>
                   <p className="text-ink-dim mb-6">{errorMessage}</p>
-                  <button
-                    onClick={handleRetry}
-                    className="bg-brand hover:bg-brand/90 text-white px-8 py-3 rounded-xl font-bold transition-all duration-200"
-                  >
-                    Retry
-                  </button>
+                  
+                  {/* Action buttons */}
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={handleRetry}
+                      className="bg-brand hover:bg-brand/90 text-white px-6 py-3 rounded-xl font-bold transition-all duration-200"
+                    >
+                      📸 Retake
+                    </button>
+                    <button
+                      onClick={handleManualEntry}
+                      className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-200"
+                    >
+                      ✏️ Add manually
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -211,7 +338,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.heic,.heif"
               onChange={handleFileSelect}
               className="hidden"
             />

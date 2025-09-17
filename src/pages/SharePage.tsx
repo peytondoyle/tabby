@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ShareCard } from '../components/ShareCard'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink } from '@/lib/icons'
 
 export const SharePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()

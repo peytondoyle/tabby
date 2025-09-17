@@ -67,7 +67,8 @@ export const BillSummaryToggle: React.FC<BillSummaryToggleProps> = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="bg-gray-900 rounded-3xl p-6 border-2 border-gray-700"
+          className="p-6 border-2"
+          style={{background: 'var(--ui-panel)', borderRadius: 'var(--ui-radius)', border: '2px solid var(--ui-border)'}}
         >
           {/* Header */}
           <div className="text-center mb-6">
@@ -90,7 +91,7 @@ export const BillSummaryToggle: React.FC<BillSummaryToggleProps> = ({
                 <span className="text-xl">🍽️</span>
                 Items ({billData.itemCount})
               </span>
-              <span className="text-lg font-bold text-white">
+              <span className="text-white font-mono font-semibold" style={{fontVariantNumeric: 'tabular-nums'}}>
                 ${billData.subtotal.toFixed(2)}
               </span>
             </div>
@@ -101,7 +102,7 @@ export const BillSummaryToggle: React.FC<BillSummaryToggleProps> = ({
                 <span className="text-xl">📊</span>
                 Tax
               </span>
-              <span className="text-white font-mono">
+              <span className="text-white font-mono font-semibold" style={{fontVariantNumeric: 'tabular-nums'}}>
                 ${billData.tax.toFixed(2)}
               </span>
             </div>
@@ -113,7 +114,7 @@ export const BillSummaryToggle: React.FC<BillSummaryToggleProps> = ({
                   <span className="text-xl">💡</span>
                   Tip
                 </span>
-                <span className="text-white font-mono">
+                <span className="text-white font-mono font-semibold" style={{fontVariantNumeric: 'tabular-nums'}}>
                   ${billData.tip.toFixed(2)}
                 </span>
               </div>
@@ -126,7 +127,7 @@ export const BillSummaryToggle: React.FC<BillSummaryToggleProps> = ({
                   <span className="text-2xl">💰</span>
                   Total
                 </span>
-                <span className="text-2xl font-bold text-green-400">
+                <span className="text-2xl font-bold font-mono text-green-400" style={{fontVariantNumeric: 'tabular-nums'}}>
                   ${billData.total.toFixed(2)}
                 </span>
               </div>
@@ -139,7 +140,7 @@ export const BillSummaryToggle: React.FC<BillSummaryToggleProps> = ({
                 Split between {billData.peopleCount} people
               </span>
               <span className="text-lg font-bold text-blue-400 mt-1">
-                ~${(billData.total / billData.peopleCount).toFixed(2)} per person
+                ~<span style={{fontVariantNumeric: 'tabular-nums'}}>${(billData.total / billData.peopleCount).toFixed(2)}</span> per person
               </span>
             </div>
           </div>

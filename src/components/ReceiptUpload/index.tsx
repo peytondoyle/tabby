@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, FileImage, X, Camera, Loader } from 'lucide-react'
+import { Upload, FileImage, X, Camera, Loader } from '@/lib/icons'
 import { logServer } from '@/lib/errorLogger'
 
 interface ReceiptUploadProps {

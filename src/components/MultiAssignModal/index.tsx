@@ -1,5 +1,9 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+// TODO: Prepared for migration to Modal primitive
+// import { Modal } from '@/components/ui/Modal'
+// import { Button } from '@/components/ui/Button'
+// import { Card } from '@/components/ui/Card'
 
 interface Person {
   id: string
@@ -104,7 +108,8 @@ export const MultiAssignModal: React.FC<MultiAssignModalProps> = ({
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="bg-gray-900 text-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden shadow-2xl"
+            className="w-full max-w-lg max-h-[90vh] overflow-hidden"
+            style={{background: 'var(--ui-panel)', color: 'var(--ui-text)', borderRadius: 'var(--ui-radius)', boxShadow: 'var(--ui-elev-shadow)'}}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}

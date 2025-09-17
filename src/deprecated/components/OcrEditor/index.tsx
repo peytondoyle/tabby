@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Edit2, Trash2, Plus, DollarSign } from 'lucide-react'
+import { Edit2, Trash2, Plus, DollarSign } from '@/lib/icons'
 import type { OcrResult } from '../../lib/ocr'
 
 interface OcrEditorProps {

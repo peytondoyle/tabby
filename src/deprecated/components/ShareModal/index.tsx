@@ -2,7 +2,9 @@ import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import html2canvas from 'html2canvas'
 import { ShareCard } from '../ShareCard'
-import { X, Download, Copy, Printer, QrCode } from 'lucide-react'
+import { X, Download, Copy, Printer, QrCode } from '@/lib/icons'
+// TODO: DEPRECATED - This component uses custom modal shell
+// For new modals, use: import { Modal } from '@/components/ui/Modal'
 
 interface ShareModalProps {
   isOpen: boolean
@@ -26,7 +28,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     try {
       const canvas = await html2canvas(shareCardRef.current, {
         scale: 2,
-        backgroundColor: '#ffffff',
+        backgroundColor: null,
         useCORS: true,
         allowTaint: true
       })
@@ -49,7 +51,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     try {
       const canvas = await html2canvas(shareCardRef.current, {
         scale: 2,
-        backgroundColor: '#ffffff',
+        backgroundColor: null,
         useCORS: true,
         allowTaint: true
       })

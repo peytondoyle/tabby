@@ -14,9 +14,10 @@ interface ItemRowProps {
   }
   editorToken: string
   onUpdate: () => void
+  className?: string
 }
 
-export const ItemRow: React.FC<ItemRowProps> = ({ item, editorToken, onUpdate }) => {
+export const ItemRow: React.FC<ItemRowProps> = ({ item, editorToken, onUpdate, className = "" }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [formData, setFormData] = useState({
@@ -154,7 +155,7 @@ export const ItemRow: React.FC<ItemRowProps> = ({ item, editorToken, onUpdate })
   }
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+    <div className={`flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 ${className}`}>
       <div className="w-8 text-center text-lg">
         {item.emoji || '📦'}
       </div>

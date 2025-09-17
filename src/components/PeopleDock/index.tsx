@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, forwardRef, useImperativeHandle } from '
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from '@/lib/icons'
 import { supabase, isSupabaseAvailable } from '@/lib/supabaseClient'
 import { getBillByToken } from '@/lib/billUtils'
 import { showError } from '@/lib/exportUtils'
@@ -10,6 +10,7 @@ import { deriveAssignedMap } from '@/lib/computeTotals'
 import { useUpsertItemShareMutation } from '@/lib/queryClient'
 import { PersonChip, type PersonChipRef } from './PersonChip.tsx'
 import { logServer } from '@/lib/errorLogger'
+import { SkeletonPill } from '@/components/ui/Skeleton'
 
 interface PeopleDockProps {
   billToken?: string
@@ -237,7 +238,7 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
 
     // Use the onAssignSelected callback if provided
     if (onAssignSelected) {
-      onAssignSelected(selectedItems)
+      onAssignSelected(selectedItems, personId)
       const personName = people.find((p: Person) => p.id === personId)?.name || 'Unknown'
       console.log(`Assigned ${selectedItems.length} item(s) → ${personName}`)
       handleDropSuccess(personId) // Trigger success animation
@@ -272,7 +273,7 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
         <div className="max-w-6xl mx-auto px-6 py-2">
           <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="snap-start shrink-0 w-[220px] h-24 bg-card rounded-xl animate-pulse" />
+              <SkeletonPill key={i} className="snap-start shrink-0 w-[220px] h-24" />
             ))}
           </div>
         </div>

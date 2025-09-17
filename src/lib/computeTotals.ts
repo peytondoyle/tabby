@@ -66,6 +66,82 @@ export type TaxMode = 'proportional' | 'even'
 export type TipMode = 'proportional' | 'even'
 
 /**
+ * Validates that a weight is greater than 0
+ * @param weight - The weight to validate
+ * @throws Error if weight is <= 0
+ */
+export function validateWeight(weight: number): void {
+  if (weight <= 0) {
+    throw new Error('Weight must be greater than 0')
+  }
+}
+
+/**
+ * Validates that an item has at least one person with weight > 0
+ * @param itemId - The item ID to check
+ * @param shares - Array of all shares
+ * @param newWeight - The new weight being added/updated
+ * @param personId - The person ID for the new/updated weight
+ * @throws Error if all weights would sum to 0
+ */
+export function validateItemWeights(
+  itemId: string, 
+  shares: ItemShare[], 
+  newWeight: number, 
+  personId: string
+): void {
+  const itemShares = shares.filter(share => share.item_id === itemId)
+  const otherWeights = itemShares
+    .filter(share => share.person_id !== personId)
+    .reduce((sum, share) => sum + share.weight, 0)
+  
+  if (otherWeights + newWeight <= 0) {
+    throw new Error('Each item needs at least one person with weight > 0')
+  }
+}
+
+/**
+ * Checks if a specific (item_id, person_id) combination already exists in shares
+ * @param shares - Array of shares to check
+ * @param itemId - The item ID
+ * @param personId - The person ID
+ * @returns The existing share if found, null otherwise
+ */
+export function findExistingShare(
+  shares: ItemShare[], 
+  itemId: string, 
+  personId: string
+): ItemShare | null {
+  return shares.find(share => 
+    share.item_id === itemId && share.person_id === personId
+  ) || null
+}
+
+/**
+ * Validates multiple shares at once to ensure no item has all weights <= 0
+ * @param shares - Array of shares to validate
+ * @throws Error if any item would have all weights <= 0
+ */
+export function validateAllItemWeights(shares: ItemShare[]): void {
+  // Group shares by item_id
+  const sharesByItem = new Map<string, ItemShare[]>()
+  for (const share of shares) {
+    if (!sharesByItem.has(share.item_id)) {
+      sharesByItem.set(share.item_id, [])
+    }
+    sharesByItem.get(share.item_id)!.push(share)
+  }
+
+  // Check each item
+  for (const [itemId, itemShares] of sharesByItem) {
+    const totalWeight = itemShares.reduce((sum, share) => sum + share.weight, 0)
+    if (totalWeight <= 0) {
+      throw new Error(`Item ${itemId} needs at least one person with weight > 0`)
+    }
+  }
+}
+
+/**
  * Compute totals for a bill with tax/tip split options and penny reconciliation
  * 
  * @param items - Array of items on the bill

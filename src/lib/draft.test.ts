@@ -35,8 +35,8 @@ describe('draft utilities', () => {
         place: 'Test Restaurant',
         date: '2025-01-01',
         items: [
-          { id: 'item-1', label: 'Pizza', price: 18.00, emoji: '🍕' },
-          { id: 'item-2', label: 'Beer', price: 6.00, emoji: '🍺' }
+          { id: 'item-1', label: 'Pizza', price: 18.00, emoji: '🍕', quantity: 1, unit_price: 18.00 },
+          { id: 'item-2', label: 'Beer', price: 6.00, emoji: '🍺', quantity: 1, unit_price: 6.00 }
         ],
         subtotal: 24.00,
         tax: 2.16,
@@ -63,7 +63,7 @@ describe('draft utilities', () => {
         place: null,
         date: null,
         items: [
-          { id: 'item-1', label: '', price: 0 }
+          { id: 'item-1', label: '', price: 0, quantity: 1, unit_price: 0 }
         ],
         subtotal: null,
         tax: null,
@@ -84,7 +84,7 @@ describe('draft utilities', () => {
     it('should ensure at least one item when input has items', () => {
       const mockParseResult: ParseResult = {
         items: [
-          { id: 'item-1', label: 'Test Item', price: 10.00 }
+          { id: 'item-1', label: 'Test Item', price: 10.00, quantity: 1, unit_price: 10.00 }
         ]
       }
 
@@ -139,8 +139,8 @@ describe('draft utilities', () => {
       const mockParseResult: ParseResult = {
         place: 'Round Trip Cafe',
         items: [
-          { id: 'item-1', label: 'Coffee', price: 4.50 },
-          { id: 'item-2', label: 'Muffin', price: 3.25 }
+          { id: 'item-1', label: 'Coffee', price: 4.50, quantity: 1, unit_price: 4.50 },
+          { id: 'item-2', label: 'Muffin', price: 3.25, quantity: 1, unit_price: 3.25 }
         ],
         total: 7.75
       }

@@ -4,7 +4,7 @@ import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     visualizer({
@@ -45,6 +45,10 @@ export default defineConfig({
     }
   },
   build: {
+    // Modern build target for better tree-shaking
+    target: 'es2020',
+    // Disable sourcemaps in production for smaller bundle
+    sourcemap: false,
     // Increase chunk size warning limit after splitting
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
@@ -57,9 +61,19 @@ export default defineConfig({
             return 'react-vendor'
           }
           
-          // DnD Kit
+          // DnD Kit - split into separate chunk
           if (id.includes('@dnd-kit')) {
             return 'dnd-vendor'
+          }
+          
+          // Framer Motion - split into separate chunk
+          if (id.includes('framer-motion')) {
+            return 'motion-vendor'
+          }
+          
+          // Exifr - split into separate chunk
+          if (id.includes('exifr')) {
+            return 'exifr-vendor'
           }
           
           // Supabase
@@ -72,22 +86,59 @@ export default defineConfig({
             return 'router-vendor'
           }
           
-          // Framer Motion
-          if (id.includes('framer-motion')) {
-            return 'motion-vendor'
-          }
-          
           // TanStack Query
           if (id.includes('@tanstack')) {
             return 'query-vendor'
           }
           
-          // Other large libraries
+          // Lucide React icons - split into separate chunk
           if (id.includes('lucide-react')) {
             return 'icons-vendor'
           }
+          
+          // Other vendor libraries
+          if (id.includes('node_modules/')) {
+            return 'vendor'
+          }
         },
+        // Optimize chunk naming
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId
+          if (facadeModuleId) {
+            // Name chunks based on their entry point
+            if (facadeModuleId.includes('pages/')) {
+              return 'pages/[name]-[hash].js'
+            }
+            if (facadeModuleId.includes('components/')) {
+              return 'components/[name]-[hash].js'
+            }
+          }
+          return 'chunks/[name]-[hash].js'
+        },
+        // Optimize asset naming
+        assetFileNames: (assetInfo) => {
+          const extType = assetInfo.name?.split('.').pop()
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType || '')) {
+            return 'assets/images/[name]-[hash][extname]'
+          }
+          if (/woff2?|eot|ttf|otf/i.test(extType || '')) {
+            return 'assets/fonts/[name]-[hash][extname]'
+          }
+          return 'assets/[name]-[hash][extname]'
+        }
       },
     },
   },
-})
+  // Profile mode configuration
+  define: {
+    ...(mode === 'profile' && {
+      'import.meta.env.PROFILE_MODE': JSON.stringify(true),
+    }),
+  },
+  esbuild: {
+    ...(mode === 'profile' && {
+      // Keep function names for better profiling
+      keepNames: true,
+    }),
+  },
+}))

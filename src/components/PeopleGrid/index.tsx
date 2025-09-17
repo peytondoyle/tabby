@@ -6,6 +6,7 @@ import { getBillByToken } from '@/lib/billUtils'
 import { showError, showSuccess } from '@/lib/exportUtils'
 import { PersonCard } from '../PersonCard'
 import { deriveAssignedMap } from '@/lib/computeTotals'
+import { SkeletonCard } from '@/components/ui/Skeleton'
 
 interface PeopleGridProps {
   billToken?: string
@@ -206,7 +207,7 @@ export const PeopleGrid: React.FC<PeopleGridProps> = ({ billToken }) => {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 bg-surface rounded-2xl animate-pulse" />
+            <SkeletonCard key={i} showAvatar={true} className="h-32" />
           ))}
         </div>
       </div>

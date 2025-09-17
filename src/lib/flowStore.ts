@@ -81,6 +81,14 @@ interface FlowState {
     personTotals: Array<{ personId: PersonId; subtotal: number; taxShare: number; tipShare: number; total: number }>
     billTotal: number
   }
+  computeTotals: () => {
+    subtotal: number
+    tax: number
+    tip: number
+    total: number
+    personTotals: Record<string, number>
+    distributed: number
+  }
   
   // Draft actions
   startDraft: (parse: ParseResult) => string
@@ -308,6 +316,31 @@ export const useFlowStore = create<FlowState>()(
         })
         
         return { personTotals, billTotal }
+      },
+
+      computeTotals: () => {
+        const { people, items, bill } = get()
+        const subtotal = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
+        const tax = bill?.tax || 0
+        const tip = bill?.tip || 0
+        const total = subtotal + tax + tip
+        
+        const personTotals: Record<string, number> = {}
+        people.forEach(person => {
+          personTotals[person.id] = get().getTotalForPerson(person.id)
+        })
+        
+        const personTotalsSum = Object.values(personTotals).reduce((sum, total) => sum + total, 0)
+        const distributed = total - personTotalsSum
+        
+        return {
+          subtotal,
+          tax,
+          tip,
+          total,
+          personTotals,
+          distributed
+        }
       },
 
       // Draft actions

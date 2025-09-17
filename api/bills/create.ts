@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { applyCors } from "../_utils/cors.js";
 import { createRequestContext, validateRequest, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from "../_utils/request.js";
 import { checkRateLimit, addRateLimitHeaders } from "../_utils/rateLimit.js";
-import { CreateBillRequestSchema, CreateBillRequest, BillSchema, BillItemSchema, FILE_LIMITS } from "../_utils/schemas.js";
+import { CreateBillRequestSchema, CreateBillRequest, FILE_LIMITS } from "../_utils/schemas.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Apply CORS first

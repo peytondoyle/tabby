@@ -21,11 +21,9 @@ export const DevBanner: React.FC = () => {
 
   // Show banner if not dismissed OR if there are errors
   const shouldShow = isVisible && (!isDismissed || healthStatus === 'error')
-
-  // Don't render in production or if disabled
-  if (import.meta.env.PROD || import.meta.env.VITE_SHOW_DEV_BANNER !== '1') {
-    return null
-  }
+  
+  // Check if we should render
+  const shouldRender = !(import.meta.env.PROD || import.meta.env.VITE_SHOW_DEV_BANNER !== '1')
 
   const checkApiHealth = async () => {
     try {
@@ -75,26 +73,30 @@ export const DevBanner: React.FC = () => {
 
   // Check health on mount and periodically
   useEffect(() => {
-    checkApiHealth()
-    const interval = setInterval(checkApiHealth, 10000) // Every 10 seconds
-    return () => clearInterval(interval)
-  }, [])
+    if (shouldRender) {
+      checkApiHealth()
+      const interval = setInterval(checkApiHealth, 10000) // Every 10 seconds
+      return () => clearInterval(interval)
+    }
+  }, [shouldRender])
 
   // Listen for API errors from other parts of the app
   useEffect(() => {
-    const handleApiError = (event: CustomEvent<ApiError>) => {
-      const error = event.detail
-      setLastErrors(prev => [error, ...prev.slice(0, 2)])
-      setHealthStatus('error')
-      setIsDismissed(false)
-      localStorage.removeItem('dev-banner-dismissed')
+    if (shouldRender) {
+      const handleApiError = (event: CustomEvent<ApiError>) => {
+        const error = event.detail
+        setLastErrors(prev => [error, ...prev.slice(0, 2)])
+        setHealthStatus('error')
+        setIsDismissed(false)
+        localStorage.removeItem('dev-banner-dismissed')
+      }
+
+      window.addEventListener('api-error', handleApiError as EventListener)
+      return () => window.removeEventListener('api-error', handleApiError as EventListener)
     }
+  }, [shouldRender])
 
-    window.addEventListener('api-error', handleApiError as EventListener)
-    return () => window.removeEventListener('api-error', handleApiError as EventListener)
-  }, [])
-
-  if (!shouldShow) return null
+  if (!shouldRender || !shouldShow) return null
 
   const getHealthColor = () => {
     switch (healthStatus) {

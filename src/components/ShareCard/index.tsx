@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient'
 import { logServer } from '@/lib/errorLogger'
+import { SkeletonText } from '@/components/ui/Skeleton'
+import { TextWithTooltip } from '@/components/ui/Tooltip'
 
 interface ShareCardProps {
   billToken: string
@@ -169,15 +171,11 @@ export const ShareCard: React.FC<ShareCardProps> = ({
 
   if (loading) {
     return (
-      <div className={`max-w-[560px] mx-auto bg-card border border-line rounded-2xl shadow-soft p-6 ${className}`}>
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-paper rounded"></div>
-          <div className="h-4 bg-paper rounded w-2/3"></div>
-          <div className="space-y-2">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-4 bg-paper rounded"></div>
-            ))}
-          </div>
+      <div className={`max-w-[560px] mx-auto p-6 ${className}`} style={{background: 'var(--ui-panel)', border: '1px solid var(--ui-border)', borderRadius: 'var(--ui-radius)', boxShadow: 'var(--ui-elev-shadow)'}}>
+        <div className="space-y-4">
+          <SkeletonText lines={1} className="h-6" />
+          <SkeletonText lines={1} className="h-4 w-2/3" />
+          <SkeletonText lines={3} />
         </div>
       </div>
     )
@@ -185,7 +183,7 @@ export const ShareCard: React.FC<ShareCardProps> = ({
 
   if (error || !bill) {
     return (
-      <div className={`max-w-[560px] mx-auto bg-card border border-line rounded-2xl shadow-soft p-6 ${className}`}>
+      <div className={`max-w-[560px] mx-auto p-6 ${className}`} style={{background: 'var(--ui-panel)', border: '1px solid var(--ui-border)', borderRadius: 'var(--ui-radius)', boxShadow: 'var(--ui-elev-shadow)'}}>
         <div className="text-center text-ink-dim">
           <p>Unable to load receipt</p>
         </div>
@@ -205,14 +203,18 @@ export const ShareCard: React.FC<ShareCardProps> = ({
   }
 
   return (
-    <div className={`max-w-[560px] mx-auto bg-card border border-line rounded-2xl shadow-soft p-6 ${className} ${isExport ? 'print:shadow-none print:border-0' : ''}`}>
+    <div className={`max-w-[560px] mx-auto p-6 ${className} ${isExport ? 'print:shadow-none print:border-0' : ''}`} style={{background: 'var(--ui-panel)', border: '1px solid var(--ui-border)', borderRadius: 'var(--ui-radius)', boxShadow: 'var(--ui-elev-shadow)'}}>
       {/* Header */}
       <div className="text-center mb-6">
         <h1 className="font-mono text-xl font-semibold text-ink tracking-wide mb-1">
-          {bill.title}
+          <TextWithTooltip maxLength={30}>
+            {bill.title}
+          </TextWithTooltip>
         </h1>
         <p className="text-sm text-ink-dim">
-          {bill.place} • {formatDate(bill.date)}
+          <TextWithTooltip maxLength={40}>
+            {`${bill.place} • ${formatDate(bill.date)}`}
+          </TextWithTooltip>
         </p>
       </div>
 
@@ -236,7 +238,7 @@ export const ShareCard: React.FC<ShareCardProps> = ({
                       <span className="font-medium text-ink">{person.name}</span>
                     </div>
                     <span className="font-mono font-semibold text-ink">
-                      {totals ? formatCurrency(totals.total) : '$0.00'}
+                      <span style={{fontVariantNumeric: 'tabular-nums'}}>{totals ? formatCurrency(totals.total) : '$0.00'}</span>
                     </span>
                   </div>
                 )
@@ -248,7 +250,7 @@ export const ShareCard: React.FC<ShareCardProps> = ({
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-ink">Total Bill</span>
                 <span className="font-mono text-xl font-bold text-ink">
-                  {formatCurrency(bill.total)}
+                  <span style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(bill.total)}</span>
                 </span>
               </div>
             </div>
@@ -294,7 +296,7 @@ export const ShareCard: React.FC<ShareCardProps> = ({
                             )}
                           </div>
                           <span className="font-mono text-xs text-ink">
-                            {formatCurrency(share.share_amount)}
+                            <span style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(share.share_amount)}</span>
                           </span>
                         </div>
                       ))}
@@ -305,19 +307,19 @@ export const ShareCard: React.FC<ShareCardProps> = ({
                       <div className="space-y-1 text-sm">
                         <div className="flex justify-between">
                           <span className="text-ink-dim">Subtotal</span>
-                          <span className="font-mono text-ink">{formatCurrency(totals.subtotal)}</span>
+                          <span className="font-mono text-ink" style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(totals.subtotal)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-ink-dim">Tax</span>
-                          <span className="font-mono text-ink">{formatCurrency(totals.tax_share)}</span>
+                          <span className="font-mono text-ink" style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(totals.tax_share)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-ink-dim">Tip</span>
-                          <span className="font-mono text-ink">{formatCurrency(totals.tip_share)}</span>
+                          <span className="font-mono text-ink" style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(totals.tip_share)}</span>
                         </div>
                         <div className="flex justify-between font-semibold border-t border-line pt-1">
                           <span className="text-ink">Total</span>
-                          <span className="font-mono text-ink">{formatCurrency(totals.total)}</span>
+                          <span className="font-mono text-ink" style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(totals.total)}</span>
                         </div>
                       </div>
                     )}

@@ -1,6 +1,7 @@
 import { supabase, isSupabaseAvailable } from './supabaseClient'
 import type { OcrParsedReceipt, OcrLineItem } from '@/types/domain'
 import { logServer } from './errorLogger'
+import { showError } from './exportUtils'
 
 export interface Bill {
   id: string
@@ -21,6 +22,29 @@ export interface Bill {
   trip_id?: string
   items?: OcrLineItem[]
 }
+
+// Helper function to check if we should show dev mocks
+const shouldShowDevMocks = (): boolean => {
+  // Only in dev mode and with ?dev=1 query param
+  return !import.meta.env.PROD && new URLSearchParams(window.location.search).get('dev') === '1'
+}
+
+// Helper function to create mock bill data
+const createMockBill = (token: string): Bill => ({
+  id: 'mock-bill-id',
+  title: '🍕 Pizza & Beers',
+  place: 'Tony\'s Pizzeria',
+  date: '2025-01-02',
+  currency: 'USD',
+  subtotal: 40.00,
+  sales_tax: 4.00,
+  tip: 6.00,
+  tax_split_method: 'proportional',
+  tip_split_method: 'proportional',
+  include_zero_item_people: true,
+  editor_token: token,
+  viewer_token: token
+})
 
 export const getBillByToken = async (token: string): Promise<Bill | null> => {
   
@@ -72,24 +96,11 @@ export const getBillByToken = async (token: string): Promise<Bill | null> => {
     return null
   }
 
-  // If Supabase is not available, return mock data for non-scanned bills
+  // If Supabase is not available, show error and return null
   if (!isSupabaseAvailable()) {
-    console.warn('Supabase not available - returning mock data for token:', token)
-    return {
-      id: 'mock-bill-id',
-      title: '🍕 Pizza & Beers',
-      place: 'Tony\'s Pizzeria',
-      date: '2025-01-02',
-      currency: 'USD',
-      subtotal: 40.00,
-      sales_tax: 4.00,
-      tip: 6.00,
-      tax_split_method: 'proportional',
-      tip_split_method: 'proportional',
-      include_zero_item_people: true,
-      editor_token: token,
-      viewer_token: token
-    }
+    console.warn('Supabase not available for token:', token)
+    showError('Can\'t load bill. Check your link or try again.')
+    return null
   }
 
   try {
@@ -98,45 +109,24 @@ export const getBillByToken = async (token: string): Promise<Bill | null> => {
     })
 
     if (error) {
-      console.warn('Supabase RPC error, falling back to mock data:', error)
-      // Fall back to mock data if RPC doesn't exist yet
-      return {
-        id: 'mock-bill-id',
-        title: '🍕 Pizza & Beers',
-        place: 'Tony\'s Pizzeria',
-        date: '2025-01-02',
-        currency: 'USD',
-        subtotal: 40.00,
-        sales_tax: 4.00,
-        tip: 6.00,
-        tax_split_method: 'proportional',
-        tip_split_method: 'proportional',
-        include_zero_item_people: true,
-        editor_token: token,
-        viewer_token: token
-      }
+      console.warn('Supabase RPC error:', error)
+      showError('Can\'t load bill. Check your link or try again.')
+      return null
     }
     
     return data?.[0] || null
   } catch (error) {
-    console.error('Error fetching bill, falling back to mock data:', error)
-    logServer('error', 'Failed to fetch bill, falling back to mock data', { error, context: 'getBillByToken.supabase' })
-    // Fall back to mock data on any error
-    return {
-      id: 'mock-bill-id',
-      title: '🍕 Pizza & Beers',
-      place: 'Tony\'s Pizzeria',
-      date: '2025-01-02',
-      currency: 'USD',
-      subtotal: 40.00,
-      sales_tax: 4.00,
-      tip: 6.00,
-      tax_split_method: 'proportional',
-      tip_split_method: 'proportional',
-      include_zero_item_people: true,
-      editor_token: token,
-      viewer_token: token
+    console.error('Error fetching bill:', error)
+    logServer('error', 'Failed to fetch bill', { error, context: 'getBillByToken.supabase' })
+    showError('Can\'t load bill. Check your link or try again.')
+    
+    // Only return mock data in dev mode with ?dev=1 query param
+    if (shouldShowDevMocks()) {
+      console.log('Dev mode: returning mock bill data')
+      return createMockBill(token)
     }
+    
+    return null
   }
 }
 

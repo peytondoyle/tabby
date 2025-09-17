@@ -1,5 +1,9 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+// TODO: Prepared for migration to Modal primitive
+// import { Modal } from '@/components/ui/Modal'
+// import { Button } from '@/components/ui/Button'
+// import { Card } from '@/components/ui/Card'
 
 interface Person {
   id: string
