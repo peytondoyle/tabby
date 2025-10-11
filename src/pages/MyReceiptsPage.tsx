@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getBillHistory, type BillHistoryItem } from '../lib/billHistory';
+import { getReceiptHistory, type ReceiptHistoryItem } from '../lib/receiptHistory';
+import { HomeButton } from '@/components/HomeButton';
 
 export const MyReceiptsPage: React.FC = () => {
   const navigate = useNavigate();
-  const history = getBillHistory();
+  const history = getReceiptHistory();
 
   const formatDate = (isoDate: string) => {
     return new Date(isoDate).toLocaleDateString('en-US', {
@@ -35,33 +36,16 @@ export const MyReceiptsPage: React.FC = () => {
       color: '#fff',
       padding: '0'
     }}>
+      <HomeButton />
       {/* Header */}
       <div style={{
-        padding: '20px',
+        padding: '20px 20px 20px 70px',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
         position: 'sticky',
         top: 0,
         background: '#000',
-        zIndex: 10,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px'
+        zIndex: 10
       }}>
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: '#007AFF',
-            fontSize: '16px',
-            cursor: 'pointer',
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          ← Back
-        </button>
         <h1 style={{
           fontSize: '24px',
           fontWeight: '600',
@@ -105,7 +89,7 @@ export const MyReceiptsPage: React.FC = () => {
             flexDirection: 'column',
             gap: '12px'
           }}>
-            {history.map((bill: BillHistoryItem) => (
+            {history.map((bill: ReceiptHistoryItem) => (
               <div
                 key={bill.token}
                 onClick={() => navigate(`/receipt/${bill.token}`)}

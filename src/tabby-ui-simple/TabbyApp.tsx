@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Welcome } from './screens/Welcome';
 import { ItemList } from './screens/ItemList';
 import { AssignItems } from './screens/AssignItems';
-import { parseReceipt, createBillFromReceipt, type ParseResult } from '../lib/receiptScanning';
+import { parseReceipt, createReceiptFromReceipt, type ParseResult } from '../lib/receiptScanning';
 import './theme.css';
 
 type Screen = 'welcome' | 'upload' | 'scanning' | 'items' | 'assign' | 'share';
@@ -63,7 +63,7 @@ export const BillyApp: React.FC = () => {
         total: result.total || 0
       };
 
-      const id = await createBillFromReceipt(receiptData);
+      const id = await createReceiptFromReceipt(receiptData);
       setBillId(id);
 
       setCurrentScreen('items');

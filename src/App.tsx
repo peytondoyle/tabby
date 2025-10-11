@@ -19,6 +19,8 @@ function App() {
             <Route path="/" element={<TabbySimple />} />
             <Route path="/receipts" element={<MyReceiptsPage />} />
             <Route path="/receipt/:token" element={<ReceiptPage />} />
+            <Route path="/receipt/:token/people" element={<TabbySimple />} />
+            <Route path="/receipt/:token/edit" element={<TabbySimple />} />
             <Route path="/bill/:token" element={<Flow />} />
             <Route path="/share/:id" element={<SharePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

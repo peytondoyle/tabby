@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { SplashScreen } from '@/components/SplashScreen'
 import { ReceiptAnalysis } from '@/components/ReceiptAnalysis'
 import { AddPeopleModal } from '@/components/AddPeopleModal'
-import { scanReceipt, createBillFromReceipt } from '@/lib/receiptScanning'
+import { scanReceipt, createReceiptFromReceipt } from '@/lib/receiptScanning'
 import type { ReceiptScanResult } from '@/lib/receiptScanning'
 import { logServer } from '@/lib/errorLogger'
 
@@ -94,7 +94,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
           }))
         }
         
-        const billToken = await createBillFromReceipt(billData)
+        const billToken = await createReceiptFromReceipt(billData)
         
         // Add celebration animation
         setCurrentStep('complete')

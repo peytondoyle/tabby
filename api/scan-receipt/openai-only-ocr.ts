@@ -14,6 +14,7 @@ export interface OCRResult {
   items: Array<{
     label: string;
     price: number;
+    emoji?: string | null;
   }>;
   provider: string;
   confidence?: number;
@@ -61,18 +62,21 @@ class OpenAIOnlyProvider {
                   {
                     "place": "store name",
                     "date": "YYYY-MM-DD",
-                    "items": [{"label": "item", "price": number}],
+                    "items": [{"label": "item", "price": number, "emoji": "🍔"}],
                     "subtotal": number,
                     "tax": number,
                     "tip": number,
                     "total": number
                   }
-                  
+
                   Rules:
                   - Extract ALL line items with prices
                   - Use numbers for prices
                   - Use null for missing fields
-                  - Be accurate with prices`
+                  - Be accurate with prices
+                  - For each item, suggest a relevant emoji that best represents the food/drink
+                  - Use specific emojis (🍔 for burger, 🍕 for pizza, ☕ for coffee, etc.)
+                  - If unsure, use 🍽️ as default emoji`
                 },
                 {
                   type: 'image_url',

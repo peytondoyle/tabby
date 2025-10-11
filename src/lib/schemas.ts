@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 /**
- * Frontend Bill item payload (schema + inferred type).
+ * Frontend Receipt item payload (schema + inferred type).
  * Keep this aligned with backend contract, but DO NOT import backend code.
  */
-export const BillItemSchema = z.object({
+export const ReceiptItemSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   price: z.number().finite(),       // dollars; normalized to 2dp by caller
@@ -17,19 +17,19 @@ export const PersonSchema = z.object({
 });
 
 /**
- * BillCreateSchema mirrors the backend contract expected by /api/bills/create
+ * ReceiptCreateSchema mirrors the backend contract expected by /api/receipts/create
  * Fields allowed to be null on create are typed as nullable() here.
  */
-export const BillCreateSchema = z.object({
+export const ReceiptCreateSchema = z.object({
   place: z.string().nullable(),         // null until known
   total: z.number().finite().nullable(),// null if unknown at create-time
-  items: z.array(BillItemSchema).min(1),
+  items: z.array(ReceiptItemSchema).min(1),
   people: z.array(PersonSchema).default([]), // empty array allowed
   tax: z.number().finite().default(0),
   tip: z.number().finite().default(0),
 });
 
-export type BillItemPayload = z.infer<typeof BillItemSchema>;
+export type ReceiptItemPayload = z.infer<typeof ReceiptItemSchema>;
 
 /**
  * Weight validation schema for item shares
@@ -60,4 +60,4 @@ export type WeightPayload = z.infer<typeof WeightSchema>;
 export type ItemSharePayload = z.infer<typeof ItemShareSchema>;
 export type BatchWeightUpdatePayload = z.infer<typeof BatchWeightUpdateSchema>;
 export type PersonPayload = z.infer<typeof PersonSchema>;
-export type BillCreatePayload = z.infer<typeof BillCreateSchema>;
+export type ReceiptCreatePayload = z.infer<typeof ReceiptCreateSchema>;

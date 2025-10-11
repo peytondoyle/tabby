@@ -119,6 +119,7 @@ export function getFoodIcon(itemName: string): LucideIcon {
  */
 interface FoodIconProps {
   itemName: string;
+  emoji?: string | null; // AI-generated emoji from API
   size?: number;
   className?: string;
   color?: string;
@@ -126,10 +127,30 @@ interface FoodIconProps {
 
 export const FoodIcon: React.FC<FoodIconProps> = ({
   itemName,
+  emoji,
   size = 20,
   className = '',
   color = 'currentColor'
 }) => {
+  // If AI-generated emoji is available, use it
+  if (emoji) {
+    return (
+      <span
+        className={className}
+        style={{
+          fontSize: `${size}px`,
+          lineHeight: 1,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        {emoji}
+      </span>
+    );
+  }
+
+  // Otherwise fall back to Lucide icon
   const Icon = getFoodIcon(itemName);
   return <Icon size={size} className={className} color={color} />;
 };

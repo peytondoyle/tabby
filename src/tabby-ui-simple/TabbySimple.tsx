@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { parseReceipt, createBillFromReceipt, type ParseResult } from '../lib/receiptScanning';
+import { useNavigate, useParams } from 'react-router-dom';
+import { parseReceipt, createReceiptFromReceipt, type ParseResult } from '../lib/receiptScanning';
 import { ShareReceiptModal } from '../components/ShareReceiptModal';
 import { FoodIcon } from '../lib/foodIcons';
-import { getBillHistory } from '../lib/billHistory';
+import { getReceiptHistory } from '../lib/receiptHistory';
 import { useAuth } from '../lib/authContext';
 import { AuthModal } from '../components/AuthModal';
+import { HomeButton } from '../components/HomeButton';
+import { fetchReceiptByToken } from '../lib/receipts';
+import { trackPersonName, getQuickAddSuggestions, getUserIdentity, setUserIdentity } from '../lib/peopleHistory';
 import './TabbySimple.css';
 
 interface Item {
@@ -44,6 +47,7 @@ const getPersonColor = (index: number): string => {
 
 export const TabbySimple: React.FC = () => {
   const navigate = useNavigate();
+  const { token: urlToken } = useParams<{ token: string }>();
   const { user, signOut } = useAuth();
   const [step, setStep] = useState<'upload' | 'scanning' | 'editName' | 'people' | 'assign'>('upload');
   const [items, setItems] = useState<Item[]>([]);
@@ -72,7 +76,100 @@ export const TabbySimple: React.FC = () => {
   const [scanProgress, setScanProgress] = useState('');
   const [showShareReceipt, setShowShareReceipt] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isEditingRestaurantName, setIsEditingRestaurantName] = useState(false);
+  const [editableRestaurantName, setEditableRestaurantName] = useState('');
+  const [isLoadingBill, setIsLoadingBill] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Determine step from URL
+  useEffect(() => {
+    if (urlToken) {
+      const path = window.location.pathname;
+      if (path.includes('/people')) {
+        console.log('[TabbySimple] URL shows people step:', urlToken);
+        setStep('people');
+      } else if (path.includes('/edit')) {
+        console.log('[TabbySimple] URL shows assign step:', urlToken);
+        setStep('assign');
+      }
+    }
+  }, [urlToken]);
+
+  // Auto-add "Me" when reaching people step on new bills
+  useEffect(() => {
+    if (step === 'people' && people.length === 0) {
+      const myName = getUserIdentity();
+      if (myName) {
+        console.log('[TabbySimple] Auto-adding user identity:', myName);
+        const newPerson: Person = {
+          id: `person-${Date.now()}`,
+          name: myName,
+          items: [],
+          total: 0,
+        };
+        setPeople([newPerson]);
+      }
+    }
+  }, [step]);
+
+  // Load bill from URL params if on edit route
+  useEffect(() => {
+    const loadBillFromUrl = async () => {
+      // Only load from API if we don't have items already
+      if (urlToken && items.length === 0) {
+        setIsLoadingBill(true);
+        try {
+          const billData = await fetchReceiptByToken(urlToken);
+
+          if (billData && billData.bill) {
+            // Load items
+            const loadedItems: Item[] = (billData.items || []).map((item: any) => ({
+              id: item.id,
+              emoji: item.emoji || '🍽️',
+              name: item.label || item.name || 'Item',
+              price: Number(item.price || item.unit_price || 0),
+              assignedTo: undefined,
+              splitBetween: undefined
+            }));
+
+            setItems(loadedItems);
+            setRestaurantName(billData.bill.place || billData.bill.title || 'Restaurant');
+            setSubtotal(Number(billData.bill.subtotal || 0));
+            setTax(Number(billData.bill.sales_tax || 0));
+            setTip(Number(billData.bill.tip || 0));
+            setTotal(Number(billData.bill.total_amount || 0));
+            setBillToken(urlToken);
+
+            // Load people and assignments from localStorage if available
+            const localShareData = localStorage.getItem(`bill-share-${urlToken}`);
+            if (localShareData) {
+              try {
+                const shareData = JSON.parse(localShareData);
+                if (shareData.people) {
+                  setPeople(shareData.people);
+                }
+                if (shareData.assignments) {
+                  // Apply assignments to items
+                  setItems(prevItems => prevItems.map(item => ({
+                    ...item,
+                    assignedTo: shareData.assignments[item.id]
+                  })));
+                }
+              } catch (e) {
+                console.error('Error loading share data:', e);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error loading bill:', error);
+        } finally {
+          setIsLoadingBill(false);
+        }
+      }
+    };
+
+    loadBillFromUrl();
+  }, [urlToken]);
 
   // Show auth modal on first visit (if not authenticated and not dismissed)
   useEffect(() => {
@@ -126,7 +223,7 @@ export const TabbySimple: React.FC = () => {
         total: result.total || 0
       };
 
-      const token = await createBillFromReceipt(receiptData, undefined, user?.id);
+      const token = await createReceiptFromReceipt(receiptData, undefined, user?.id);
       console.log('Bill created with token:', token, user?.id ? `(user: ${user.id})` : '(no user)');
       setBillToken(token);
 
@@ -139,28 +236,42 @@ export const TabbySimple: React.FC = () => {
         placeLower === 'store name' ||
         placeLower === 'store';
 
-      console.log('Restaurant name check:', {
+      // Determine next step based on whether people were added during scan
+      console.log('Scan complete:', {
         place: result.place,
         needsNameEdit,
-        nextStep: needsNameEdit ? 'editName' : 'assign'
+        peopleAdded: people.length,
+        token
       });
 
-      setStep(needsNameEdit ? 'editName' : 'people');
+      if (needsNameEdit) {
+        setStep('editName');
+      } else if (people.length > 0) {
+        // If people were added during scanning, skip people step and go to assign
+        console.log('[TabbySimple] People added during scan, navigating to assign:', token);
+        navigate(`/receipt/${token}/edit`);
+      } else {
+        // Navigate to people step with token
+        console.log('[TabbySimple] Navigating to people step:', token);
+        navigate(`/receipt/${token}/people`);
+      }
     } catch (error) {
       console.error('Scan failed:', error);
       setStep('upload');
     }
   };
 
-  const handleAddPerson = () => {
-    if (newPersonName.trim()) {
+  const handleAddPerson = (name?: string) => {
+    const personName = (name || newPersonName).trim();
+    if (personName) {
       const newPerson: Person = {
         id: `person-${Date.now()}`,
-        name: newPersonName.trim(),
+        name: personName,
         items: [],
         total: 0,
       };
       setPeople([...people, newPerson]);
+      trackPersonName(personName); // Track for future suggestions
       setNewPersonName('');
       setShowAddPerson(false);
     }
@@ -297,8 +408,22 @@ export const TabbySimple: React.FC = () => {
   const unassignedItems = items.filter(item => !item.assignedTo);
   const allItemsAssigned = unassignedItems.length === 0;
 
-  if (step === 'upload') {
-    const historyCount = getBillHistory().length;
+  // Show loading state when loading bill from URL
+  if (isLoadingBill) {
+    return (
+      <div className="tabby-simple">
+        <HomeButton />
+        <div className="scanning-container">
+          <div className="scan-icon">📋</div>
+          <h2>Loading Bill</h2>
+          <p>Getting your receipt ready...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'upload' && !urlToken) {
+    const historyCount = getReceiptHistory().length;
 
     return (
       <div className="tabby-simple">
@@ -442,20 +567,198 @@ export const TabbySimple: React.FC = () => {
   }
 
   if (step === 'scanning') {
+    const quickAddSuggestions = getQuickAddSuggestions(people.map(p => p.name));
+    const myName = getUserIdentity();
+
     return (
       <div className="tabby-simple">
+        <HomeButton />
         <div className="scanning-container">
           <div className="scan-icon">📸</div>
           <h2>Scanning Receipt</h2>
-          <p>{scanProgress || 'Processing...'}</p>
+          <p style={{ marginBottom: '32px' }}>{scanProgress || 'Processing...'}</p>
+
+          {/* People Management During Scan */}
+          <div style={{
+            maxWidth: '400px',
+            width: '100%',
+            marginTop: '24px'
+          }}>
+            <h3 style={{
+              fontSize: '16px',
+              fontWeight: '600',
+              marginBottom: '16px',
+              color: 'rgba(255,255,255,0.9)'
+            }}>
+              Who's splitting? (Add while we scan)
+            </h3>
+
+            {/* People circles */}
+            {people.length > 0 && (
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '12px',
+                marginBottom: '20px',
+                justifyContent: 'center'
+              }}>
+                {people.map((person, index) => (
+                  <div key={person.id} style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      background: getPersonColor(index),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '20px',
+                      fontWeight: '600',
+                      color: '#fff'
+                    }}>
+                      {person.name[0].toUpperCase()}
+                    </div>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                      {person.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Quick Add Suggestions */}
+            {quickAddSuggestions.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
+                  Quick Add
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  {quickAddSuggestions.slice(0, 5).map((suggestion) => (
+                    <button
+                      key={suggestion.name}
+                      onClick={() => handleAddPerson(suggestion.name)}
+                      style={{
+                        padding: '8px 16px',
+                        background: 'rgba(0, 122, 255, 0.15)',
+                        border: '1px solid rgba(0, 122, 255, 0.3)',
+                        borderRadius: '20px',
+                        color: '#007AFF',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                    >
+                      + {suggestion.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Input field */}
+            <div style={{ marginBottom: '12px' }}>
+              <input
+                type="text"
+                placeholder="Type a name..."
+                value={newPersonName}
+                onChange={(e) => setNewPersonName(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && newPersonName.trim()) {
+                    handleAddPerson();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '12px',
+                  color: '#fff',
+                  fontSize: '16px',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => handleAddPerson()}
+                disabled={!newPersonName.trim()}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: newPersonName.trim() ? 'rgba(0, 122, 255, 0.2)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${newPersonName.trim() ? 'rgba(0, 122, 255, 0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: '12px',
+                  color: newPersonName.trim() ? '#007AFF' : 'rgba(255,255,255,0.3)',
+                  fontSize: '15px',
+                  cursor: newPersonName.trim() ? 'pointer' : 'not-allowed',
+                  fontWeight: '600'
+                }}
+              >
+                Add Person
+              </button>
+              {!myName && (
+                <button
+                  onClick={() => {
+                    const name = prompt('What should we call you?');
+                    if (name && name.trim()) {
+                      setUserIdentity(name.trim());
+                      handleAddPerson(name.trim());
+                    }
+                  }}
+                  style={{
+                    padding: '12px',
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '12px',
+                    color: 'rgba(255,255,255,0.7)',
+                    fontSize: '15px',
+                    cursor: 'pointer',
+                    fontWeight: '600'
+                  }}
+                >
+                  👤 Me
+                </button>
+              )}
+            </div>
+
+            <p style={{
+              fontSize: '12px',
+              color: 'rgba(255,255,255,0.4)',
+              marginTop: '16px',
+              textAlign: 'center'
+            }}>
+              You can add more people later
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
   if (step === 'editName') {
+    const handleContinue = () => {
+      if (!restaurantName.trim() || !billToken) return;
+
+      if (people.length > 0) {
+        // People were added during scan, go to assign
+        navigate(`/receipt/${billToken}/edit`);
+      } else {
+        // No people yet, go to people step
+        navigate(`/receipt/${billToken}/people`);
+      }
+    };
+
     return (
       <div className="tabby-simple">
+        <HomeButton />
         <div className="scanning-container">
           <h2>Where did you eat?</h2>
           <p className="subtitle">We couldn't detect the restaurant name</p>
@@ -465,12 +768,16 @@ export const TabbySimple: React.FC = () => {
             placeholder="Enter restaurant name"
             value={restaurantName}
             onChange={(e) => setRestaurantName(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && setStep('people')}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleContinue();
+              }
+            }}
             autoFocus
           />
           <button
             className="continue-btn"
-            onClick={() => setStep('people')}
+            onClick={handleContinue}
             disabled={!restaurantName.trim()}
           >
             Continue
@@ -481,8 +788,12 @@ export const TabbySimple: React.FC = () => {
   }
 
   if (step === 'people') {
+    const quickAddSuggestions = getQuickAddSuggestions(people.map(p => p.name));
+    const myName = getUserIdentity();
+
     return (
       <div className="tabby-simple">
+        <HomeButton />
         <div className="header">
           <div>
             <h1>{restaurantName}</h1>
@@ -504,40 +815,109 @@ export const TabbySimple: React.FC = () => {
 
           <h2 className="add-people-title">Add People</h2>
 
-          <div className="people-list">
-            {people.map((person, index) => (
-              <div key={person.id} className="people-list-item">
-                <div className="person-avatar-small" style={{ background: getPersonColor(index) }}>
-                  {person.name[0].toUpperCase()}
-                </div>
-                <span className="person-name-text">{person.name}</span>
-                <button
-                  className="remove-btn"
-                  onClick={() => setPeople(people.filter(p => p.id !== person.id))}
-                >
-                  Remove
-                </button>
+          {/* Quick Add from Recent */}
+          {quickAddSuggestions.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', marginBottom: '12px', fontWeight: '500' }}>
+                Quick Add
+              </h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {quickAddSuggestions.slice(0, 5).map((suggestion) => (
+                  <button
+                    key={suggestion.name}
+                    onClick={() => handleAddPerson(suggestion.name)}
+                    style={{
+                      padding: '8px 16px',
+                      background: 'rgba(0, 122, 255, 0.15)',
+                      border: '1px solid rgba(0, 122, 255, 0.3)',
+                      borderRadius: '20px',
+                      color: '#007AFF',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      fontWeight: '500'
+                    }}
+                  >
+                    + {suggestion.name}
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {/* Current People List */}
+          {people.length > 0 && (
+            <div className="people-list">
+              {people.map((person, index) => (
+                <div key={person.id} className="people-list-item">
+                  <div className="person-avatar-small" style={{ background: getPersonColor(index) }}>
+                    {person.name[0].toUpperCase()}
+                  </div>
+                  <span className="person-name-text">{person.name}</span>
+                  <button
+                    className="remove-btn"
+                    onClick={() => setPeople(people.filter(p => p.id !== person.id))}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="add-people-actions">
-            <button className="add-from-contacts-btn">
-              👤 Add from Contacts
-            </button>
             <button
               className="enter-manually-btn"
               onClick={() => setShowAddPerson(true)}
             >
-              ⌨️ Enter Manually
+              ⌨️ Enter Name
             </button>
+            {!myName && (
+              <button
+                className="add-from-contacts-btn"
+                onClick={() => {
+                  const name = prompt('What should we call you?');
+                  if (name && name.trim()) {
+                    setUserIdentity(name.trim());
+                    handleAddPerson(name.trim());
+                  }
+                }}
+              >
+                👤 Set as Me
+              </button>
+            )}
           </div>
         </div>
 
         <div className="bottom-nav">
           <button
             className="continue-to-assign-btn"
-            onClick={() => setStep('assign')}
+            onClick={() => {
+              console.log('[TabbySimple] Continue button clicked', { billToken, peopleCount: people.length });
+              if (billToken) {
+                // Save current state to localStorage before navigating
+                const shareData = {
+                  billToken,
+                  people: people.map(person => ({
+                    id: person.id,
+                    name: person.name,
+                    items: person.items,
+                    total: person.total
+                  })),
+                  assignments: items.reduce((acc, item) => {
+                    if (item.assignedTo) {
+                      acc[item.id] = item.assignedTo;
+                    }
+                    return acc;
+                  }, {} as Record<string, string>)
+                };
+                localStorage.setItem(`bill-share-${billToken}`, JSON.stringify(shareData));
+                console.log('[TabbySimple] Navigating to:', `/receipt/${billToken}/edit`);
+                navigate(`/receipt/${billToken}/edit`);
+              } else {
+                console.log('[TabbySimple] No billToken, using setStep');
+                setStep('assign');
+              }
+            }}
             disabled={people.length === 0}
           >
             Continue to Assign Items
@@ -574,6 +954,7 @@ export const TabbySimple: React.FC = () => {
 
   return (
     <div className="tabby-simple">
+      <HomeButton />
       {/* Header */}
       <div className="header">
         <div>
@@ -585,10 +966,12 @@ export const TabbySimple: React.FC = () => {
             setShowBillOverview(true);
             setIsEditingBill(false);
             setIsEditingReceipt(false);
+            setIsEditingRestaurantName(false);
             setEditableSubtotal(subtotal.toFixed(2));
             setEditableTax(tax.toFixed(2));
             setEditableTip(tip.toFixed(2));
             setEditableItems([...items]);
+            setEditableRestaurantName(restaurantName);
           }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -666,7 +1049,7 @@ export const TabbySimple: React.FC = () => {
                     }}
                   >
                     <span className="item-emoji">
-                      <FoodIcon itemName={item.name} size={24} />
+                      <FoodIcon itemName={item.name} emoji={item.emoji} size={24} />
                     </span>
                     <div className="item-details">
                       <span className="item-name">{item.name}</span>
@@ -777,7 +1160,7 @@ export const TabbySimple: React.FC = () => {
                             }}
                           >
                             <span className="item-emoji-small">
-                              <FoodIcon itemName={item.name} size={18} />
+                              <FoodIcon itemName={item.name} emoji={item.emoji} size={18} />
                             </span>
                             <span className="item-name-small">
                               {isSplit && `1/${splitCount} `}{item.name}
@@ -862,6 +1245,39 @@ export const TabbySimple: React.FC = () => {
         <div className="modal-overlay" onClick={() => setShowAddPerson(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>Add People</h3>
+
+            {/* Quick Add from Recent */}
+            {(() => {
+              const suggestions = getQuickAddSuggestions(people.map(p => p.name));
+              return suggestions.length > 0 ? (
+                <div style={{ marginBottom: '16px' }}>
+                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
+                    Quick Add
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {suggestions.slice(0, 5).map((suggestion) => (
+                      <button
+                        key={suggestion.name}
+                        onClick={() => handleAddPerson(suggestion.name)}
+                        style={{
+                          padding: '6px 12px',
+                          background: 'rgba(0, 122, 255, 0.15)',
+                          border: '1px solid rgba(0, 122, 255, 0.3)',
+                          borderRadius: '16px',
+                          color: '#007AFF',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          fontWeight: '500'
+                        }}
+                      >
+                        + {suggestion.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
             <input
               type="text"
               placeholder="Enter name"
@@ -873,9 +1289,6 @@ export const TabbySimple: React.FC = () => {
             <div className="modal-actions">
               <button onClick={handleAddPerson} disabled={!newPersonName.trim()}>
                 Add Person
-              </button>
-              <button className="contacts-btn">
-                👤 Add from Contacts
               </button>
             </div>
           </div>
@@ -889,7 +1302,7 @@ export const TabbySimple: React.FC = () => {
             <h3>Split {selectedItem.name}</h3>
             <div className="split-item-badge">
               <span className="item-emoji">
-                <FoodIcon itemName={selectedItem.name} size={24} />
+                <FoodIcon itemName={selectedItem.name} emoji={selectedItem.emoji} size={24} />
               </span>
               <span>{selectedItem.name}</span>
               <span className="item-price">${selectedItem.price.toFixed(2)}</span>
@@ -1154,10 +1567,97 @@ export const TabbySimple: React.FC = () => {
               </>
             ) : (
               <>
-                <h3>{restaurantName}</h3>
-                <p className="date" style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '24px' }}>
-                  {new Date().toLocaleDateString()}
-                </p>
+                {/* Restaurant Name Header */}
+                <div style={{ marginBottom: '24px' }}>
+                  {isEditingRestaurantName ? (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={editableRestaurantName}
+                        onChange={(e) => setEditableRestaurantName(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && editableRestaurantName.trim()) {
+                            setRestaurantName(editableRestaurantName.trim());
+                            setIsEditingRestaurantName(false);
+                          }
+                        }}
+                        autoFocus
+                        style={{
+                          flex: 1,
+                          padding: '12px',
+                          background: 'rgba(255,255,255,0.1)',
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          borderRadius: '8px',
+                          color: '#fff',
+                          fontSize: '20px',
+                          fontWeight: '600',
+                          outline: 'none'
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (editableRestaurantName.trim()) {
+                            setRestaurantName(editableRestaurantName.trim());
+                            setIsEditingRestaurantName(false);
+                          }
+                        }}
+                        style={{
+                          background: '#007AFF',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: '#fff',
+                          padding: '12px 16px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setIsEditingRestaurantName(false)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          borderRadius: '6px',
+                          color: 'rgba(255,255,255,0.7)',
+                          padding: '12px 16px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '24px', fontWeight: '600' }}>{restaurantName}</h3>
+                        <p className="date" style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0 0' }}>
+                          {new Date().toLocaleDateString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setEditableRestaurantName(restaurantName);
+                          setIsEditingRestaurantName(true);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#007AFF',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          padding: '4px 8px'
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
+                </div>
 
             {/* Receipt Link Section */}
             {billToken && (

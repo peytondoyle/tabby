@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 
-interface BillSummaryData {
+interface ReceiptSummaryData {
   subtotal: number
   tax: number
   tip: number
@@ -10,16 +10,16 @@ interface BillSummaryData {
   peopleCount: number
 }
 
-interface BillSummaryToggleProps {
+interface ReceiptSummaryToggleProps {
   viewMode: 'assignment' | 'summary'
   onToggle: (mode: 'assignment' | 'summary') => void
-  billData: BillSummaryData
+  billData: ReceiptSummaryData
   restaurant?: string
   location?: string
   date?: string
 }
 
-export const BillSummaryToggle: React.FC<BillSummaryToggleProps> = ({
+export const ReceiptSummaryToggle: React.FC<ReceiptSummaryToggleProps> = ({
   viewMode,
   onToggle,
   billData,

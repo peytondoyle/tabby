@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ShareReceiptModal } from '../components/ShareReceiptModal';
-import { fetchBillByToken } from '../lib/bills';
+import { fetchReceiptByToken } from '../lib/receipts';
+import { HomeButton } from '@/components/HomeButton';
 
 interface Item {
   id: string;
@@ -51,7 +52,7 @@ export const ReceiptPage: React.FC = () => {
         const localShareData = localStorage.getItem(`bill-share-${token}`);
 
         // Fetch bill data from API
-        const billData = await fetchBillByToken(token);
+        const billData = await fetchReceiptByToken(token);
 
         if (!billData) {
           setError('Bill not found');
@@ -138,67 +139,76 @@ export const ReceiptPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#000',
-        color: '#fff'
-      }}>
-        <div>Loading receipt...</div>
-      </div>
+      <>
+        <HomeButton />
+        <div style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#000',
+          color: '#fff'
+        }}>
+          <div>Loading receipt...</div>
+        </div>
+      </>
     );
   }
 
   if (error || !receipt) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#000',
-        color: '#fff',
-        gap: '20px'
-      }}>
-        <div>{error || 'Receipt not found'}</div>
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            padding: '12px 24px',
-            background: '#007AFF',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            cursor: 'pointer'
-          }}
-        >
-          Scan New Receipt
-        </button>
-      </div>
+      <>
+        <HomeButton />
+        <div style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#000',
+          color: '#fff',
+          gap: '20px'
+        }}>
+          <div>{error || 'Receipt not found'}</div>
+          <button
+            onClick={() => navigate('/')}
+            style={{
+              padding: '12px 24px',
+              background: '#007AFF',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              cursor: 'pointer'
+            }}
+          >
+            Scan New Receipt
+          </button>
+        </div>
+      </>
     );
   }
 
   return (
-    <ShareReceiptModal
-      isOpen={true}
-      onClose={() => navigate('/')}
-      restaurantName={receipt.restaurantName}
-      date={new Date(receipt.date).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })}
-      items={receipt.items}
-      people={receipt.people}
-      subtotal={receipt.subtotal}
-      tax={receipt.tax}
-      tip={receipt.tip}
-      total={receipt.total}
-    />
+    <>
+      <HomeButton />
+      <ShareReceiptModal
+        isOpen={true}
+        onClose={() => navigate('/')}
+        restaurantName={receipt.restaurantName}
+        date={new Date(receipt.date).toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        })}
+        items={receipt.items}
+        people={receipt.people}
+        subtotal={receipt.subtotal}
+        tax={receipt.tax}
+        tip={receipt.tip}
+        total={receipt.total}
+      />
+    </>
   );
 };

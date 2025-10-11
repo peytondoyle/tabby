@@ -1,7 +1,7 @@
 // Domain types for Bills, Items, and related entities
 // These interfaces reflect the actual database schema without over-engineering
 
-export interface Bill {
+export interface Receipt {
   id: string
   token: string
   title: string
@@ -15,7 +15,7 @@ export interface Bill {
   ocr_json?: OcrParsedReceipt | null
 }
 
-export interface NewBillInput {
+export interface NewReceiptInput {
   title: string
   total: number
   subtotal: number

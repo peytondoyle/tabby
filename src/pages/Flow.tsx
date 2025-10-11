@@ -8,9 +8,10 @@ import { KeyboardFlow } from '@/components/flow/KeyboardFlow'
 import { ShareStep } from '@/components/flow/ShareStep'
 import { AddPeopleModal } from '@/components/AddPeopleModal'
 import { PeopleDock } from '@/components/PeopleDock'
+import { HomeButton } from '@/components/HomeButton'
 // Removed PageContainer import - using full-width layout
 import { SplashScreen } from '@/components/SplashScreen'
-import { fetchBillByToken } from '@/lib/bills'
+import { fetchReceiptByToken } from '@/lib/receipts'
 import { isLocalId } from '@/lib/id'
 import { Button } from "@/components/design-system";
 import { logServer } from '@/lib/errorLogger'
@@ -132,7 +133,7 @@ export const Flow: React.FC = () => {
     setIsLoadingBill(true)
     try {
       console.log('[flow] Loading existing bill:', billToken)
-      const responseData = await fetchBillByToken(billToken)
+      const responseData = await fetchReceiptByToken(billToken)
       
       if (responseData && typeof responseData === 'object' && 'bill' in responseData && responseData.bill) {
         const billData = responseData.bill as any
@@ -224,9 +225,9 @@ export const Flow: React.FC = () => {
     
     try {
       // Create bill via server API using new schema-aligned functions
-      const { createBill, buildCreatePayload } = await import('@/lib/bills')
+      const { createReceipt, buildCreatePayload } = await import('@/lib/receipts')
       const payload = buildCreatePayload(result)
-      const { id: billId } = await createBill(payload)
+      const { id: billId } = await createReceipt(payload)
       console.info(`[flow] Bill created with ID: ${billId}`)
       
       // Replace store items and set meta using helpers
@@ -561,6 +562,7 @@ export const Flow: React.FC = () => {
 
   return (
     <main className="page-shell">
+      <HomeButton />
       {/* Simple header - only show back button when not empty and not on start */}
       {!isEmpty && currentStep !== 'start' && (
         <div className="sticky-bar">

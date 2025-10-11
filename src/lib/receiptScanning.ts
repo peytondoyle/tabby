@@ -314,7 +314,7 @@ function areDuplicates(item1: { label: string; price: number }, item2: { label: 
 }
 
 // Process and normalize items
-function processItems(rawItems: Array<{ label?: string; price?: unknown }>): Array<{
+function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?: string | null }>): Array<{
   id: string
   label: string
   price: number
@@ -323,18 +323,21 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown }>): Arr
   unit_price: number
 }> {
   console.log(`[process_items] Processing ${rawItems.length} raw items`)
-  
+
   // Step 1: Normalize and filter items
   const normalizedItems = rawItems
     .map((item, _index) => {
       const label = String(item.label || '').trim()
       const price = normalizeNumber(item.price)
-      
+
+      // Use AI-generated emoji if available, otherwise fall back to static map
+      const emoji = item.emoji || getEmojiForItem(label)
+
       return {
         id: generateId(),
         label,
         price,
-        emoji: getEmojiForItem(label),
+        emoji,
         quantity: 1,
         unit_price: price
       }
@@ -555,18 +558,18 @@ export async function parseReceipt(
     // Normalize the response data
     const responseData = data as { items?: unknown[]; place?: string; date?: string; subtotal?: unknown; tax?: unknown; tip?: unknown; total?: unknown; rawText?: string }
     const rawItems = Array.isArray(responseData.items) ? responseData.items : []
-    
+
     // Validate that we have valid items
     if (rawItems.length === 0) {
       throw new Error('No items found in receipt. Please try a clearer photo or add items manually.')
     }
-    
+
     // Process items with filtering, coalescing, and special handling
-    const processedItems = processItems(rawItems.map(item => item as { label?: string; price?: unknown }))
+    const processedItems = processItems(rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null }))
     
     // Calculate service charges that were mapped to tip
     let serviceChargeTotal = 0
-    const itemsWithServiceCharges = rawItems.map(item => item as { label?: string; price?: unknown })
+    const itemsWithServiceCharges = rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null })
     for (const item of itemsWithServiceCharges) {
       const label = String(item.label || '').trim()
       const price = normalizeNumber(item.price)
@@ -657,7 +660,7 @@ export async function scanReceipt(file: File): Promise<ReceiptScanResult> {
 }
 
 // Legacy bill creation function - now routes through server API
-export async function createBillFromReceipt(receiptData: ReceiptScanResult, _editorToken?: string, userId?: string): Promise<string> {
+export async function createReceiptFromReceipt(receiptData: ReceiptScanResult, _editorToken?: string, userId?: string): Promise<string> {
   console.info('[scan_start] Creating bill from receipt data via server API...', userId ? `for user ${userId}` : '(no user)')
 
   try {
@@ -679,10 +682,10 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
       total: receiptData.total
     }
 
-    // Use the new schema-aligned createBill function with userId
-    const { createBill, buildCreatePayload } = await import('./bills')
+    // Use the new schema-aligned createReceipt function with userId
+    const { createReceipt, buildCreatePayload } = await import('./receipts')
     const payload = buildCreatePayload(parseResult)
-    const result = await createBill(payload, userId)
+    const result = await createReceipt(payload, userId)
 
     console.info(`[scan_ok] Bill created successfully via server API - bill ID: ${result.id}, token: ${result.token}`)
 
@@ -691,7 +694,7 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
 
   } catch (error) {
     console.error('[scan_exception] Failed to create bill via server API:', error)
-    logServer('error', 'Failed to create bill via server API', { error, context: 'createBillFromReceipt' })
+    logServer('error', 'Failed to create bill via server API', { error, context: 'createReceiptFromReceipt' })
     
     // Check if local fallback is allowed
     const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'

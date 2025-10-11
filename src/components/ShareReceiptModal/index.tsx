@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { toPng } from 'html-to-image';
 import { FoodIcon } from '../../lib/foodIcons';
+import { HomeButton } from '../HomeButton';
 import './styles.css';
 
 interface Item {
@@ -126,7 +127,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
             <div key={item.id} className="receipt-item">
               <span className="item-info">
                 <span className="item-emoji">
-                  <FoodIcon itemName={item.name || item.label || 'Item'} size={18} color="#1a1a1a" />
+                  <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={18} color="#1a1a1a" />
                 </span>
                 <span className="item-name">{item.name || item.label || 'Item'}</span>
               </span>
@@ -201,7 +202,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
                   <div key={item.id} className="receipt-item-compact">
                     <span className="item-info-compact">
                       <span className="item-emoji-compact">
-                        <FoodIcon itemName={item.name || item.label || 'Item'} size={14} color="#1a1a1a" />
+                        <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={14} color="#1a1a1a" />
                       </span>
                       <span className="item-name-compact">{item.name || item.label || 'Item'}</span>
                     </span>
@@ -272,6 +273,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
 
   return (
     <div className="share-receipt-modal">
+      <HomeButton />
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">

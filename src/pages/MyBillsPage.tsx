@@ -10,12 +10,13 @@ import { apiFetch } from '@/lib/apiClient'
 import { logServer } from '@/lib/errorLogger'
 // import { OnboardingFlow } from '@/components/OnboardingFlow'
 import { getCurrentDate } from '@/lib/receiptScanning'
-import { fetchBills, deleteBill, type BillListItem } from '@/lib/bills'
-import { getBillHistory, removeBillFromHistory, type BillHistoryItem } from '@/lib/billHistory'
+import { fetchReceipts, deleteReceipt, type ReceiptListItem } from '@/lib/receipts'
+import { getReceiptHistory, removeReceiptFromHistory, type ReceiptHistoryItem } from '@/lib/receiptHistory'
 import { Button, IconButton, Container, Stack, Card, TabbySheet } from "@/components/design-system";
 import { designTokens } from "@/lib/styled";
 import { testIds } from "@/lib/testIds";
 import StepErrorBoundary from '@/components/StepErrorBoundary';
+import { HomeButton } from '@/components/HomeButton';
 
 // Toast notification component
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => (
@@ -102,7 +103,7 @@ const DeleteConfirmModal: React.FC<{
   </AnimatePresence>
 )
 
-// Use BillSummary as the main type for bills
+// Use ReceiptSummary as the main type for bills
 
 interface NewBillModalProps {
   isOpen: boolean
@@ -230,16 +231,16 @@ export const MyBillsPage: React.FC = () => {
 
 
   // Query to fetch bills from history
-  const { data: bills = [], isLoading } = useQuery<BillHistoryItem[]>({
+  const { data: bills = [], isLoading } = useQuery<ReceiptHistoryItem[]>({
     queryKey: ['my-bills'],
     queryFn: async () => {
       // Always use bill history for consistency
-      return getBillHistory()
+      return getReceiptHistory()
     }
   })
 
   // Mutation to create new bill via server API
-  const createBillMutation = useMutation({
+  const createReceiptMutation = useMutation({
     mutationFn: async ({ title, place }: { title: string, place: string }) => {
       // Create a ParseResult-like object for the new bill
       const parsed = {
@@ -252,37 +253,37 @@ export const MyBillsPage: React.FC = () => {
         total: 0
       }
 
-      const response = await apiFetch('/api/bills/create', {
+      const response = await apiFetch('/api/receipts/create', {
         method: 'POST',
         body: JSON.stringify({ parsed })
       })
 
       // apiFetch returns the raw response data directly
-      if (!response || typeof response !== 'object' || !('bill' in response)) {
+      if (!response || typeof response !== 'object' || !('receipt' in response)) {
         throw new Error('Invalid response from server')
       }
 
-      return response.bill
+      return response.receipt
     },
-    onSuccess: (bill) => {
+    onSuccess: (receipt) => {
       queryClient.invalidateQueries({ queryKey: ['my-bills'] })
-              // Navigate using the bill's editor token
-        navigate(`/bill/${(bill as any).editor_token}`)
+              // Navigate using the receipt's editor token
+        navigate(`/bill/${(receipt as any).editor_token}`)
     }
   })
 
   const handleCreateBill = (title: string, place: string) => {
-    createBillMutation.mutate({ title, place })
+    createReceiptMutation.mutate({ title, place })
   }
 
   // Handle bill deletion
   const handleDeleteBill = async (billToken: string) => {
     setIsDeleting(true)
     try {
-      const success = await deleteBill(billToken)
+      const success = await deleteReceipt(billToken)
       if (success) {
         // Remove from bill history
-        removeBillFromHistory(billToken)
+        removeReceiptFromHistory(billToken)
         
         setToast({ message: 'Bill deleted successfully!', type: 'success' })
         queryClient.invalidateQueries({ queryKey: ['my-bills'] })
@@ -312,13 +313,13 @@ export const MyBillsPage: React.FC = () => {
     const flowStore = useFlowStore.getState()
 
     try {
-      // Use the new schema-aligned createBill function
-      const { createBill, buildCreatePayload } = await import('@/lib/bills')
+      // Use the new schema-aligned createReceipt function
+      const { createReceipt, buildCreatePayload } = await import('@/lib/receipts')
       const payload = buildCreatePayload(result)
-      const created = await createBill(payload) as any
+      const created = await createReceipt(payload) as any
 
-      // The API returns {bill: {id, ...}, items: [...]}
-      const billId = created.bill?.id || created.id
+      // The API returns {receipt: {id, ...}, items: [...]}
+      const billId = created.receipt?.id || created.id
 
       // Set bill metadata using helper
       flowStore.setBillMeta({
@@ -435,6 +436,7 @@ export const MyBillsPage: React.FC = () => {
 
   return (
     <StepErrorBoundary stepName="MyBillsPage">
+      <HomeButton />
       <div className="min-h-screen w-full flex flex-col bg-background text-text-primary">
         <div className="w-full">
           <Stack direction="vertical" spacing={8}>
@@ -468,7 +470,7 @@ export const MyBillsPage: React.FC = () => {
         {/* Bills List */}
         {bills.length > 0 ? (
           <div className="space-y-3">
-            {bills.map((bill: BillHistoryItem) => (
+            {bills.map((bill: ReceiptHistoryItem) => (
               <div
                 key={bill.token}
                 className="bg-white rounded-xl p-4 border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"

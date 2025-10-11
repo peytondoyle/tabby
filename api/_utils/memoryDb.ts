@@ -1,7 +1,7 @@
 // In-memory database for development
 // This will persist data for the lifetime of the server
 
-interface Bill {
+interface Receipt {
   id: string
   token: string
   title: string | null
@@ -16,27 +16,27 @@ interface Bill {
 }
 
 const memoryDb = global as any
-if (!memoryDb.__tabby_bills) {
-  memoryDb.__tabby_bills = new Map<string, Bill>()
+if (!memoryDb.__tabby_receipts) {
+  memoryDb.__tabby_receipts = new Map<string, Receipt>()
 }
 
-export const bills = memoryDb.__tabby_bills as Map<string, Bill>
+export const receipts = memoryDb.__tabby_receipts as Map<string, Receipt>
 
-export function createBill(bill: Bill): Bill {
-  bills.set(bill.id, bill)
-  return bill
+export function createReceipt(receipt: Receipt): Receipt {
+  receipts.set(receipt.id, receipt)
+  return receipt
 }
 
-export function getBill(id: string): Bill | undefined {
-  return bills.get(id)
+export function getReceipt(id: string): Receipt | undefined {
+  return receipts.get(id)
 }
 
-export function listBills(): Bill[] {
-  return Array.from(bills.values()).sort((a, b) =>
+export function listReceipts(): Receipt[] {
+  return Array.from(receipts.values()).sort((a, b) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
 }
 
-export function deleteBill(id: string): boolean {
-  return bills.delete(id)
+export function deleteReceipt(id: string): boolean {
+  return receipts.delete(id)
 }

@@ -13,7 +13,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 40px 20px;
+  overflow-y: auto;
 }
 
 .modal-content {
@@ -23,6 +24,8 @@
   flex-direction: column;
   align-items: center;
   gap: 24px;
+  margin: auto;
+  min-height: min-content;
 }
 
 .modal-header {
@@ -31,6 +34,7 @@
   align-items: center;
   justify-content: space-between;
   color: #fff;
+  padding-left: 70px;
 }
 
 .modal-header h1 {
@@ -67,14 +71,14 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  min-height: 500px;
+  min-height: 420px;
 }
 
 .carousel-content {
   flex: 1;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .carousel-btn {
@@ -141,10 +145,10 @@
 /* Receipt Card */
 .receipt-card {
   background: #f8f8f8;
-  border-radius: 24px;
-  padding: 36px 32px;
+  border-radius: 20px;
+  padding: 28px 24px;
   width: 100%;
-  max-width: 420px;
+  max-width: 360px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   font-family: 'Courier New', 'Courier', monospace;
   color: #1a1a1a !important;
@@ -155,7 +159,7 @@
 }
 
 .receipt-card-tall {
-  max-height: 600px;
+  max-height: 500px;
   overflow-y: auto;
 }
 
@@ -180,13 +184,13 @@
 /* Header */
 .receipt-header {
   text-align: center;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
   border-bottom: 2px solid rgba(0, 0, 0, 0.1);
 }
 
 .restaurant-name {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   margin: 0 0 8px 0;
   color: #1a1a1a;
@@ -194,7 +198,7 @@
 }
 
 .receipt-meta {
-  font-size: 13px;
+  font-size: 12px;
   color: rgba(0, 0, 0, 0.5);
   margin: 0;
 }
@@ -203,34 +207,34 @@
 .person-badge {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 16px;
   justify-content: center;
 }
 
 .person-avatar-small {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .person-name-badge {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: #1a1a1a;
 }
 
 /* Items */
 .receipt-items {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px dashed rgba(0, 0, 0, 0.15);
 }
 
@@ -274,7 +278,7 @@
 
 /* Totals */
 .receipt-totals {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .receipt-total-row {
@@ -288,9 +292,9 @@
 
 .receipt-grand-total {
   border-top: 2px solid rgba(0, 0, 0, 0.2);
-  margin-top: 8px;
-  padding-top: 12px;
-  font-size: 16px;
+  margin-top: 6px;
+  padding-top: 10px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -393,9 +397,9 @@
 /* Footer */
 .receipt-footer {
   text-align: center;
-  padding-top: 20px;
+  padding-top: 16px;
   border-top: 1px dashed rgba(0, 0, 0, 0.15);
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
@@ -411,14 +415,14 @@
 /* Share Button */
 .share-button {
   width: 100%;
-  max-width: 420px;
-  height: 56px;
+  max-width: 360px;
+  height: 52px;
   border: none;
   background: #007AFF;
   color: #fff;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
-  border-radius: 16px;
+  border-radius: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -440,17 +444,21 @@
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
+  .modal-overlay {
+    padding: 20px 16px;
+  }
+
   .modal-content {
-    padding: 16px;
+    gap: 20px;
   }
 
   .carousel-container {
-    min-height: 450px;
+    min-height: 380px;
   }
 
   .receipt-card {
-    padding: 28px 24px;
-    max-width: 360px;
+    padding: 24px 20px;
+    max-width: 320px;
   }
 
   .carousel-btn {
@@ -460,18 +468,23 @@
   }
 
   .restaurant-name {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .share-button {
     font-size: 16px;
-    height: 52px;
+    height: 48px;
   }
 }
 
 @media (max-width: 480px) {
+  .modal-overlay {
+    padding: 16px;
+  }
+
   .receipt-card {
-    padding: 24px 20px;
+    padding: 20px 18px;
+    max-width: 280px;
   }
 
   .carousel-btn {
@@ -480,5 +493,6 @@
 
   .carousel-container {
     touch-action: pan-y;
+    min-height: 360px;
   }
 }

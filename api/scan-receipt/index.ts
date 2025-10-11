@@ -51,6 +51,7 @@ interface ScanReceiptResponse {
   items: Array<{
     label: string
     price: number
+    emoji?: string | null
   }>
 }
 
@@ -70,10 +71,10 @@ function getDEVFallback(): ScanReceiptResponse {
     total: 53.76,
     rawText: "Mock receipt text for development",
     items: [
-      { label: "Margherita Pizza", price: 18.00 },
-      { label: "Caesar Salad", price: 12.00 },
-      { label: "Craft Beer", price: 6.00 },
-      { label: "Tiramisu", price: 6.00 }
+      { label: "Margherita Pizza", price: 18.00, emoji: "🍕" },
+      { label: "Caesar Salad", price: 12.00, emoji: "🥗" },
+      { label: "Craft Beer", price: 6.00, emoji: "🍺" },
+      { label: "Tiramisu", price: 6.00, emoji: "🍰" }
     ]
   }
 }

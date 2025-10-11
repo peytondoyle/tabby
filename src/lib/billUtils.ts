@@ -30,7 +30,7 @@ const shouldShowDevMocks = (): boolean => {
 }
 
 // Helper function to create mock bill data
-const createMockBill = (token: string): Bill => ({
+const createMockBill = (token: string): Receipt => ({
   id: 'mock-bill-id',
   title: '🍕 Pizza & Beers',
   place: 'Tony\'s Pizzeria',

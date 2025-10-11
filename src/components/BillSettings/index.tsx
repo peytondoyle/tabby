@@ -16,7 +16,7 @@ export const BillSettings: React.FC<BillSettingsProps> = ({ bill, editorToken, o
   const queryClient = useQueryClient()
   
   const updateBillMutation = useMutation({
-    mutationFn: async (updates: Partial<Bill>) => {
+    mutationFn: async (updates: Partial<Receipt>) => {
       const { data, error } = await supabase!.rpc('update_bill_fields_with_editor_token', {
         etoken: editorToken,
         bill_id: bill.id,

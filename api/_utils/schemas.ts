@@ -14,8 +14,8 @@ export const ErrorResponseSchema = z.object({
 
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>
 
-// Bill creation request schema
-export const CreateBillRequestSchema = z.object({
+// Receipt creation request schema
+export const CreateReceiptRequestSchema = z.object({
   items: z.array(z.object({
     id: z.string().optional(),
     name: z.string().min(1, "Item name is required"),
@@ -34,10 +34,10 @@ export const CreateBillRequestSchema = z.object({
   user_id: z.string().optional() // Optional user ID for authenticated users
 })
 
-export type CreateBillRequest = z.infer<typeof CreateBillRequestSchema>
+export type CreateReceiptRequest = z.infer<typeof CreateReceiptRequestSchema>
 
-// Bill response schema (consistent across create, get, list)
-export const BillSchema = z.object({
+// Receipt response schema (consistent across create, get, list)
+export const ReceiptSchema = z.object({
   id: z.string(),
   token: z.string().optional(),
   title: z.string().nullable(),
@@ -53,10 +53,10 @@ export const BillSchema = z.object({
   currency: z.string().default('USD')
 })
 
-export type Bill = z.infer<typeof BillSchema>
+export type Receipt = z.infer<typeof ReceiptSchema>
 
-// Bill item schema
-export const BillItemSchema = z.object({
+// Receipt item schema
+export const ReceiptItemSchema = z.object({
   id: z.string(),
   label: z.string(),
   price: z.number(),
@@ -64,17 +64,17 @@ export const BillItemSchema = z.object({
   quantity: z.number().default(1)
 })
 
-export type BillItem = z.infer<typeof BillItemSchema>
+export type ReceiptItem = z.infer<typeof ReceiptItemSchema>
 
-// Bill list response schema
-export const BillListResponseSchema = z.object({
-  bills: z.array(BillSchema)
+// Receipt list response schema
+export const ReceiptListResponseSchema = z.object({
+  receipts: z.array(ReceiptSchema)
 })
 
-// Bill detail response schema
-export const BillDetailResponseSchema = z.object({
-  bill: BillSchema,
-  items: z.array(BillItemSchema),
+// Receipt detail response schema
+export const ReceiptDetailResponseSchema = z.object({
+  receipt: ReceiptSchema,
+  items: z.array(ReceiptItemSchema),
   people: z.array(z.object({
     id: z.string(),
     name: z.string(),
@@ -100,7 +100,7 @@ export const HealthResponseSchema = z.object({
 // Rate limiting configuration
 export const RATE_LIMITS = {
   scan_receipt: { maxRequests: 10, windowMs: 60000 }, // 10 requests per minute
-  create_bill: { maxRequests: 20, windowMs: 60000 },  // 20 requests per minute
+  create_receipt: { maxRequests: 20, windowMs: 60000 },  // 20 requests per minute
   default: { maxRequests: 100, windowMs: 60000 }      // 100 requests per minute
 } as const
 
