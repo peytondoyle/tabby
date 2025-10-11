@@ -62,7 +62,7 @@ class OpenAIProvider implements OCRProvider {
 
 IMPORTANT INSTRUCTIONS:
 1. Extract ONLY food/drink items in the "items" array - DO NOT include delivery fees, service fees, taxes, tips, or discounts as items
-2. For each item, include a relevant food emoji based on the item name (e.g., 🍕 for pizza, 🍜 for noodles, 🥗 for salad)
+2. For each item, include a relevant food emoji as an actual Unicode emoji character (e.g., 🍕 for pizza, 🍜 for noodles, 🥗 for salad, 🥟 for spring rolls, 🍚 for rice, 🥡 for tofu). IMPORTANT: Use the actual emoji character, NOT the emoji name or text like "pizza" or "spring_roll"
 3. The "subtotal" is the sum of all food items ONLY (before any fees, taxes, tips, or discounts)
 4. The "tax" is the sales tax amount
 5. The "tip" is the gratuity/tip amount (if present)
@@ -75,13 +75,17 @@ Return ONLY valid JSON in this exact format (no markdown, no explanation):
   "place": "restaurant or store name",
   "date": "YYYY-MM-DD",
   "items": [
-    {"label": "item name", "price": 12.50, "emoji": "🍕"}
+    {"label": "Spring Roll", "price": 2.50, "emoji": "🥟"},
+    {"label": "Fried Rice", "price": 11.50, "emoji": "🍚"},
+    {"label": "Pizza", "price": 12.50, "emoji": "🍕"}
   ],
   "subtotal": 0.00,
   "tax": 0.00,
   "tip": 0.00,
   "total": 0.00
 }
+
+CRITICAL: The "emoji" field must contain actual emoji Unicode characters (🥟 🍚 🍕), NOT emoji names or text!
 
 Example for a receipt with food items ($63.80), delivery fee ($1.49), service fee ($11.48), tax ($6.38), tip ($8.31), discount (-$1.49), membership benefit (-$6.70):
 - items: Only the food items totaling $63.80
