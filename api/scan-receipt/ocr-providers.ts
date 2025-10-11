@@ -72,20 +72,24 @@ IMPORTANT INSTRUCTIONS:
 
 Return ONLY valid JSON in this exact format (no markdown, no explanation):
 {
-  "place": "restaurant or store name",
+  "place": "Actual Restaurant Name Here",
   "date": "YYYY-MM-DD",
   "items": [
     {"label": "Spring Roll", "price": 2.50, "emoji": "🥟"},
     {"label": "Fried Rice", "price": 11.50, "emoji": "🍚"},
     {"label": "Pizza", "price": 12.50, "emoji": "🍕"}
   ],
-  "subtotal": 0.00,
-  "tax": 0.00,
-  "tip": 0.00,
-  "total": 0.00
+  "subtotal": 26.50,
+  "tax": 2.12,
+  "tip": 5.30,
+  "total": 33.92
 }
 
-CRITICAL: The "emoji" field must contain actual emoji Unicode characters (🥟 🍚 🍕), NOT emoji names or text!
+CRITICAL RULES:
+- The "emoji" field must contain actual emoji Unicode characters (🥟 🍚 🍕), NOT emoji names or text!
+- If you cannot find the restaurant name, use null (not "restaurant or store name" or any placeholder text)
+- All numbers must be actual extracted values, not 0.00 or placeholder examples
+- Extract the ACTUAL values from the receipt image, not the example values shown above
 
 Example for a receipt with food items ($63.80), delivery fee ($1.49), service fee ($11.48), tax ($6.38), tip ($8.31), discount (-$1.49), membership benefit (-$6.70):
 - items: Only the food items totaling $63.80
