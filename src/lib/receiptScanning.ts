@@ -241,7 +241,9 @@ const FOOD_EMOJIS: { [key: string]: string } = {
   'french fries': '🍟',
   'nuggets': '🍗',
   'chicken nuggets': '🍗',
-  
+  'wings': '🍗',
+  'chicken wings': '🍗',
+
   // Drinks
   'coffee': '☕',
   'tea': '🍵',
@@ -250,17 +252,71 @@ const FOOD_EMOJIS: { [key: string]: string } = {
   'lemonade': '🥤',
   'shake': '🥤',
   'milkshake': '🥤',
-  
-  // Other foods
+  'juice': '🧃',
+  'beer': '🍺',
+  'wine': '🍷',
+  'cocktail': '🍹',
+  'water': '💧',
+
+  // Chinese food
+  'rice': '🍚',
+  'fried rice': '🍚',
+  'tofu': '🥡',
+  'mapo tofu': '🥡',
+  'spring roll': '🥟',
+  'dumpling': '🥟',
+  'wonton': '🥟',
+  'noodles': '🍜',
+  'ramen': '🍜',
+  'lo mein': '🍜',
+  'chow mein': '🍜',
+  'soup': '🍜',
+  'cashew': '🥜',
+  'broccoli': '🥦',
+  'dim sum': '🥟',
+
+  // Pizza & Italian
   'salad': '🥗',
   'pizza': '🍕',
+  'pasta': '🍝',
+  'spaghetti': '🍝',
+  'lasagna': '🍝',
+
+  // Mexican
+  'taco': '🌮',
+  'burrito': '🌯',
+  'quesadilla': '🫓',
+  'nachos': '🧀',
+  'guacamole': '🥑',
+
+  // Desserts
   'pie': '🥧',
   'cake': '🍰',
   'cheesecake': '🍰',
+  'ice cream': '🍨',
+  'cookie': '🍪',
+  'donut': '🍩',
+  'tiramisu': '🍰',
+
+  // Breakfast
   'eggs': '🍳',
   'bacon': '🥓',
   'toast': '🍞',
-  
+  'pancake': '🥞',
+  'waffle': '🧇',
+  'omelette': '🍳',
+
+  // Seafood
+  'sushi': '🍣',
+  'fish': '🐟',
+  'shrimp': '🍤',
+  'salmon': '🐟',
+
+  // Other
+  'steak': '🥩',
+  'pork': '🥩',
+  'lamb': '🥩',
+
   // Default
   'meal': '🍽️',
   'food': '🍽️'
@@ -501,35 +557,15 @@ export async function parseReceipt(
     onProgress?.('Selecting…')
     console.info('[scan_step] File selected for processing...')
     
-    // Step 2: Normalize file and check API health in parallel
+    // Step 2: Normalize file
     onProgress?.('Normalizing…')
-    console.info('[scan_step] Normalizing file in Web Worker and checking API health...')
-    
+    console.info('[scan_step] Normalizing file in Web Worker...')
+
     performanceMonitor.startImageProcessing()
-    const [normalizedFile, isHealthy] = await Promise.all([
-      normalizeFile(file),
-      ensureApiHealthy({ tries: 2, delayMs: 500 })
-    ])
+    const normalizedFile = await normalizeFile(file)
     performanceMonitor.endImageProcessing(normalizedFile.originalSize, normalizedFile.normalizedSize)
-    
+
     console.info(`[scan_step] File normalized - original: ${normalizedFile.originalSize} bytes, normalized: ${normalizedFile.normalizedSize} bytes`)
-    console.info(`[scan_step] API health check: ${isHealthy ? 'healthy' : 'unhealthy'}`)
-    
-    if (!isHealthy) {
-      const duration = Date.now() - startTime
-      console.warn(`[scan_api_error] API health check failed after ${duration}ms`)
-      
-      // Don't use dev fallback if we're in production-like mode
-      const allowDevFallback = import.meta.env.VITE_ALLOW_DEV_FALLBACK !== '0'
-      
-      if (!allowDevFallback) {
-        throw new Error('Receipt scanning service is unavailable. Please try again later.')
-      }
-      
-      const fallbackResult = getDEVFallback()
-      console.info(`[scan_ok] Using dev fallback due to API health check failure - ${fallbackResult.items.length} items`)
-      return fallbackResult
-    }
     
     // Step 4: Upload and analyze
     onProgress?.('Analyzing…')

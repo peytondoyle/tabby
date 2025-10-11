@@ -11,6 +11,7 @@ export interface OCRResult {
   items: Array<{
     label: string;
     price: number;
+    emoji?: string | null;
   }>;
   provider: string;
   confidence?: number;
@@ -57,16 +58,39 @@ class OpenAIProvider implements OCRProvider {
           content: [
             {
               type: "text",
-              text: `Extract receipt data as JSON:
-              {
-                "place": "store name",
-                "date": "YYYY-MM-DD",
-                "items": [{"label": "item", "price": number}],
-                "subtotal": number,
-                "tax": number,
-                "tip": number,
-                "total": number
-              }`
+              text: `You are a receipt data extraction assistant. Extract ALL information from this receipt and return it as valid JSON.
+
+IMPORTANT INSTRUCTIONS:
+1. Extract ONLY food/drink items in the "items" array - DO NOT include delivery fees, service fees, taxes, tips, or discounts as items
+2. For each item, include a relevant food emoji based on the item name (e.g., 🍕 for pizza, 🍜 for noodles, 🥗 for salad)
+3. The "subtotal" is the sum of all food items ONLY (before any fees, taxes, tips, or discounts)
+4. The "tax" is the sales tax amount
+5. The "tip" is the gratuity/tip amount (if present)
+6. The "total" is the FINAL AMOUNT CHARGED (the bottom line total after all fees, taxes, tips, and discounts)
+7. If you see delivery fees, service fees, or other fees, DO NOT add them as items - they are already factored into the total
+8. If you see discounts or promotional credits, DO NOT add them as items - they are already factored into the total
+
+Return ONLY valid JSON in this exact format (no markdown, no explanation):
+{
+  "place": "restaurant or store name",
+  "date": "YYYY-MM-DD",
+  "items": [
+    {"label": "item name", "price": 12.50, "emoji": "🍕"}
+  ],
+  "subtotal": 0.00,
+  "tax": 0.00,
+  "tip": 0.00,
+  "total": 0.00
+}
+
+Example for a receipt with food items ($63.80), delivery fee ($1.49), service fee ($11.48), tax ($6.38), tip ($8.31), discount (-$1.49), membership benefit (-$6.70):
+- items: Only the food items totaling $63.80
+- subtotal: 63.80
+- tax: 6.38
+- tip: 8.31
+- total: 83.27 (the final amount charged after all fees and discounts)
+
+Now extract the receipt data:`
             },
             {
               type: "image_url",
