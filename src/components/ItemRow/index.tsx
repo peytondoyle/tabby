@@ -1,7 +1,14 @@
+/**
+ * iOS-Inspired Item Row Component
+ * Migrated to use new design system components
+ */
+
 import React, { useState } from 'react'
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient'
 import { showError, showSuccess } from '@/lib/exportUtils'
 import { logServer } from '@/lib/errorLogger'
+import { Card, Button, Input, Stack, Spacer } from '@/components/design-system'
+import { designTokens } from '@/lib/styled'
 
 interface ItemRowProps {
   item: {
@@ -102,87 +109,150 @@ export const ItemRow: React.FC<ItemRowProps> = ({ item, editorToken, onUpdate, c
 
   if (isEditing) {
     return (
-      <div className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg">
-        <input
-          type="text"
-          value={formData.emoji}
-          onChange={(e) => setFormData(prev => ({ ...prev, emoji: e.target.value }))}
-          className="w-8 text-center text-lg border border-gray-300 rounded"
-          placeholder="🍕"
-        />
-        <input
-          type="text"
-          value={formData.label}
-          onChange={(e) => setFormData(prev => ({ ...prev, label: e.target.value }))}
-          className="flex-1 border border-gray-300 rounded px-2 py-1"
-          placeholder="Item name"
-        />
-        <input
-          type="number"
-          value={formData.quantity}
-          onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 1 }))}
-          className="w-16 border border-gray-300 rounded px-2 py-1"
-          min="0.1"
-          step="0.1"
-        />
-        <input
-          type="number"
-          value={formData.unit_price}
-          onChange={(e) => setFormData(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-          className="w-20 border border-gray-300 rounded px-2 py-1"
-          min="0"
-          step="0.01"
-        />
-        <div className="w-20 text-right font-medium">
-          ${(formData.quantity * formData.unit_price).toFixed(2)}
-        </div>
-        <div className="flex gap-1">
-          <button
-            onClick={handleSave}
-            className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-          >
-            Save
-          </button>
-          <button
-            onClick={handleCancel}
-            className="px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
+      <Card variant="elevated" padding="md">
+        <Stack direction="horizontal" align="center" spacing={3}>
+          <Input
+            value={formData.emoji}
+            onChange={(e) => setFormData(prev => ({ ...prev, emoji: e.target.value }))}
+            style={{
+              width: '32px',
+              textAlign: 'center',
+              fontSize: designTokens.typography.fontSize.lg,
+            }}
+            placeholder="🍕"
+          />
+          <Input
+            value={formData.label}
+            onChange={(e) => setFormData(prev => ({ ...prev, label: e.target.value }))}
+            style={{ flex: 1 }}
+            placeholder="Item name"
+          />
+          <Input
+            type="number"
+            value={formData.quantity}
+            onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 1 }))}
+            style={{ width: '64px' }}
+            min="0.1"
+            step="0.1"
+          />
+          <Input
+            type="number"
+            value={formData.unit_price}
+            onChange={(e) => setFormData(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+            style={{ width: '80px' }}
+            min="0"
+            step="0.01"
+          />
+          <div style={{
+            width: '80px',
+            textAlign: 'right',
+            fontWeight: designTokens.typography.fontWeight.medium,
+            fontFamily: designTokens.typography.fontFamily.mono,
+          }}>
+            ${(formData.quantity * formData.unit_price).toFixed(2)}
+          </div>
+          <Stack direction="horizontal" spacing={1}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSave}
+              style={{
+                padding: `${designTokens.spacing[1]} ${designTokens.spacing[2]}`,
+                fontSize: designTokens.typography.fontSize.xs,
+                backgroundColor: designTokens.semantic.status.success,
+              }}
+            >
+              Save
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleCancel}
+              style={{
+                padding: `${designTokens.spacing[1]} ${designTokens.spacing[2]}`,
+                fontSize: designTokens.typography.fontSize.xs,
+              }}
+            >
+              Cancel
+            </Button>
+          </Stack>
+        </Stack>
+      </Card>
     )
   }
 
   return (
-    <div className={`flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 ${className}`}>
-      <div className="w-8 text-center text-lg">
-        {item.emoji || '📦'}
-      </div>
-      <div className="flex-1 font-medium">
-        {item.label}
-      </div>
-      <div className="text-sm text-gray-500">
-        {item.quantity > 1 ? `${item.quantity} × $${item.unit_price.toFixed(2)}` : ''}
-      </div>
-      <div className="w-20 text-right font-medium">
-        ${item.price.toFixed(2)}
-      </div>
-      <div className="flex gap-1">
-        <button
-          onClick={() => setIsEditing(true)}
-          className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
-        >
-          Edit
-        </button>
-        <button
-          onClick={handleDelete}
-          disabled={isDeleting}
-          className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:opacity-50"
-        >
-          {isDeleting ? '...' : 'Delete'}
-        </button>
-      </div>
-    </div>
+    <Card
+      variant="elevated"
+      padding="md"
+      style={{
+        transition: designTokens.transitions.fast,
+      }}
+      className={className}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = designTokens.semantic.background.secondary
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = designTokens.semantic.background.elevated
+      }}
+    >
+      <Stack direction="horizontal" align="center" spacing={3}>
+        <div style={{
+          width: '32px',
+          textAlign: 'center',
+          fontSize: designTokens.typography.fontSize.lg,
+        }}>
+          {item.emoji || '📦'}
+        </div>
+        <div style={{
+          flex: 1,
+          fontWeight: designTokens.typography.fontWeight.medium,
+          color: designTokens.semantic.text.primary,
+        }}>
+          {item.label}
+        </div>
+        <div style={{
+          fontSize: designTokens.typography.fontSize.sm,
+          color: designTokens.semantic.text.secondary,
+        }}>
+          {item.quantity > 1 ? `${item.quantity} × $${item.unit_price.toFixed(2)}` : ''}
+        </div>
+        <div style={{
+          width: '80px',
+          textAlign: 'right',
+          fontWeight: designTokens.typography.fontWeight.medium,
+          fontFamily: designTokens.typography.fontFamily.mono,
+          color: designTokens.semantic.text.primary,
+        }}>
+          ${item.price.toFixed(2)}
+        </div>
+        <Stack direction="horizontal" spacing={1}>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsEditing(true)}
+            style={{
+              padding: `${designTokens.spacing[1]} ${designTokens.spacing[2]}`,
+              fontSize: designTokens.typography.fontSize.xs,
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            style={{
+              padding: `${designTokens.spacing[1]} ${designTokens.spacing[2]}`,
+              fontSize: designTokens.typography.fontSize.xs,
+              color: designTokens.semantic.status.error,
+            }}
+          >
+            {isDeleting ? '...' : 'Delete'}
+          </Button>
+        </Stack>
+      </Stack>
+    </Card>
   )
 }

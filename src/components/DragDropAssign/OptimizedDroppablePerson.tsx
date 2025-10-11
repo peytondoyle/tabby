@@ -61,15 +61,15 @@ export const OptimizedDroppablePerson = memo<OptimizedDroppablePersonProps>(({
         // Enhanced feedback for drop target
         ...(prefersReducedMotion ? {
           opacity: 0.9,
-          borderColor: 'var(--ui-primary)',
           borderWidth: '2px',
-          borderStyle: 'solid'
+          borderStyle: 'solid',
+          borderColor: 'var(--ui-primary)'
         } : {
           opacity: 0.95,
           transform: 'scale(1.02)',
-          borderColor: 'var(--ui-primary)',
           borderWidth: '2px',
           borderStyle: 'solid',
+          borderColor: 'var(--ui-primary)',
           boxShadow: '0 0 20px rgba(var(--ui-primary-rgb), 0.3)'
         })
       }
@@ -78,9 +78,9 @@ export const OptimizedDroppablePerson = memo<OptimizedDroppablePersonProps>(({
     return {
       ...baseStyles,
       backgroundColor: 'var(--ui-surface-elevated)',
-      borderColor: 'transparent',
       borderWidth: '2px',
-      borderStyle: 'solid'
+      borderStyle: 'solid',
+      borderColor: 'transparent'
     }
   }, [isOver, prefersReducedMotion])
 

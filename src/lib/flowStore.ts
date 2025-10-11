@@ -1,9 +1,10 @@
 import { create } from 'zustand'
-import { devtools } from 'zustand/middleware'
+import { devtools, subscribeWithSelector } from 'zustand/middleware'
 import type { DraftBill } from './draft'
 import { createDraftFromParseResult, saveDraftToLocal, loadDraftFromLocal } from './draft'
 import type { ParseResult } from './receiptScanning'
 import type { PersonId, ItemId } from '@/types/flow'
+import { saveFlowState, loadFlowState, clearFlowState } from './flowPersistence'
 
 export interface FlowBill {
   id?: string
@@ -102,13 +103,19 @@ interface FlowState {
   
   // Reset
   reset: () => void
+
+  // Persistence
+  saveState: (billId: string) => void
+  loadState: (billId: string) => boolean
+  clearSavedState: (billId: string) => void
 }
 
 const stepOrder: FlowStep[] = ['start', 'people', 'review', 'assign', 'share']
 
 export const useFlowStore = create<FlowState>()(
-  devtools(
-    (set, get) => ({
+  subscribeWithSelector(
+    devtools(
+      (set, get) => ({
       // Initial state
       bill: null,
       people: [],
@@ -386,10 +393,43 @@ export const useFlowStore = create<FlowState>()(
         assignments: new Map(),
         currentStep: 'start',
         currentDraft: null
-      }, false, 'reset')
-    }),
-    {
-      name: 'flow-store'
-    }
+      }, false, 'reset'),
+
+      // Persistence
+      saveState: (billId: string) => {
+        const state = get()
+        saveFlowState(
+          state.bill,
+          state.people,
+          state.items,
+          state.assignments,
+          state.currentStep,
+          billId
+        )
+      },
+
+      loadState: (billId: string) => {
+        const saved = loadFlowState(billId)
+        if (!saved) return false
+
+        set({
+          bill: saved.bill,
+          people: saved.people,
+          items: saved.items,
+          assignments: new Map(saved.assignments),
+          currentStep: saved.currentStep
+        }, false, 'loadState')
+
+        return true
+      },
+
+      clearSavedState: (billId: string) => {
+        clearFlowState(billId)
+      }
+      }),
+      {
+        name: 'flow-store'
+      }
+    )
   )
 )

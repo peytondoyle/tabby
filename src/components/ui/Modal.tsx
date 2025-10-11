@@ -48,7 +48,7 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center p-4" data-testid="modal-overlay">
           {/* Backdrop */}
           <motion.div 
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -68,9 +68,9 @@ export const Modal: React.FC<ModalProps> = ({
             <Card className="flex flex-col h-full overflow-hidden">
               {/* Header - Pinned */}
               {title && (
-                <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--ui-border)] flex-shrink-0">
+                <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border-default flex-shrink-0">
                   <h3 className={`text-lg font-semibold ${
-                    danger ? "text-[var(--ui-danger)]" : "text-[var(--ui-text)]"
+                    danger ? "text-danger" : "text-text-primary"
                   }`}>
                     {title}
                   </h3>
@@ -79,6 +79,7 @@ export const Modal: React.FC<ModalProps> = ({
                     tone="neutral"
                     aria-label="Close modal"
                     onClick={onClose}
+                    data-testid="close-modal-button"
                   >
                     <svg 
                       width="16" 
@@ -106,7 +107,7 @@ export const Modal: React.FC<ModalProps> = ({
               
               {/* Footer - Pinned */}
               {footer && (
-                <div className="flex items-center justify-end gap-3 p-4 sm:p-5 border-t border-[var(--ui-border)] flex-shrink-0">
+                <div className="flex items-center justify-end gap-3 p-4 sm:p-5 border-t border-border-default flex-shrink-0">
                   {footer}
                 </div>
               )}

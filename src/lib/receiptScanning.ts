@@ -483,6 +483,9 @@ export async function parseReceipt(
   onProgress?: (step: string) => void,
   signal?: AbortSignal
 ): Promise<ParseResult> {
+  const { performanceMonitor } = await import('./performanceMonitor')
+  
+  performanceMonitor.start()
   const startTime = Date.now()
   const fileSize = file.size
   const fileType = file.type
@@ -495,15 +498,19 @@ export async function parseReceipt(
     onProgress?.('Selecting…')
     console.info('[scan_step] File selected for processing...')
     
-    // Step 2: Normalize file (off-main-thread)
+    // Step 2: Normalize file and check API health in parallel
     onProgress?.('Normalizing…')
-    console.info('[scan_step] Normalizing file in Web Worker...')
-    const normalizedFile = await normalizeFile(file)
-    console.info(`[scan_step] File normalized - original: ${normalizedFile.originalSize} bytes, normalized: ${normalizedFile.normalizedSize} bytes`)
+    console.info('[scan_step] Normalizing file in Web Worker and checking API health...')
     
-    // Step 3: Ensure API is healthy
-    onProgress?.('Uploading…')
-    const isHealthy = await ensureApiHealthy({ tries: 2, delayMs: 500 })
+    performanceMonitor.startImageProcessing()
+    const [normalizedFile, isHealthy] = await Promise.all([
+      normalizeFile(file),
+      ensureApiHealthy({ tries: 2, delayMs: 500 })
+    ])
+    performanceMonitor.endImageProcessing(normalizedFile.originalSize, normalizedFile.normalizedSize)
+    
+    console.info(`[scan_step] File normalized - original: ${normalizedFile.originalSize} bytes, normalized: ${normalizedFile.normalizedSize} bytes`)
+    console.info(`[scan_step] API health check: ${isHealthy ? 'healthy' : 'unhealthy'}`)
     
     if (!isHealthy) {
       const duration = Date.now() - startTime
@@ -529,7 +536,9 @@ export async function parseReceipt(
     console.info('[scan_start] Sending POST request to API endpoint...')
 
     // Call the API endpoint using apiUpload with AbortSignal
+    performanceMonitor.startApiCall()
     const response = await apiUpload('/api/scan-receipt', formData, { signal })
+    performanceMonitor.endApiCall()
 
     // Step 5: Map results
     onProgress?.('Mapping…')
@@ -595,12 +604,15 @@ export async function parseReceipt(
     const totalDuration = Date.now() - startTime
     console.info(`[scan_ok] Receipt parsed successfully in ${totalDuration}ms - items: ${result.items.length}, place: ${!!result.place}, total: $${result.total || 0}`)
 
+    performanceMonitor.end(true)
     return result
 
   } catch (error) {
     const duration = Date.now() - startTime
     console.error(`[scan_exception] Receipt parsing failed after ${duration}ms:`, error)
     logServer('error', 'Receipt parsing failed', { error, duration, context: 'parseReceipt' })
+    
+    performanceMonitor.end(false)
     
     // Don't use dev fallback if we're in production-like mode
     const allowDevFallback = import.meta.env.VITE_ALLOW_DEV_FALLBACK !== '0'
@@ -645,9 +657,9 @@ export async function scanReceipt(file: File): Promise<ReceiptScanResult> {
 }
 
 // Legacy bill creation function - now routes through server API
-export async function createBillFromReceipt(receiptData: ReceiptScanResult, _editorToken?: string): Promise<string> {
-  console.info('[scan_start] Creating bill from receipt data via server API...')
-  
+export async function createBillFromReceipt(receiptData: ReceiptScanResult, _editorToken?: string, userId?: string): Promise<string> {
+  console.info('[scan_start] Creating bill from receipt data via server API...', userId ? `for user ${userId}` : '(no user)')
+
   try {
     // Convert ReceiptScanResult to ParseResult format
     const parseResult: ParseResult = {
@@ -667,15 +679,15 @@ export async function createBillFromReceipt(receiptData: ReceiptScanResult, _edi
       total: receiptData.total
     }
 
-    // Use the new schema-aligned createBill function
+    // Use the new schema-aligned createBill function with userId
     const { createBill, buildCreatePayload } = await import('./bills')
     const payload = buildCreatePayload(parseResult)
-    const result = await createBill(payload)
-    
-    console.info(`[scan_ok] Bill created successfully via server API - bill ID: ${result.id}`)
-    
-    // Return the bill ID (not editor token since that's server-side only now)
-    return result.id
+    const result = await createBill(payload, userId)
+
+    console.info(`[scan_ok] Bill created successfully via server API - bill ID: ${result.id}, token: ${result.token}`)
+
+    // Return the token (used for fetching the bill later)
+    return result.token
 
   } catch (error) {
     console.error('[scan_exception] Failed to create bill via server API:', error)

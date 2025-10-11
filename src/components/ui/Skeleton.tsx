@@ -19,9 +19,9 @@ export interface SkeletonProps {
 
 const radiusStyles = {
   none: "rounded-none",
-  sm: "rounded-[var(--r-sm)]", 
-  md: "rounded-[var(--r-md)]",
-  lg: "rounded-[var(--r-lg)]",
+  sm: "rounded-[var(--radius-md)]", 
+  md: "rounded-[var(--radius-lg)]",
+  lg: "rounded-[var(--radius-xl)]",
   full: "rounded-full",
 };
 
@@ -68,7 +68,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   const finalRadius = defaults.radius ?? radius;
 
   const baseClasses = [
-    "bg-[var(--ui-subtle)]",
+    "bg-bg-subtle",
     radiusStyles[finalRadius],
     animate ? "animate-pulse" : "",
     "motion-reduce:animate-none",
@@ -136,7 +136,7 @@ export const SkeletonCard: React.FC<{
   className?: string;
   showAvatar?: boolean;
 }> = ({ className, showAvatar = true }) => (
-  <div className={`p-4 bg-[var(--ui-panel)] rounded-[var(--r-lg)] border border-[var(--ui-border)] space-y-3 ${className || ""}`}>
+  <div className={`p-4 bg-bg-surface rounded-[var(--radius-xl)] border border-border-default space-y-3 ${className || ""}`}>
     <div className="flex items-center gap-3">
       {showAvatar && <SkeletonAvatar />}
       <div className="flex-1 space-y-2">
@@ -159,7 +159,7 @@ export const SkeletonList: React.FC<{
 }> = ({ items = 5, showAvatar = false, className }) => (
   <div className={`space-y-3 ${className || ""}`}>
     {Array.from({ length: items }, (_, i) => (
-      <div key={i} className="flex items-center gap-3 p-3 bg-[var(--ui-panel)] rounded-[var(--r-md)] border border-[var(--ui-border)]">
+      <div key={i} className="flex items-center gap-3 p-3 bg-bg-surface rounded-[var(--radius-lg)] border border-border-default">
         {showAvatar && <SkeletonAvatar />}
         <div className="flex-1 space-y-2">
           <Skeleton width="40%" height="1rem" />
@@ -194,7 +194,7 @@ export const SkeletonButton: React.FC<{
 export const SkeletonPill: React.FC<{
   className?: string;
 }> = ({ className }) => (
-  <div className={`flex items-center gap-2 p-2 bg-[var(--ui-panel)] border border-[var(--ui-border)] rounded-[var(--r-lg)] ${className || ""}`}>
+  <div className={`flex items-center gap-2 p-2 bg-bg-surface border border-border-default rounded-[var(--radius-xl)] ${className || ""}`}>
     <Skeleton width="1.5rem" height="1.5rem" radius="sm" />
     <Skeleton width="4rem" height="0.875rem" />
     <Skeleton width="2rem" height="0.875rem" />

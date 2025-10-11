@@ -1,0 +1,279 @@
+/**
+ * Critical Finishing Touches
+ * Safe areas, accessibility, motion, and polish
+ */
+
+/* ============================================================================
+   SAFE AREAS - iOS-like insets
+   ============================================================================ */
+
+.safe-area-top {
+  padding-top: calc(env(safe-area-inset-top) + 8px);
+}
+
+.safe-area-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
+}
+
+.safe-area-both {
+  padding-top: calc(env(safe-area-inset-top) + 8px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
+}
+
+/* Sticky bars with safe areas */
+.sticky-bar {
+  background: hsl(var(--bg) / 0.85);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid hsl(var(--ui-border) / 0.1);
+  padding-top: calc(env(safe-area-inset-top) + 8px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
+}
+
+/* ============================================================================
+   POINTER VS TOUCH DENSITY
+   ============================================================================ */
+
+/* Desktop hover states - only for pointer devices */
+@media (hover: hover) and (pointer: fine) {
+  .hover-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px hsl(var(--shadow) / 0.15);
+  }
+}
+
+/* Touch devices - reduce motion, color-only states */
+@media (pointer: coarse) {
+  .hover-lift:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+/* ============================================================================
+   HIT TARGETS - 44x44px minimum
+   ============================================================================ */
+
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pill-touch-target {
+  min-height: 44px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ============================================================================
+   MONO KERNING - Receipt headings
+   ============================================================================ */
+
+.mono-heading {
+  font-family: var(--font-mono);
+  letter-spacing: 0.015em;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+}
+
+.price-tabular {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 88px;
+}
+
+/* ============================================================================
+   RECEIPT EXPORT FIDELITY
+   ============================================================================ */
+
+.receipt-export {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+.receipt-export .receipt-divider {
+  border-color: #EDEDED !important;
+}
+
+/* Print styles for receipts */
+@media print {
+  .receipt-export {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+  }
+  
+  .receipt-export .stage-shadow,
+  .receipt-export .backdrop {
+    display: none !important;
+  }
+}
+
+/* ============================================================================
+   BILLY SHEET POLISH
+   ============================================================================ */
+
+.billy-sheet-handle {
+  width: 48px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  margin: 0 auto;
+}
+
+/* Spring animations for sheet */
+.sheet-enter {
+  animation: sheetEnter 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.sheet-exit {
+  animation: sheetExit 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes sheetEnter {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheetExit {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* ============================================================================
+   ASSIGN FEEDBACK - Drag/assign polish
+   ============================================================================ */
+
+.assign-feedback {
+  animation: assignPulse 240ms ease-out;
+}
+
+@keyframes assignPulse {
+  0% {
+    border-color: #0A84FF;
+  }
+  100% {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* Pill token variants - locked to prevent drift */
+.pill-mine {
+  background: #6A5C50;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pill-unassigned {
+  background: rgba(136, 120, 180, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================================================
+   NAVIGATION & LAYOUT
+   ============================================================================ */
+
+.page-shell {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: hsl(var(--bg));
+}
+
+/* Avoid global max-width on main - only constrain inner cards */
+.receipt-card {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* ============================================================================
+   ACCESSIBILITY & MOTION
+   ============================================================================ */
+
+/* Prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .sheet-enter,
+  .sheet-exit {
+    animation: none;
+  }
+  
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Focus rings for keyboard users */
+.focus-ring:focus-visible {
+  outline: 2px solid #0A84FF;
+  outline-offset: 3px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .pill-mine {
+    background: #8B7355;
+    border-color: #FFFFFF;
+  }
+  
+  .pill-unassigned {
+    background: #9B8BB8;
+    border-color: #FFFFFF;
+  }
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+.select-none {
+  user-select: none;
+}
+
+.pointer-events-none {
+  pointer-events: none;
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN HELPERS
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .mobile-full-width {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .desktop-centered {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}

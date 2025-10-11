@@ -6,7 +6,7 @@ import { getBillByToken } from '@/lib/billUtils'
 import { showError, showSuccess } from '@/lib/exportUtils'
 import { PersonCard } from '../PersonCard'
 import { deriveAssignedMap } from '@/lib/computeTotals'
-import { SkeletonCard } from '@/components/ui/Skeleton'
+import { SkeletonCard } from '@/components/design-system'
 
 interface PeopleGridProps {
   billToken?: string

@@ -10,7 +10,9 @@ import { deriveAssignedMap } from '@/lib/computeTotals'
 import { useUpsertItemShareMutation } from '@/lib/queryClient'
 import { PersonChip, type PersonChipRef } from './PersonChip.tsx'
 import { logServer } from '@/lib/errorLogger'
-import { SkeletonPill } from '@/components/ui/Skeleton'
+import { SkeletonPill } from '@/components/design-system'
+import { Card } from '@/components/design-system'
+import { testIds } from '@/lib/testIds'
 
 interface PeopleDockProps {
   billToken?: string
@@ -269,11 +271,11 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
 
   if (peopleLoading) {
     return (
-      <div className="sticky top-[56px] z-40 bg-paper/80 backdrop-blur border-b border-line">
-        <div className="max-w-6xl mx-auto px-6 py-2">
-          <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2">
+      <div className="sticky top-[56px] z-40 bg-surface/80 backdrop-blur border-b border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2">
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2">
             {[1, 2, 3].map((i) => (
-              <SkeletonPill key={i} className="snap-start shrink-0 w-[220px] h-24" />
+              <SkeletonPill key={i} className="snap-start shrink-0 w-[220px] h-20" />
             ))}
           </div>
         </div>
@@ -283,9 +285,9 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
 
   if (peopleError) {
     return (
-      <div className="sticky top-[56px] z-40 bg-paper/80 backdrop-blur border-b border-line">
-        <div className="max-w-6xl mx-auto px-6 py-2">
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+      <div className="sticky top-[56px] z-40 bg-surface/80 backdrop-blur border-b border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2">
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
             <div className="text-sm text-red-700">
               Error loading people: {peopleError instanceof Error ? peopleError.message : 'Unknown error'}
             </div>
@@ -296,88 +298,97 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
   }
 
   return (
-    <div className="sticky top-[56px] z-40 bg-paper/80 backdrop-blur border-b border-line">
-      <div className="py-2">
+    <div className="sticky top-[56px] z-40 bg-surface/80 backdrop-blur border-b border-border" data-testid={testIds.peopleList}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2">
         {/* Add Person Form */}
         <AnimatePresence>
           {isAdding && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="bg-card rounded-xl p-3 border border-line mb-3"
-            >
-              <div className="flex gap-2">
+            <CardShell className="p-3 mb-3">
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="h-full"
+              >
+              <div className="flex gap-2" data-testid={testIds.addPersonForm}>
                 <input
                   type="text"
                   placeholder="Name"
                   value={newPerson.name}
                   onChange={(e) => setNewPerson(prev => ({ ...prev, name: e.target.value }))}
-                  className="flex-1 px-3 py-2 bg-paper border border-line rounded-lg text-sm text-ink placeholder:text-ink-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+                  className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary placeholder:text-text-primary-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+                  data-testid={testIds.personNameInput}
                 />
                 <input
                   type="text"
                   placeholder="Avatar (emoji)"
                   value={newPerson.avatar_url}
                   onChange={(e) => setNewPerson(prev => ({ ...prev, avatar_url: e.target.value }))}
-                  className="w-16 px-3 py-2 bg-paper border border-line rounded-lg text-sm text-ink placeholder:text-ink-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+                  className="w-16 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary placeholder:text-text-primary-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+                  data-testid={testIds.personAvatarInput}
                 />
                 <input
                   type="text"
                   placeholder="Venmo"
                   value={newPerson.venmo}
                   onChange={(e) => setNewPerson(prev => ({ ...prev, venmo: e.target.value }))}
-                  className="w-24 px-3 py-2 bg-paper border border-line rounded-lg text-sm text-ink placeholder:text-ink-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+                  className="w-24 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary placeholder:text-text-primary-dim focus:outline-none focus:ring-2 focus:ring-brand/30"
+                  data-testid={testIds.personVenmoInput}
                 />
                 <button
                   onClick={handleAddPerson}
                   disabled={addPersonMutation.isPending}
                   className="px-3 py-2 bg-brand text-white text-sm rounded-lg hover:bg-brand/90 disabled:opacity-50 transition-colors"
+                  data-testid={testIds.savePersonButton}
                 >
                   {addPersonMutation.isPending ? '...' : 'Add'}
                 </button>
                 <button
                   onClick={handleCancelAdd}
-                  className="px-3 py-2 bg-paper text-ink text-sm rounded-lg border border-line hover:bg-paper/80 transition-colors"
+                  className="px-3 py-2 bg-surface text-text-primary text-sm rounded-lg border border-border hover:bg-surface/80 transition-colors"
+                  data-testid={testIds.cancelPersonButton}
                 >
                   Cancel
                 </button>
               </div>
-            </motion.div>
+              </motion.div>
+            </CardShell>
           )}
         </AnimatePresence>
 
         {/* People chips row */}
-        <div className="relative">
+        <div className="relative" data-testid={testIds.navigationArrows}>
           {/* Arrow buttons for navigation when more than 5 people */}
           {people.length > 5 && (
             <>
               <button
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-card/90 backdrop-blur border border-line rounded-full shadow-soft flex items-center justify-center text-ink-dim hover:text-ink hover:bg-card transition-all"
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-surface/90 backdrop-blur border border-border rounded-full shadow-md flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-surface transition-all"
                 onClick={() => {
                   const container = document.querySelector('.people-scroll-container')
                   if (container) {
                     container.scrollBy({ left: -200, behavior: 'smooth' })
                   }
                 }}
+                data-testid={testIds.leftArrow}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-card/90 backdrop-blur border border-line rounded-full shadow-soft flex items-center justify-center text-ink-dim hover:text-ink hover:bg-card transition-all"
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-surface/90 backdrop-blur border border-border rounded-full shadow-md flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-surface transition-all"
                 onClick={() => {
                   const container = document.querySelector('.people-scroll-container')
                   if (container) {
                     container.scrollBy({ left: 200, behavior: 'smooth' })
                   }
                 }}
+                data-testid={testIds.rightArrow}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </>
           )}
           
-          <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide people-scroll-container">
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide people-scroll-container">
           <AnimatePresence>
             {people.map((person: Person, index: number) => (
               <motion.div
@@ -408,25 +419,27 @@ export const PeopleDock = forwardRef<PeopleDockRef, PeopleDockProps>(({
             
             {/* Add Person ghost chip */}
             {editorToken && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: people.length * 0.05 }}
-                className="snap-start shrink-0 w-[200px] h-[88px] rounded-xl bg-card border-2 border-dashed border-line shadow-soft p-3 hover:shadow-pop transition cursor-pointer flex items-center justify-center"
-                onClick={handleAddPersonClick}
-              >
-                <div className="flex flex-col items-center text-ink-dim">
-                  <Plus className="w-6 h-6 mb-1" />
-                  <span className="text-sm font-medium">Add Person</span>
-                </div>
-              </motion.div>
+              <CardShell className="snap-start shrink-0 w-[200px] h-[80px] border border-white/14 p-3 hover:shadow-lg transition-transform duration-150 ease-smooth hover:-translate-y-0.5 cursor-pointer">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: people.length * 0.05 }}
+                  className="h-full flex items-center justify-center"
+                  onClick={handleAddPersonClick}
+                >
+                  <div className="flex flex-col items-center text-text-secondary">
+                    <Plus className="w-5 h-5 mb-1" />
+                    <span className="text-sm font-medium">Add Person</span>
+                  </div>
+                </motion.div>
+              </CardShell>
             )}
           </AnimatePresence>
           </div>
         </div>
 
         {people.length === 0 && !isAdding && (
-          <div className="text-center py-4 text-ink-dim">
+          <div className="text-center py-3 text-text-secondary">
             <p className="text-sm">No people added yet. Click the + chip to add someone!</p>
           </div>
         )}

@@ -4,6 +4,7 @@ import { applyCors } from "../_utils/cors.js";
 import { createRequestContext, validateRequest, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from "../_utils/request.js";
 import { checkRateLimit, addRateLimitHeaders } from "../_utils/rateLimit.js";
 import { CreateBillRequestSchema, CreateBillRequest, FILE_LIMITS } from "../_utils/schemas.js";
+import { createBill as saveBill } from "../_utils/memoryDb.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Apply CORS first
@@ -63,12 +64,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const { items, place, total, date, people, tax, tip } = validation.data as CreateBillRequest;
+    const { items, place, total, date, people, tax, tip, user_id } = validation.data as CreateBillRequest;
+
+    // Log user_id if present
+    if (user_id) {
+      console.log('[bill_create] Creating bill for user:', user_id);
+    }
 
     // Generate bill ID
     const billId = `bill_${Date.now()}`;
-    
-    // Create bill response using consistent schema
+
+    // Create bill response using consistent schema (user_id stored but not returned in response for now)
     const bill = {
       id: billId,
       title: place || "Receipt Upload",
@@ -81,7 +87,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       total_amount: total || null,
       item_count: items.length,
       people_count: people.length,
-      currency: 'USD'
+      currency: 'USD',
+      user_id: user_id || null // Store user_id with bill
     };
 
     // Transform items to consistent schema
@@ -92,6 +99,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       emoji: item.icon || '🍽️',
       quantity: 1
     }));
+
+    // Save to in-memory storage (with user_id)
+    saveBill({
+      id: billId,
+      token: billId,
+      title: bill.title,
+      place: bill.place,
+      date: bill.date,
+      created_at: bill.created_at,
+      item_count: bill.item_count,
+      people_count: bill.people_count,
+      total_amount: bill.total_amount,
+      user_id: user_id || null,
+      items: billItems
+    });
 
     // Add rate limit headers
     addRateLimitHeaders(res as any, req as any, 'create_bill');

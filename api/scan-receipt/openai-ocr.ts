@@ -33,35 +33,31 @@ export async function processWithOpenAI(imageBuffer: Buffer, mimeType: string): 
     const base64Image = imageBuffer.toString('base64');
     const imageUrl = `data:${mimeType};base64,${base64Image}`;
 
-    // Call OpenAI Vision API
+    // Call OpenAI Vision API with optimized settings for speed
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini", // 3x faster than gpt-4o
       messages: [
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Analyze this receipt image and extract the following information in JSON format:
+              text: `Extract receipt data as JSON:
               {
-                "place": "store/restaurant name",
-                "date": "date in YYYY-MM-DD format",
-                "items": [
-                  {"label": "item name", "price": price_as_number}
-                ],
-                "subtotal": subtotal_as_number,
-                "tax": tax_as_number,
-                "tip": tip_as_number,
-                "total": total_as_number
+                "place": "store name",
+                "date": "YYYY-MM-DD",
+                "items": [{"label": "item", "price": number}],
+                "subtotal": number,
+                "tax": number,
+                "tip": number,
+                "total": number
               }
               
-              Important:
-              - Extract the store/restaurant name from the receipt header (e.g., "Chick-fil-A", "McDonald's", "Starbucks")
-              - Extract ALL line items with their prices
-              - Prices should be numbers (not strings)
-              - If any field is not found, use null
-              - Be accurate with the prices
-              - Include the full raw text of the receipt in a "rawText" field`
+              Rules:
+              - Extract ALL line items with prices
+              - Use numbers for prices
+              - Use null for missing fields
+              - Be accurate with prices`
             },
             {
               type: "image_url",
@@ -73,8 +69,8 @@ export async function processWithOpenAI(imageBuffer: Buffer, mimeType: string): 
           ]
         }
       ],
-      max_tokens: 1000,
-      temperature: 0.1
+      max_tokens: 500, // Reduced from 1000
+      temperature: 0 // Reduced from 0.1 for consistency
     });
 
     const content = response.choices[0]?.message?.content;

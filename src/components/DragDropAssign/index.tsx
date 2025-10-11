@@ -99,6 +99,8 @@ const DroppablePerson: React.FC<{
       `}
       animate={{ 
         scale: isOver ? 1.05 : 1,
+        borderWidth: isOver ? '2px' : '1px',
+        borderStyle: 'solid',
         borderColor: isOver ? 'rgb(96, 165, 250)' : 'transparent'
       }}
     >
@@ -246,7 +248,7 @@ export const DragDropAssign: React.FC<DragDropAssignProps> = ({
 
         {/* Unassigned Items Pool */}
         <motion.div 
-          className="flex flex-wrap gap-3 justify-center min-h-[100px] p-6 rounded-2xl bg-gray-800/30 border-2 border-dashed border-gray-700"
+          className="flex flex-wrap gap-3 justify-center min-h-[100px] p-6 rounded-2xl bg-white/6 border border-white/14"
           layout
         >
           <AnimatePresence>

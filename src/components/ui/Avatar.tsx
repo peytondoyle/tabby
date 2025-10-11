@@ -34,10 +34,10 @@ const getColorFromName = (name: string): string => {
   
   // Use design system colors for consistency
   const colors = [
-    "bg-[var(--ui-primary)]",
-    "bg-[var(--ui-success)]", 
-    "bg-[var(--ui-danger)]",
-    "bg-[var(--ui-warning)]",
+    "bg-primary",
+    "bg-success", 
+    "bg-danger",
+    "bg-warning",
     "bg-blue-500",
     "bg-purple-500",
     "bg-pink-500",

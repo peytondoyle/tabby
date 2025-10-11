@@ -1,0 +1,79 @@
+/* Container canvas for Tabby UI - Billy-inspired light staging */
+.tabby-app {
+  min-height: 100vh;
+  background: #f7f8fc !important;
+  color: #17181f !important;
+  font-family: var(--font-sans);
+  position: relative;
+  z-index: 1;
+}
+
+/* Maintain consistent palette inside sandbox */
+.tabby-app * {
+  color: inherit;
+}
+
+/* Light canvas defaults */
+.tabby-app,
+.tabby-app body,
+.tabby-app html,
+.tabby-app #root {
+  background: #f7f8fc !important;
+  color: #17181f !important;
+}
+
+/* Card surface */
+.t-card {
+  background: rgba(255,255,255,0.96) !important;
+  border-radius: var(--radius-xl);
+  border-width: 1px;          /* Longhand to avoid console warnings */
+  border-style: solid;
+  border-color: rgba(15,23,42,0.08) !important;
+  box-shadow: 0 20px 45px rgba(15,23,42,0.12) !important;
+}
+
+/* Inner white "receipt" paper */
+.t-paper {
+  background: #fff;
+  color: #111;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+/* Buttons */
+.t-btn {
+  height: 52px;
+  padding: 0 var(--s-5);
+  border-radius: 16px;
+  font-weight: 600;
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgba(15,23,42,0.12) !important;
+  background: rgba(255,255,255,0.9) !important;
+  color: #17181f !important;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 16px;
+}
+.t-btn--primary {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  font-family: var(--font-computer) !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Small, reusable utilities */
+.t-stack { display: grid; gap: var(--s-4); }
+.t-row { display: flex; align-items: center; gap: var(--s-3); }
+.t-space { padding: var(--s-5); }
+.t-center { display: grid; place-items: center; }
+.t-muted { color: rgba(30, 32, 43, 0.55) !important; }
+.t-mono { font-family: var(--font-mono); }
+.t-computer { 
+  font-family: var(--font-computer) !important; 
+  color: #17181f !important;
+  font-weight: 700;
+  font-size: 16px;
+}

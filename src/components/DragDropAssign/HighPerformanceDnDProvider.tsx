@@ -194,14 +194,16 @@ export function useOptimizedDroppable() {
       // Minimal visual feedback for reduced motion
       ...(prefersReducedMotion ? {
         opacity: 0.9,
-        borderColor: 'var(--ui-primary)',
-        borderWidth: '2px'
+        borderWidth: '2px',
+        borderStyle: 'solid',
+        borderColor: 'var(--ui-primary)'
       } : {
         // Enhanced feedback for full motion
         opacity: 0.95,
         transform: 'scale(1.02)',
-        borderColor: 'var(--ui-primary)',
         borderWidth: '2px',
+        borderStyle: 'solid',
+        borderColor: 'var(--ui-primary)',
         boxShadow: '0 0 20px rgba(var(--ui-primary-rgb), 0.3)',
         transition: 'all 0.2s ease-out'
       })

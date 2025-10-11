@@ -1,193 +1,278 @@
 /**
- * Motion utilities for consistent animations across the application
- * Provides standard durations, easings, and spring configurations
+ * iOS-Inspired Motion System
+ * Minimal motion with subtle springs and gentle easing
  */
 
-// Duration constants (in seconds)
-export const duration = {
-  /** Instant transitions - 50ms */
-  instant: 0.05,
-  /** Quick transitions - 150ms */
-  fast: 0.15,
-  /** Standard transitions - 250ms */
-  normal: 0.25,
-  /** Slower transitions - 400ms */
-  slow: 0.4,
-  /** Very slow transitions - 600ms */
-  slower: 0.6,
-} as const;
+import { designTokens } from './styled'
 
-// Easing functions
-export const ease = {
-  /** Linear easing */
-  linear: [0, 0, 1, 1],
-  /** Standard ease out - most common */
-  out: [0, 0, 0.2, 1],
-  /** Ease in */
-  in: [0.4, 0, 1, 1],
-  /** Ease in and out */
-  inOut: [0.4, 0, 0.2, 1],
-  /** Sharp ease out for quick interactions */
-  sharp: [0.4, 0, 0.6, 1],
-  /** Gentle ease out for smooth transitions */
-  gentle: [0.25, 0.46, 0.45, 0.94],
-  /** Bounce effect */
-  bounce: [0.68, -0.55, 0.265, 1.55],
-  /** Back ease out */
-  backOut: [0.34, 1.56, 0.64, 1],
-} as const;
+// ============================================================================
+// SPRING PRESETS
+// ============================================================================
 
-// Spring configurations for framer-motion
-export const spring = {
-  /** Gentle spring for subtle animations */
-  gentle: {
-    type: "spring" as const,
-    stiffness: 400,
+export const springs = {
+  // Subtle spring for gentle interactions
+  subtle: {
+    type: 'spring' as const,
+    stiffness: 300,
     damping: 30,
+    mass: 0.8,
   },
-  /** Standard spring for most interactions */
+  
+  // Standard spring for normal interactions
   standard: {
-    type: "spring" as const,
-    stiffness: 500,
+    type: 'spring' as const,
+    stiffness: 400,
     damping: 25,
+    mass: 0.6,
   },
-  /** Bouncy spring for playful interactions */
-  bouncy: {
-    type: "spring" as const,
-    stiffness: 600,
-    damping: 15,
-    bounce: 0.6,
+  
+  // Gentle spring for modal/sheet animations
+  gentle: {
+    type: 'spring' as const,
+    stiffness: 200,
+    damping: 35,
+    mass: 1.0,
   },
-  /** Stiff spring for quick, responsive interactions */
-  stiff: {
-    type: "spring" as const,
-    stiffness: 800,
-    damping: 30,
-  },
-  /** Wobbly spring for attention-grabbing animations */
-  wobbly: {
-    type: "spring" as const,
-    stiffness: 180,
-    damping: 12,
-  },
-} as const;
+} as const
 
-// Common transition presets
-export const transition = {
-  /** Quick fade transitions */
-  fade: {
-    duration: duration.fast,
-    ease: ease.out,
-  },
-  /** Smooth scale transitions */
-  scale: {
-    duration: duration.normal,
-    ease: ease.gentle,
-  },
-  /** Slide transitions */
-  slide: {
-    duration: duration.normal,
-    ease: ease.out,
-  },
-  /** Button press transitions */
-  press: {
-    duration: duration.instant,
-    ease: ease.sharp,
-  },
-} as const;
+// ============================================================================
+// EASING CURVES
+// ============================================================================
 
-// Framer Motion variants using the utilities
+export const easing = {
+  // iOS-style easing curves
+  easeInOut: [0.4, 0, 0.2, 1] as const,
+  easeOut: [0, 0, 0.2, 1] as const,
+  easeIn: [0.4, 0, 1, 1] as const,
+  
+  // Custom iOS-inspired curves
+  gentle: [0.25, 0.46, 0.45, 0.94] as const,
+  smooth: [0.25, 0.1, 0.25, 1] as const,
+} as const
+
+// ============================================================================
+// DURATION PRESETS
+// ============================================================================
+
+export const durations = {
+  fast: 150,
+  base: 200,
+  slow: 300,
+  slower: 400,
+} as const
+
+// ============================================================================
+// ANIMATION VARIANTS
+// ============================================================================
+
 export const variants = {
-  /** Fade in/out */
-  fade: {
+  // Fade animations
+  fadeIn: {
     initial: { opacity: 0 },
     animate: { opacity: 1 },
     exit: { opacity: 0 },
-    transition: transition.fade,
+    transition: {
+      duration: durations.base / 1000,
+      ease: easing.easeOut,
+    },
   },
-  /** Scale in/out */
-  scale: {
-    initial: { scale: 0.95, opacity: 0 },
-    animate: { scale: 1, opacity: 1 },
-    exit: { scale: 0.95, opacity: 0 },
-    transition: transition.scale,
+  
+  fadeInUp: {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 },
+    transition: {
+      duration: durations.base / 1000,
+      ease: easing.easeOut,
+    },
   },
-  /** Slide up */
+  
+  fadeInDown: {
+    initial: { opacity: 0, y: -20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: 20 },
+    transition: {
+      duration: durations.base / 1000,
+      ease: easing.easeOut,
+    },
+  },
+  
+  // Scale animations
+  scaleIn: {
+    initial: { opacity: 0, scale: 0.95 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.95 },
+    transition: {
+      duration: durations.fast / 1000,
+      ease: easing.easeOut,
+    },
+  },
+  
+  // Slide animations
   slideUp: {
-    initial: { y: 20, opacity: 0 },
-    animate: { y: 0, opacity: 1 },
-    exit: { y: -20, opacity: 0 },
-    transition: transition.slide,
+    initial: { y: '100%' },
+    animate: { y: 0 },
+    exit: { y: '100%' },
+    transition: springs.gentle,
   },
-  /** Slide down */
+  
   slideDown: {
-    initial: { y: -20, opacity: 0 },
-    animate: { y: 0, opacity: 1 },
-    exit: { y: 20, opacity: 0 },
-    transition: transition.slide,
+    initial: { y: '-100%' },
+    animate: { y: 0 },
+    exit: { y: '-100%' },
+    transition: springs.gentle,
   },
-  /** Slide left */
+  
   slideLeft: {
-    initial: { x: 20, opacity: 0 },
-    animate: { x: 0, opacity: 1 },
-    exit: { x: -20, opacity: 0 },
-    transition: transition.slide,
+    initial: { x: '100%' },
+    animate: { x: 0 },
+    exit: { x: '100%' },
+    transition: springs.gentle,
   },
-  /** Slide right */
+  
   slideRight: {
-    initial: { x: -20, opacity: 0 },
-    animate: { x: 0, opacity: 1 },
-    exit: { x: 20, opacity: 0 },
-    transition: transition.slide,
+    initial: { x: '-100%' },
+    animate: { x: 0 },
+    exit: { x: '-100%' },
+    transition: springs.gentle,
   },
-} as const;
+  
+  // Button press animation
+  buttonPress: {
+    scale: 0.98,
+    transition: {
+      duration: durations.fast / 1000,
+      ease: easing.easeOut,
+    },
+  },
+  
+  // Card hover animation
+  cardHover: {
+    y: -2,
+    transition: {
+      duration: durations.base / 1000,
+      ease: easing.easeOut,
+    },
+  },
+} as const
 
-// CSS-based animation classes using the utilities
-export const cssAnimations = {
-  /** Quick fade in */
-  fadeIn: `transition-opacity duration-150 ease-out`,
-  /** Quick fade out */
-  fadeOut: `transition-opacity duration-150 ease-in`,
-  /** Scale hover effect */
-  scaleHover: `transition-transform duration-150 ease-out hover:scale-105`,
-  /** Button press effect */
-  buttonPress: `transition-transform duration-75 ease-sharp active:scale-95`,
-  /** Smooth slide */
-  slideTransition: `transition-transform duration-250 ease-out`,
-  /** Loading pulse */
-  pulse: `animate-pulse`,
-  /** Loading spin */
-  spin: `animate-spin`,
-} as const;
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
-// Utility functions
-export const createTransition = (
+/**
+ * Create a staggered animation for lists
+ */
+export const createStaggeredVariants = (staggerDelay = 0.05) => ({
+  animate: {
+    transition: {
+      staggerChildren: staggerDelay,
+    },
+  },
+})
+
+/**
+ * Create a simple fade transition
+ */
+export const createFadeTransition = (duration = durations.base) => ({
+  duration: duration / 1000,
+  ease: easing.easeOut,
+})
+
+/**
+ * Create a spring transition
+ */
+export const createSpringTransition = (preset: keyof typeof springs = 'standard') => ({
+  ...springs[preset],
+})
+
+/**
+ * Create a custom transition with iOS-style easing
+ */
+export const createCustomTransition = (
   duration: number,
-  easing: readonly [number, number, number, number]
+  ease: readonly [number, number, number, number] = easing.easeOut
 ) => ({
-  duration,
-  ease: easing,
-});
-
-export const createSpring = (
-  stiffness: number,
-  damping: number,
-  bounce?: number
-) => ({
-  type: "spring" as const,
-  stiffness,
-  damping,
-  ...(bounce && { bounce }),
-});
-
-// Export all as default for convenience
-export default {
-  duration,
+  duration: duration / 1000,
   ease,
-  spring,
-  transition,
-  variants,
-  cssAnimations,
-  createTransition,
-  createSpring,
-};
+})
+
+// ============================================================================
+// ACCESSIBILITY HELPERS
+// ============================================================================
+
+/**
+ * Check if user prefers reduced motion
+ */
+export const prefersReducedMotion = (): boolean => {
+  if (typeof window === 'undefined') return false
+  
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/**
+ * Get appropriate transition based on user preferences
+ */
+export const getAccessibleTransition = (
+  normalTransition: any,
+  reducedMotionTransition?: any
+) => {
+  if (prefersReducedMotion()) {
+    return reducedMotionTransition || { duration: 0 }
+  }
+  return normalTransition
+}
+
+// ============================================================================
+// COMMON ANIMATION PATTERNS
+// ============================================================================
+
+export const patterns = {
+  // Modal backdrop fade
+  modalBackdrop: {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 },
+    transition: createFadeTransition(durations.base),
+  },
+  
+  // Modal content slide up
+  modalContent: {
+    initial: { opacity: 0, y: 20, scale: 0.95 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, y: 20, scale: 0.95 },
+    transition: springs.gentle,
+  },
+  
+  // List item stagger
+  listItem: {
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -10 },
+    transition: createFadeTransition(durations.fast),
+  },
+  
+  // Button interaction
+  button: {
+    whileHover: { scale: 1.02 },
+    whileTap: { scale: 0.98 },
+    transition: createSpringTransition('subtle'),
+  },
+  
+  // Card interaction
+  card: {
+    whileHover: { y: -2 },
+    whileTap: { scale: 0.99 },
+    transition: createSpringTransition('subtle'),
+  },
+} as const
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+export type SpringPreset = keyof typeof springs
+export type EasingCurve = keyof typeof easing
+export type Duration = keyof typeof durations
+export type Variant = keyof typeof variants
+export type Pattern = keyof typeof patterns

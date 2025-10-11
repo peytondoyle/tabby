@@ -199,10 +199,10 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       {canUploadMore && (
         <motion.div
           className={`
-            relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer
+            relative border border-white/14 rounded-xl p-8 text-center transition-all cursor-pointer
             ${isDragOver 
               ? 'border-brand bg-brand/5 scale-105' 
-              : 'border-line hover:border-brand/50 hover:bg-brand/2'
+              : 'border-border hover:border-brand/50 hover:bg-brand/2'
             }
             ${uploading ? 'pointer-events-none opacity-50' : ''}
           `}
@@ -235,18 +235,18 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
             </motion.div>
             
             <div>
-              <h3 className="text-lg font-medium text-ink mb-1">
+              <h3 className="text-lg font-medium text-text-primary mb-1">
                 {uploading ? 'Processing receipts...' : 'Upload Receipt'}
               </h3>
-              <p className="text-ink-dim text-sm">
+              <p className="text-text-primary-dim text-sm">
                 Drag & drop images or PDFs, or click to browse
               </p>
-              <p className="text-ink-dim text-xs mt-1">
+              <p className="text-text-primary-dim text-xs mt-1">
                 Up to {maxFiles} files, max {Math.round(maxSizeBytes / 1024 / 1024)}MB each
               </p>
             </div>
 
-            <div className="flex justify-center gap-4 text-sm text-ink-dim">
+            <div className="flex justify-center gap-4 text-sm text-text-primary-dim">
               <div className="flex items-center gap-1">
                 <FileImage className="w-4 h-4" />
                 JPG, PNG, HEIC
@@ -269,7 +269,7 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
             exit={{ opacity: 0, y: -20 }}
             className="space-y-3"
           >
-            <h4 className="font-medium text-ink">Uploaded Receipts ({uploadedFiles.length})</h4>
+            <h4 className="font-medium text-text-primary">Uploaded Receipts ({uploadedFiles.length})</h4>
             
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {uploadedFiles.map((result, index) => (
@@ -278,10 +278,10 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
-                  className="relative group bg-card rounded-lg border border-line overflow-hidden"
+                  className="relative group bg-card rounded-lg border border-border overflow-hidden"
                 >
                   {/* Thumbnail */}
-                  <div className="aspect-square bg-paper flex items-center justify-center">
+                  <div className="aspect-square bg-surface flex items-center justify-center">
                     {result.thumbnail ? (
                       <img 
                         src={result.thumbnail} 
@@ -289,16 +289,16 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <FileImage className="w-8 h-8 text-ink-dim" />
+                      <FileImage className="w-8 h-8 text-text-primary-dim" />
                     )}
                   </div>
                   
                   {/* File Info */}
                   <div className="p-2">
-                    <p className="text-xs font-medium text-ink truncate">
+                    <p className="text-xs font-medium text-text-primary truncate">
                       {result.file.name}
                     </p>
-                    <p className="text-xs text-ink-dim">
+                    <p className="text-xs text-text-primary-dim">
                       {(result.file.size / 1024 / 1024).toFixed(1)}MB
                     </p>
                   </div>

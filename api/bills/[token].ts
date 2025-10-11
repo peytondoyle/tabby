@@ -1,9 +1,10 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 import { applyCors } from '../_utils/cors.js'
+import { getBill } from '../_utils/memoryDb.js'
 
 // Server-side Supabase client using secret key
-const supabaseAdmin = process.env.SUPABASE_SECRET_KEY 
+const supabaseAdmin = process.env.SUPABASE_SECRET_KEY
   ? createClient(
       process.env.VITE_SUPABASE_URL || '',
       process.env.SUPABASE_SECRET_KEY,
@@ -41,14 +42,42 @@ export default async function handler(
   }
 
   try {
-    if (!supabaseAdmin) {
-      return res.status(500).json({ 
-        ok: false, 
-        error: 'Database not configured' 
+    // Try in-memory database first
+    const memoryBill = getBill(token)
+
+    if (memoryBill) {
+      console.log('[bill_fetch] Found bill in memory:', token)
+
+      // Return bill from memory with items
+      return res.status(200).json({
+        ok: true,
+        bill: {
+          id: memoryBill.id,
+          editor_token: memoryBill.token,
+          viewer_token: memoryBill.token,
+          title: memoryBill.title,
+          place: memoryBill.place,
+          date: memoryBill.date,
+          created_at: memoryBill.created_at,
+          subtotal: memoryBill.total_amount,
+          sales_tax: 0,
+          tip: 0
+        },
+        items: memoryBill.items || [],
+        people: [],
+        shares: []
       })
     }
 
-    // Fetch bill data
+    // Fall back to Supabase if not in memory
+    if (!supabaseAdmin) {
+      return res.status(404).json({
+        ok: false,
+        error: 'Bill not found'
+      })
+    }
+
+    // Fetch bill data - query by id, editor_token, or viewer_token
     const { data: bill, error: billError } = await supabaseAdmin
       .from('bills')
       .select(`
@@ -63,14 +92,14 @@ export default async function handler(
         sales_tax,
         tip
       `)
-      .or(`editor_token.eq.${token},viewer_token.eq.${token}`)
+      .or(`id.eq.${token},editor_token.eq.${token},viewer_token.eq.${token}`)
       .single()
 
     if (billError) {
       console.error('[bill_fetch] Error fetching bill:', billError)
-      return res.status(404).json({ 
-        ok: false, 
-        error: 'Bill not found' 
+      return res.status(404).json({
+        ok: false,
+        error: 'Bill not found'
       })
     }
 
@@ -166,9 +195,15 @@ export default async function handler(
 
   } catch (error) {
     console.error('[bill_fetch] Unexpected error:', error)
-    return res.status(500).json({ 
-      ok: false, 
-      error: 'Internal server error' 
+    return res.status(500).json({
+      ok: false,
+      error: 'Internal server error'
     })
   }
+}
+
+export const config = {
+  api: {
+    bodyParser: true,
+  },
 }

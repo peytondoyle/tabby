@@ -2,10 +2,10 @@ import React, { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useFlowStore } from '@/lib/flowStore'
 import type { PersonId, ItemId } from '@/types/flow'
-import { Button } from '@/components/ui/Button'
-import { IconButton } from '@/components/ui/IconButton'
-import { Card } from '@/components/ui/Card'
-import { ItemPill } from '@/components/ui/ItemPill'
+import { Button, Card } from '@/components/design-system'
+import { IconButton, ItemPill } from '@/components/design-system'
+import { testIds } from '@/lib/testIds'
+import StepErrorBoundary from '@/components/StepErrorBoundary'
 
 interface AssignStepProps {
   onNext: () => void
@@ -13,16 +13,17 @@ interface AssignStepProps {
 }
 
 export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
-  const { 
-    people, 
-    items, 
-    getItemAssignments, 
-    assign, 
+  const {
+    people,
+    items,
+    getItemAssignments,
+    assign,
     unassign,
     getTotalForPerson
   } = useFlowStore()
-  
+
   const [selectedItems, setSelectedItems] = useState<Set<ItemId>>(new Set())
+  const [isSplittingBill, setIsSplittingBill] = useState(false)
 
   const handleItemToggle = useCallback((itemId: ItemId) => {
     setSelectedItems(prev => {
@@ -67,32 +68,39 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
   }, [items, people, getItemAssignments, assign])
 
   const handleSplitBill = useCallback(async () => {
-    // Auto-assign any unassigned items
-    const unassignedCount = items.filter(item => getItemAssignments(item.id).length === 0).length
-    if (unassignedCount > 0) {
-      autoAssignUnassignedItems()
-    }
+    setIsSplittingBill(true)
 
-    // TODO: Add Supabase persistence here
-    console.log('Persisting bill state to Supabase...')
-    onNext()
+    try {
+      // Auto-assign any unassigned items
+      const unassignedCount = items.filter(item => getItemAssignments(item.id).length === 0).length
+      if (unassignedCount > 0) {
+        autoAssignUnassignedItems()
+      }
+
+      // TODO: Add Supabase persistence here
+      console.log('Persisting bill state to Supabase...')
+      onNext()
+    } finally {
+      setIsSplittingBill(false)
+    }
   }, [items, getItemAssignments, autoAssignUnassignedItems, onNext])
 
   // Get unassigned items for quick assign ribbons
   const unassignedItems = items.filter(item => getItemAssignments(item.id).length === 0)
 
   return (
-    <div className="max-w-4xl mx-auto pb-20">
+    <StepErrorBoundary stepName="Assign Step">
+      <div className="w-full pb-24" data-testid={testIds.stepAssignRoot}>
       {/* Header */}
-      <motion.div 
-        className="text-center mb-8"
+      <motion.div
+        className="text-center mb-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="text-6xl mb-4">🎯</div>
         <h1 className="text-4xl font-bold text-[var(--ui-text)] mb-2">Assign Items</h1>
         <p className="text-lg text-[var(--ui-text-dim)]">
-          {selectedItems.size > 0 
+          {selectedItems.size > 0
             ? `Click people to assign ${selectedItems.size} selected item${selectedItems.size > 1 ? 's' : ''}`
             : "Click items to select, then click people to assign"
           }
@@ -101,7 +109,7 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
 
       {/* People Cards */}
       <motion.div 
-        className="mb-8 space-y-4"
+        className="mb-12 space-y-5"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
@@ -113,11 +121,11 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
           )
           
           return (
-            <Card key={person.id} className="p-6">
+            <Card key={person.id} className="p-6 border border-[var(--ui-border)] shadow-[var(--ui-shadow-soft)]">
               <div className="flex items-start justify-between mb-4">
                 {/* Person Info */}
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[var(--ui-primary)] text-white font-bold text-lg flex items-center justify-center">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-[var(--ui-primary-muted)] text-[var(--ui-primary)] font-bold text-lg flex items-center justify-center">
                     {person.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -145,8 +153,8 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
               
               {/* Quick-assign ribbon */}
               {unassignedItems.length > 0 && (
-                <div className="mb-4">
-                  <div className="flex flex-wrap gap-2 mb-2">
+                <div className="mb-5">
+                  <div className="flex flex-wrap gap-2 mb-3">
                     {unassignedItems.slice(0, 4).map(item => (
                       <ItemPill
                         key={`${person.id}-${item.id}`}
@@ -176,11 +184,11 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
                     {assignedItems.map(item => (
                       <motion.div 
                         key={`assigned-${item.id}`}
-                        className="flex items-center justify-between p-3 bg-[var(--ui-panel-2)] rounded-[var(--r-md)] border border-[var(--ui-border)]"
+                        className="flex items-center justify-between p-4 bg-[var(--ui-panel-2)] rounded-[var(--r-md)] border border-[var(--ui-border)]"
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                           <span className="text-lg">{item.emoji}</span>
                           <span className="text-[var(--ui-text)] font-medium">{item.label}</span>
                           <span className="text-[var(--ui-text-dim)]">${item.price.toFixed(2)}</span>
@@ -214,7 +222,7 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
         <h3 className="text-xl font-semibold text-[var(--ui-text)] mb-6 text-center">
           Select Items to Assign
         </h3>
-        <div className="flex flex-wrap gap-3 justify-center">
+        <div className="flex flex-wrap gap-4 justify-center">
           <AnimatePresence>
             {items.map((item) => {
               const assignments = getItemAssignments(item.id)
@@ -268,7 +276,7 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
               {selectedItems.size} item{selectedItems.size > 1 ? 's' : ''} selected
             </p>
             <Button 
-              variant="subtle"
+              variant="ghost"
               size="sm"
               onClick={() => setSelectedItems(new Set())}
             >
@@ -279,38 +287,42 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
       </motion.div>
 
       {/* Sticky Footer */}
-      <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-[var(--ui-border)] bg-[var(--ui-bg)]/95 backdrop-blur-sm p-4">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <Button 
-            variant="secondary" 
+      <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-[var(--ui-border)] bg-[var(--ui-panel)]/95 backdrop-blur-sm p-4">
+        <div className="w-full flex justify-between items-center">
+          <Button
+            variant="secondary"
             onClick={onPrev}
             leftIcon={
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M15 18l-6-6 6-6"/>
               </svg>
             }
+            data-testid={testIds.prevButton}
           >
             Back
           </Button>
-          
+
           <div className="text-center">
             <p className="text-sm text-[var(--ui-text-dim)]">
               {items.filter(item => getItemAssignments(item.id).length === 0).length} unassigned items
             </p>
           </div>
-          
-          <Button 
+
+          <Button
             onClick={handleSplitBill}
+            loading={isSplittingBill}
             rightIcon={
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 18l6-6-6-6"/>
               </svg>
             }
+            data-testid={testIds.nextButton}
           >
             Split Bill
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </StepErrorBoundary>
   )
 }

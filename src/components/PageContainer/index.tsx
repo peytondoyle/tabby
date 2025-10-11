@@ -15,7 +15,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
 }) => {
   if (variant === 'hero') {
     return (
-      <div className={`min-h-svh grid place-items-center px-6 ${className}`}>
+      <div className={`min-h-svh grid place-items-center px-6 bg-background text-text-primary ${className}`}>
         <div className={`w-full ${maxWidth} mx-auto`}>
           {children}
         </div>
@@ -24,7 +24,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   }
 
   return (
-    <div className={`w-full ${maxWidth} mx-auto px-6 ${className}`}>
+    <div className={`w-full ${maxWidth} mx-auto px-6 bg-background text-text-primary ${className}`}>
       {children}
     </div>
   )

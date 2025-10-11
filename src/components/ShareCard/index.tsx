@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient'
 import { logServer } from '@/lib/errorLogger'
-import { SkeletonText } from '@/components/ui/Skeleton'
-import { TextWithTooltip } from '@/components/ui/Tooltip'
+import { SkeletonText, TextWithTooltip } from '@/components/design-system'
+import { Card } from '@/components/design-system'
 
 interface ShareCardProps {
   billToken: string
@@ -171,23 +171,23 @@ export const ShareCard: React.FC<ShareCardProps> = ({
 
   if (loading) {
     return (
-      <div className={`max-w-[560px] mx-auto p-6 ${className}`} style={{background: 'var(--ui-panel)', border: '1px solid var(--ui-border)', borderRadius: 'var(--ui-radius)', boxShadow: 'var(--ui-elev-shadow)'}}>
+      <CardShell className={`max-w-[560px] mx-auto p-4 sm:p-5 ${className}`}>
         <div className="space-y-4">
           <SkeletonText lines={1} className="h-6" />
           <SkeletonText lines={1} className="h-4 w-2/3" />
           <SkeletonText lines={3} />
         </div>
-      </div>
+      </CardShell>
     )
   }
 
   if (error || !bill) {
     return (
-      <div className={`max-w-[560px] mx-auto p-6 ${className}`} style={{background: 'var(--ui-panel)', border: '1px solid var(--ui-border)', borderRadius: 'var(--ui-radius)', boxShadow: 'var(--ui-elev-shadow)'}}>
-        <div className="text-center text-ink-dim">
+      <CardShell className={`max-w-[560px] mx-auto p-4 sm:p-5 ${className}`}>
+        <div className="text-center text-text-secondary">
           <p>Unable to load receipt</p>
         </div>
-      </div>
+      </CardShell>
     )
   }
 
@@ -203,20 +203,12 @@ export const ShareCard: React.FC<ShareCardProps> = ({
   }
 
   return (
-    <div className={`max-w-[560px] mx-auto p-6 ${className} ${isExport ? 'print:shadow-none print:border-0' : ''}`} style={{background: 'var(--ui-panel)', border: '1px solid var(--ui-border)', borderRadius: 'var(--ui-radius)', boxShadow: 'var(--ui-elev-shadow)'}}>
+    <div className={`w-[720px] max-w-full bg-white text-black p-6 ${className} ${isExport ? 'print:shadow-none print:border-0' : ''}`}>
       {/* Header */}
-      <div className="text-center mb-6">
-        <h1 className="font-mono text-xl font-semibold text-ink tracking-wide mb-1">
-          <TextWithTooltip maxLength={30}>
-            {bill.title}
-          </TextWithTooltip>
-        </h1>
-        <p className="text-sm text-ink-dim">
-          <TextWithTooltip maxLength={40}>
-            {`${bill.place} • ${formatDate(bill.date)}`}
-          </TextWithTooltip>
-        </p>
-      </div>
+      <header className="mb-4">
+        <h1 className="text-2xl font-extrabold tracking-tight">{bill.title}</h1>
+        <div className="text-sm text-text-secondary">{`${bill.place} • ${formatDate(bill.date)}`}</div>
+      </header>
 
       <AnimatePresence mode="wait">
         {mode === 'summary' ? (
@@ -228,17 +220,17 @@ export const ShareCard: React.FC<ShareCardProps> = ({
             transition={{ duration: 0.2 }}
           >
             {/* Summary Table */}
-            <div className="space-y-3 mb-6">
+            <div className="space-y-2 mb-4">
               {people.map((person) => {
                 const totals = personTotals.find(t => t.person_id === person.id)
                 return (
-                  <div key={person.id} className="flex items-center justify-between p-3 bg-paper/30 rounded-lg">
+                  <div key={person.id} className="flex items-center justify-between p-3 bg-surface/30 rounded-lg">
                     <div className="flex items-center gap-3">
                       <span className="text-lg">{person.avatar_url || '👤'}</span>
-                      <span className="font-medium text-ink">{person.name}</span>
+                      <span className="font-medium text-text-primary">{person.name}</span>
                     </div>
-                    <span className="font-mono font-semibold text-ink">
-                      <span style={{fontVariantNumeric: 'tabular-nums'}}>{totals ? formatCurrency(totals.total) : '$0.00'}</span>
+                    <span className="price-tabular font-semibold text-text-primary">
+                      {totals ? formatCurrency(totals.total) : '$0.00'}
                     </span>
                   </div>
                 )
@@ -246,11 +238,11 @@ export const ShareCard: React.FC<ShareCardProps> = ({
             </div>
 
             {/* Bill Total */}
-            <div className="border-t border-line pt-4">
+            <div className="border-t border-border pt-4">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold text-ink">Total Bill</span>
-                <span className="font-mono text-xl font-bold text-ink">
-                  <span style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(bill.total)}</span>
+                <span className="text-lg font-semibold text-text-primary">Total Bill</span>
+                <span className="price-tabular text-xl font-bold text-text-primary">
+                  {formatCurrency(bill.total)}
                 </span>
               </div>
             </div>
@@ -264,7 +256,7 @@ export const ShareCard: React.FC<ShareCardProps> = ({
             transition={{ duration: 0.2 }}
           >
             {/* Breakdown by Person */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               {people.map((person) => {
                 const totals = personTotals.find(t => t.person_id === person.id)
                 const personItems = itemShares
@@ -276,52 +268,43 @@ export const ShareCard: React.FC<ShareCardProps> = ({
                   .filter(share => share.item)
 
                 return (
-                  <div key={person.id} className="border-b border-line pb-4 last:border-b-0">
-                    <div className="flex items-center gap-3 mb-3">
+                  <div key={person.id} className="border-b border-border pb-3 last:border-b-0">
+                    <div className="flex items-center gap-3 mb-2">
                       <span className="text-lg">{person.avatar_url || '👤'}</span>
-                      <span className="font-medium text-ink">{person.name}</span>
+                      <span className="font-bold text-text-primary">{person.name}'s Share</span>
                     </div>
-                    
+
                     {/* Items */}
-                    <div className="space-y-2 mb-3">
+                    <section className="divide-y divide-border">
                       {personItems.map((share) => (
-                        <div key={share.item_id} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <span>{share.item?.emoji}</span>
-                            <span className="text-ink">{share.item?.label}</span>
-                            {share.weight < 1 && (
-                              <span className="px-1.5 py-0.5 bg-paper text-xs rounded-full text-ink-dim">
-                                {share.weight === 0.5 ? '½' : `${Math.round(share.weight * 100)}%`}
-                              </span>
-                            )}
-                          </div>
-                          <span className="font-mono text-xs text-ink">
-                            <span style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(share.share_amount)}</span>
-                          </span>
+                        <div key={share.item_id} className="grid grid-cols-[1.5rem_1fr_auto] items-center gap-x-3 py-2">
+                          <span className="text-base leading-none">{share.item?.emoji ?? '•'}</span>
+                          <span className="text-sm">{share.item?.label}</span>
+                          <span className="price-tabular text-sm">{formatCurrency(share.share_amount)}</span>
                         </div>
                       ))}
-                    </div>
+                    </section>
 
                     {/* Person Totals */}
                     {totals && (
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-ink-dim">Subtotal</span>
-                          <span className="font-mono text-ink" style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(totals.subtotal)}</span>
+                      <section className="mt-3 border-t border-border pt-3 space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>Subtotal:</span>
+                          <span className="price-tabular">{formatCurrency(totals.subtotal)}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-ink-dim">Tax</span>
-                          <span className="font-mono text-ink" style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(totals.tax_share)}</span>
+                        <div className="flex justify-between text-sm">
+                          <span>Tax share:</span>
+                          <span className="price-tabular">{formatCurrency(totals.tax_share)}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-ink-dim">Tip</span>
-                          <span className="font-mono text-ink" style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(totals.tip_share)}</span>
+                        <div className="flex justify-between text-sm">
+                          <span>Tip share:</span>
+                          <span className="price-tabular">{formatCurrency(totals.tip_share)}</span>
                         </div>
-                        <div className="flex justify-between font-semibold border-t border-line pt-1">
-                          <span className="text-ink">Total</span>
-                          <span className="font-mono text-ink" style={{fontVariantNumeric: 'tabular-nums'}}>{formatCurrency(totals.total)}</span>
+                        <div className="flex justify-between text-base font-semibold pt-1 border-t border-border mt-2">
+                          <span>Total:</span>
+                          <span className="price-tabular">{formatCurrency(totals.total)}</span>
                         </div>
-                      </div>
+                      </section>
                     )}
                   </div>
                 )
@@ -332,12 +315,7 @@ export const ShareCard: React.FC<ShareCardProps> = ({
       </AnimatePresence>
 
       {/* Footer */}
-      <div className="mt-6 pt-4 border-t border-line text-center">
-        <div className="flex items-center justify-center gap-2 text-xs text-ink-dim">
-          <span>🍽️</span>
-          <span>Split with Tabby</span>
-        </div>
-      </div>
+      <footer className="mt-4 text-xs text-text-tertiary">Split with Tabby 🐱</footer>
     </div>
   )
 }

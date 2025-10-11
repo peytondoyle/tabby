@@ -113,7 +113,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
         {isVisible && (
           <motion.div
             ref={tooltipRef}
-            className="fixed z-50 bg-black text-white text-sm px-2 py-1 rounded-[var(--r-sm)] shadow-lg pointer-events-none"
+            className="fixed z-50 bg-black text-white text-sm px-2 py-1 rounded-[var(--radius-md)] shadow-lg pointer-events-none"
             style={{
               left: position.x,
               top: position.y

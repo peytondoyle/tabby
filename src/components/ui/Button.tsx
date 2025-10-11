@@ -15,59 +15,70 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ 
-    variant = "primary", 
-    size = "md", 
-    loading = false, 
-    leftIcon, 
-    rightIcon, 
-    full = false, 
-    className = "", 
-    children, 
+  ({
+    variant = "primary",
+    size = "md",
+    loading = false,
+    leftIcon,
+    rightIcon,
+    full = false,
+    className = "",
+    children,
     disabled,
-    ...rest 
+    ...rest
   }, ref) => {
+    // Base styles - consistent across all variants
     const baseStyles = [
-      "inline-flex items-center justify-center gap-2",
+      "inline-flex items-center justify-center",
       "font-medium transition-all duration-150",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-      "focus-visible:ring-[var(--ui-primary)] focus-visible:ring-offset-[var(--ui-bg)]",
+      "focus-visible:ring-primary",
       "disabled:opacity-50 disabled:cursor-not-allowed",
+      "select-none whitespace-nowrap",
       full ? "w-full" : ""
     ].join(" ");
 
+    // Size variants
     const sizeStyles = {
-      sm: "h-9 px-3 text-sm rounded-[var(--r-sm)]",
-      md: "h-11 px-4 text-[15px] rounded-[var(--r-md)]",
-      lg: "h-12 px-5 text-base rounded-[var(--r-md)]",
+      sm: "h-8 px-3 text-sm gap-1.5 rounded-md",
+      md: "h-9 px-4 text-sm gap-2 rounded-md",
+      lg: "h-10 px-5 text-base gap-2 rounded-lg",
     };
 
+    // Variant styles - using semantic tokens
     const variantStyles = {
       primary: [
-        "bg-[var(--ui-primary)] text-white",
-        "hover:bg-[var(--ui-primary-press)] active:bg-[var(--ui-primary-press)]",
-        "disabled:hover:bg-[var(--ui-primary)]"
+        "bg-primary text-white",
+        "hover:bg-primary-hover",
+        "active:translate-y-px",
+        "shadow-sm hover:shadow-md"
       ].join(" "),
+
       secondary: [
-        "bg-[var(--ui-panel-2)] text-[var(--ui-text)]",
-        "border border-[var(--ui-border)]",
-        "hover:bg-[var(--ui-subtle)] active:bg-[var(--ui-ghost)]",
-        "disabled:hover:bg-[var(--ui-panel-2)]"
+        "bg-bg-surface text-text-primary",
+        "border-2 border-border-strong",
+        "hover:bg-bg-hover hover:border-border-hover",
+        "active:bg-bg-active",
+        "shadow-sm hover:shadow-md"
       ].join(" "),
+
       subtle: [
-        "bg-[var(--ui-subtle)] text-[var(--ui-text)]",
-        "hover:bg-[var(--ui-panel-2)] active:bg-[var(--ui-ghost)]",
-        "disabled:hover:bg-[var(--ui-subtle)]"
+        "bg-bg-subtle text-text-primary",
+        "hover:bg-bg-muted",
+        "active:bg-bg-active"
       ].join(" "),
+
       ghost: [
-        "bg-transparent text-[var(--ui-text)]",
-        "hover:bg-[var(--ui-ghost)] active:bg-[var(--ui-subtle)]",
-        "disabled:hover:bg-transparent"
+        "bg-transparent text-text-primary",
+        "hover:bg-bg-hover",
+        "active:bg-bg-active"
       ].join(" "),
+
       destructive: [
-        "bg-[var(--ui-danger)] text-white",
-        "hover:bg-[var(--ui-danger-press)] active:bg-[var(--ui-danger-press)]",
-        "disabled:hover:bg-[var(--ui-danger)]"
+        "bg-danger text-white",
+        "hover:bg-danger-hover",
+        "active:translate-y-px",
+        "shadow-sm hover:shadow-md"
       ].join(" "),
     };
 
@@ -88,11 +99,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {leftIcon && <span className="shrink-0">{leftIcon}</span>}
         {loading ? (
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin motion-reduce:animate-none opacity-70" />
-            <span className="opacity-70">{children}</span>
+            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            <span>{children}</span>
           </div>
         ) : (
-          <span>{children}</span>
+          <>{children}</>
         )}
         {rightIcon && <span className="shrink-0">{rightIcon}</span>}
       </button>

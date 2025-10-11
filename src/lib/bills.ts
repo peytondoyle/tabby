@@ -5,6 +5,7 @@ import { apiFetch } from './apiClient'
 import { logServer } from './errorLogger'
 import { BillCreateSchema, type BillCreatePayload, type BillItemPayload } from '@/lib/schemas'
 import { toMoney } from './types'
+import { trackBillAccess } from './billHistory'
 
 export interface BillListItem {
   id: string
@@ -50,6 +51,18 @@ function loadBillsFromLocalStorage(): BillSummary[] {
 export async function fetchBillByToken(token: string): Promise<{ bill: Bill; items: unknown[]; people?: unknown[]; shares?: unknown[] } | null> {
   try {
     const response = await apiFetch<{ bill: Bill; items: unknown[]; people?: unknown[]; shares?: unknown[] }>(`/api/bills/${token}`)
+    
+    // Track bill access for history
+    if (response?.bill) {
+      trackBillAccess({
+        token: response.bill.editor_token || token,
+        title: response.bill.title || 'Untitled Bill',
+        place: response.bill.place,
+        date: response.bill.date,
+        totalAmount: response.bill.subtotal ? Number(response.bill.subtotal) : undefined
+      })
+    }
+    
     return response
   } catch (error) {
     console.warn('[Tabby] bill API error, using local fallback:', error)
@@ -143,12 +156,36 @@ export function buildCreatePayload(scan: {
 /**
  * Create a bill; surfaces Zod issue if validation fails
  */
-export async function createBill(payload: BillCreatePayload) {
-  const res = await apiFetch<{ id: string; token?: string }>("/api/bills/create", {
+export async function createBill(payload: BillCreatePayload, userId?: string) {
+  // Add user_id to payload if provided
+  const payloadWithUser = userId ? { ...payload, user_id: userId } : payload;
+
+  const res = await apiFetch<{ bill: { id: string; token?: string; [key: string]: any }; items: any[]; createdAt: string }>("/api/bills/create", {
     method: "POST",
-    body: payload,
+    body: payloadWithUser,
   });
-  return res;
+
+  // Extract bill data from nested response
+  const billData = res?.bill;
+  const billId = billData?.id;
+  const billToken = billData?.token || billId;
+
+  // Track bill creation for history (localStorage backup for ALL users)
+  if (billId) {
+    trackBillAccess({
+      token: billToken,
+      title: payload.place || 'New Bill',
+      place: payload.place,
+      date: new Date().toISOString().split('T')[0],
+      totalAmount: payload.total ? Number(payload.total) : undefined
+    })
+  }
+
+  // Return normalized response for backward compatibility
+  return {
+    id: billId,
+    token: billToken
+  };
 }
 
 /**
@@ -235,6 +272,16 @@ function createLocalBill(parsed: ParseResult): string {
   const existingBills = loadBillsFromLocalStorage()
   const updatedBills = [billData, ...existingBills]
   localStorage.setItem('local-bills', JSON.stringify(updatedBills))
+  
+  // Track in bill history
+  trackBillAccess({
+    token: billData.token,
+    title: billData.title,
+    place: billData.place,
+    date: billData.date,
+    totalAmount: billData.total_amount,
+    isLocal: true
+  })
   
   console.info(`[bill_create] Local bill created with ID: ${billId}`)
   

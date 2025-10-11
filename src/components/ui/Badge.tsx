@@ -31,24 +31,24 @@ export const Badge: React.FC<BadgeProps> = ({
 
   const variantStyles = {
     default: [
-      "bg-[var(--ui-subtle)] text-[var(--ui-text)]",
-      "border-[var(--ui-border)]"
+      "bg-bg-subtle text-text-primary",
+      "border-border-default"
     ].join(" "),
     primary: [
-      "bg-[var(--ui-primary)] text-white",
-      "border-[var(--ui-primary)]"
+      "bg-primary text-white",
+      "border-primary"
     ].join(" "),
     success: [
-      "bg-[var(--ui-success)] text-white",
-      "border-[var(--ui-success)]"
+      "bg-success text-white",
+      "border-success"
     ].join(" "),
     danger: [
-      "bg-[var(--ui-danger)] text-white",
-      "border-[var(--ui-danger)]"
+      "bg-danger text-white",
+      "border-danger"
     ].join(" "),
     warning: [
-      "bg-[var(--ui-warning)] text-white",
-      "border-[var(--ui-warning)]"
+      "bg-warning text-white",
+      "border-warning"
     ].join(" ")
   };
 

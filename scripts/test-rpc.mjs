@@ -2,8 +2,30 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://evraslbpgcafyvvtbqxy.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2cmFzbGJwZ2NhZnl2dnRicXh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxMjQ4MTIsImV4cCI6MjA3MTcwMDgxMn0.X7z5jIFwBFvmD6UrJ6KVkxllmz7BDkvHcwOc5pgb8Ew'
+// Get Supabase configuration from environment variables
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
+
+// Validate required environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Missing required environment variables:')
+  if (!supabaseUrl) console.error('   SUPABASE_URL is required')
+  if (!supabaseAnonKey) console.error('   SUPABASE_ANON_KEY is required')
+  console.error('\n💡 Set these in your .env.local file or pass them as environment variables:')
+  console.error('   SUPABASE_URL=https://your-project.supabase.co')
+  console.error('   SUPABASE_ANON_KEY=your-anon-key')
+  process.exit(1)
+}
+
+// Warn if secret key is accidentally used in client code
+if (supabaseAnonKey && supabaseAnonKey.startsWith('sb_secret_')) {
+  console.error(
+    '🚨 CRITICAL SECURITY WARNING: Secret key detected!\n' +
+    'The secret key should NEVER be used in scripts or client-side code.\n' +
+    'Use the anon key instead.'
+  )
+  process.exit(1)
+}
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 

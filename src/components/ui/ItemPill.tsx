@@ -29,19 +29,20 @@ export const ItemPill: React.FC<ItemPillProps> = ({
   };
 
   const baseStyles = [
-    "flex items-center gap-2 px-3 py-2",
-    "rounded-[var(--r-lg)]",
-    "border transition-all duration-150",
+    "flex items-center gap-3 px-4 py-3",
+    "rounded-lg",
+    "border transition-all duration-200 ease-out",
     "cursor-pointer select-none",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-    "focus-visible:ring-[var(--ui-primary)] focus-visible:ring-offset-[var(--ui-bg)]"
+    "focus-visible:ring-primary",
+    "font-medium text-sm"
   ].join(" ");
 
   const stateStyles = selected
-    ? "bg-[var(--ui-primary)] text-white border-[var(--ui-primary)] hover:bg-[var(--ui-primary-press)]"
+    ? "bg-primary text-white border-primary hover:bg-primary-hover shadow-md hover:shadow-lg scale-[1.02]"
     : assigned
-    ? "bg-[var(--ui-panel-2)] text-[var(--ui-text-dim)] border-[var(--ui-border)] opacity-60"
-    : "bg-[var(--ui-panel)] text-[var(--ui-text)] border-[var(--ui-border)] hover:bg-[var(--ui-panel-2)] hover:border-[var(--ui-text-dim)]";
+    ? "bg-bg-subtle text-text-tertiary border-border-default opacity-50 cursor-not-allowed pointer-events-none"
+    : "bg-white text-text-primary border-border-strong hover:bg-bg-hover hover:border-border-hover hover:shadow-sm shadow-xs";
 
   const classes = [baseStyles, stateStyles].join(" ");
 
@@ -80,7 +81,7 @@ export const ItemPill: React.FC<ItemPillProps> = ({
           {name}
         </TextWithTooltip>
       </span>
-      <span className={`font-semibold ${selected ? "text-white" : "text-[var(--ui-text)]"}`} style={{fontVariantNumeric: 'tabular-nums'}}>
+      <span className={`font-semibold ${selected ? "text-white" : "text-text-primary"}`} style={{fontVariantNumeric: 'tabular-nums'}}>
         ${price.toFixed(2)}
       </span>
     </motion.div>

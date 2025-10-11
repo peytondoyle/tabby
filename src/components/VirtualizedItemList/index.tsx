@@ -1,6 +1,8 @@
 import React, { useRef, useMemo, useCallback, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { VIRTUALIZATION_CONFIG, shouldVirtualize, getOverscan } from '@/lib/virtualizationConfig'
+import { VIRTUALIZATION_CONFIG, shouldVirtualize, getOverscan, getDeviceAwareConfig } from '@/lib/virtualizationConfig'
+import { deviceDetector } from '@/lib/deviceCapabilities'
+import { usePerformanceTracking } from '@/lib/performanceTracker'
 
 interface Item {
   id: string
@@ -244,11 +246,23 @@ export const VirtualizedItemList: React.FC<VirtualizedItemListProps> = ({
   className = '',
   height = 400,
   enableVirtualization = true,
-  virtualizationThreshold = VIRTUALIZATION_CONFIG.ITEM_LIST_THRESHOLD,
-  estimatedItemSize = VIRTUALIZATION_CONFIG.ESTIMATED_ITEM_SIZE,
-  overscan: _overscan = VIRTUALIZATION_CONFIG.OVERSCAN
+  virtualizationThreshold,
+  estimatedItemSize,
+  overscan: _overscan
 }) => {
   const parentRef = useRef<HTMLDivElement>(null)
+  
+  // Device-aware configuration
+  const device = deviceDetector.detect()
+  const deviceConfig = getDeviceAwareConfig()
+  
+  // Use device-aware defaults if not provided
+  const finalThreshold = virtualizationThreshold ?? deviceConfig.itemListThreshold
+  const finalItemSize = estimatedItemSize ?? deviceConfig.estimatedItemSize
+  const finalOverscan = _overscan ?? deviceConfig.overscan
+  
+  // Performance tracking
+  const { trackRender, trackVirtualization } = usePerformanceTracking('VirtualizedItemList')
 
   // Create assigned hash for memoization and measurement recalculation
   const assignedHash = useMemo(() => {
@@ -268,32 +282,35 @@ export const VirtualizedItemList: React.FC<VirtualizedItemListProps> = ({
     return Array.from(assignedHash.values()).join('|')
   }, [assignedHash])
 
-  // Virtualizer setup with optimized configuration
+  // Virtualizer setup with device-aware configuration
   const rowVirtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: useCallback(() => estimatedItemSize, [estimatedItemSize]),
+    estimateSize: useCallback(() => finalItemSize, [finalItemSize]),
     measureElement: useCallback((element: Element) => {
-      return element?.getBoundingClientRect().height ?? estimatedItemSize
-    }, [estimatedItemSize]),
+      return element?.getBoundingClientRect().height ?? finalItemSize
+    }, [finalItemSize]),
     overscan: getOverscan(items.length),
-    enabled: enableVirtualization && shouldVirtualize(items.length, virtualizationThreshold)
+    enabled: enableVirtualization && shouldVirtualize(items.length, finalThreshold),
+    // Device-aware scroll behavior
+    scrollMargin: device.isMobile ? 50 : 100,
+    scrollPaddingStart: device.isMobile ? 20 : 40
   })
 
-  // Recalculate heights when assignments change
+  // Recalculate heights when assignments change (device-aware delay)
   useEffect(() => {
-    if (enableVirtualization && items.length > virtualizationThreshold) {
-      // Small delay to ensure DOM has updated
+    if (enableVirtualization && items.length > finalThreshold) {
+      // Device-aware delay to ensure DOM has updated
       const timeoutId = setTimeout(() => {
         rowVirtualizer.measure()
-      }, VIRTUALIZATION_CONFIG.MEASUREMENT_DELAY)
+      }, deviceConfig.measurementDelay)
       
       return () => clearTimeout(timeoutId)
     }
-  }, [allAssignmentsHash, rowVirtualizer, enableVirtualization, items.length, virtualizationThreshold])
+  }, [allAssignmentsHash, rowVirtualizer, enableVirtualization, items.length, finalThreshold, deviceConfig.measurementDelay])
 
   // If we don't need virtualization, render normally
-  if (!enableVirtualization || !shouldVirtualize(items.length, virtualizationThreshold)) {
+  if (!enableVirtualization || !shouldVirtualize(items.length, finalThreshold)) {
     return (
       <div className={`space-y-2 ${className}`}>
         {items.map((item, index) => {
@@ -325,12 +342,58 @@ export const VirtualizedItemList: React.FC<VirtualizedItemListProps> = ({
 
   // Virtualized rendering
   const virtualItems = rowVirtualizer.getVirtualItems()
+  
+  // Track performance metrics
+  useEffect(() => {
+    trackRender()
+    
+    // Track virtualization-specific metrics
+    trackVirtualization({
+      listType: 'item-list',
+      itemCount: items.length,
+      renderTime: performance.now(),
+      scrollPerformance: 0, // Could be enhanced with scroll event tracking
+      memoryUsage: 0 // Will be filled by the hook
+    })
+  }, [items.length, virtualItems.length, trackRender, trackVirtualization])
+
+  // Device-aware performance hints
+  const getContainerStyles = () => {
+    const baseStyles = {
+      height: `${height}px`,
+      overflow: 'auto' as const
+    }
+    
+    if (device.processingPower === 'low') {
+      return {
+        ...baseStyles,
+        willChange: 'auto',
+        contain: 'layout'
+      }
+    }
+    
+    if (device.processingPower === 'medium') {
+      return {
+        ...baseStyles,
+        willChange: 'transform',
+        contain: 'layout style'
+      }
+    }
+    
+    // High-end devices
+    return {
+      ...baseStyles,
+      willChange: 'transform',
+      contain: 'layout style paint',
+      transform: 'translateZ(0)' // Force GPU acceleration
+    }
+  }
 
   return (
     <div
       ref={parentRef}
-      className={`overflow-auto ${className}`}
-      style={{ height: `${height}px` }}
+      className={className}
+      style={getContainerStyles()}
     >
       <div
         style={{

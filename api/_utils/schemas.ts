@@ -30,7 +30,8 @@ export const CreateBillRequestSchema = z.object({
     name: z.string()
   })).default([]),
   tax: z.number().default(0),
-  tip: z.number().default(0)
+  tip: z.number().default(0),
+  user_id: z.string().optional() // Optional user ID for authenticated users
 })
 
 export type CreateBillRequest = z.infer<typeof CreateBillRequestSchema>

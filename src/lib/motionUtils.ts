@@ -4,7 +4,7 @@
  */
 
 import type { Transition } from "framer-motion";
-import { duration, ease, variants } from "./motion";
+import { durations, easing, variants } from "./motion";
 
 export interface MotionConfig {
   initial: any;
@@ -42,16 +42,16 @@ export const hoverEffects = {
   scale: {
     whileHover: { scale: 1.02 },
     whileTap: { scale: 0.98 },
-    transition: safeTransition({ duration: duration.fast, ease: ease.out }),
+    transition: safeTransition({ duration: durations.fast / 1000, ease: easing.easeOut }),
   },
   lift: {
     whileHover: { y: -2 },
     whileTap: { y: 0 },
-    transition: safeTransition({ duration: duration.fast, ease: ease.out }),
+    transition: safeTransition({ duration: durations.fast / 1000, ease: easing.easeOut }),
   },
   glow: {
     whileHover: { boxShadow: "0 0 20px rgba(var(--ui-primary), 0.3)" },
-    transition: safeTransition({ duration: duration.normal }),
+    transition: safeTransition({ duration: durations.base / 1000 }),
   },
 };
 

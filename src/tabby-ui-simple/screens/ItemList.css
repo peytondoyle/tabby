@@ -1,0 +1,199 @@
+.billy-item-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #000000;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--billy-space-lg);
+  background: rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.restaurant-info {
+  flex: 1;
+}
+
+.restaurant-name {
+  font-size: var(--billy-size-xl);
+  font-weight: 700;
+  color: var(--billy-white);
+  margin: 0;
+}
+
+.restaurant-meta {
+  font-size: var(--billy-size-sm);
+  color: var(--billy-gray);
+  margin-top: var(--billy-space-xs);
+}
+
+.menu-button {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  font-size: var(--billy-size-xl);
+  color: var(--billy-gray);
+  cursor: pointer;
+}
+
+.list-content {
+  flex: 1;
+  padding: var(--billy-space-md);
+  overflow-y: auto;
+}
+
+.items-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--billy-space-sm);
+  background: rgba(255,255,255,0.05);
+  padding: var(--billy-space-md);
+  border-radius: var(--billy-radius-lg);
+}
+
+.totals-section {
+  margin-top: var(--billy-space-lg);
+  padding: var(--billy-space-md);
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--billy-radius-lg);
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--billy-space-sm) 0;
+  font-size: var(--billy-size-md);
+  color: var(--billy-white);
+}
+
+.total-row.total {
+  font-weight: 700;
+  font-size: var(--billy-size-lg);
+  border-top: 1px solid var(--billy-light-gray);
+  margin-top: var(--billy-space-sm);
+  padding-top: var(--billy-space-md);
+}
+
+.people-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--billy-space-md);
+}
+
+.person-card {
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--billy-radius-lg);
+  padding: var(--billy-space-md);
+}
+
+.person-header {
+  display: flex;
+  align-items: center;
+  gap: var(--billy-space-sm);
+  margin-bottom: var(--billy-space-md);
+}
+
+.person-avatar, .person-avatar-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.person-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--billy-blue);
+  color: var(--billy-white);
+  font-weight: 600;
+  font-size: var(--billy-size-lg);
+}
+
+.person-header h3 {
+  font-size: var(--billy-size-lg);
+  font-weight: 600;
+  color: var(--billy-white);
+  margin: 0;
+}
+
+.person-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--billy-space-xs);
+  margin-bottom: var(--billy-space-md);
+}
+
+.person-item {
+  font-size: var(--billy-size-md);
+  color: var(--billy-white);
+}
+
+.person-total {
+  font-size: var(--billy-size-lg);
+  font-weight: 600;
+  color: var(--billy-white);
+  text-align: right;
+}
+
+.list-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--billy-space-md);
+  background: rgba(255,255,255,0.05);
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  background: rgba(255,255,255,0.1);
+  padding: 2px;
+  border-radius: var(--billy-radius-sm);
+}
+
+.toggle-btn {
+  padding: var(--billy-space-sm) var(--billy-space-md);
+  background: transparent;
+  border: none;
+  color: var(--billy-gray);
+  font-size: var(--billy-size-sm);
+  font-weight: 500;
+  border-radius: var(--billy-radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn.active {
+  background: rgba(0, 122, 255, 0.2);
+  color: var(--billy-blue);
+  box-shadow: var(--billy-shadow-sm);
+}
+
+.share-button {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--billy-blue);
+  color: var(--billy-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--billy-shadow-md);
+  transition: all 0.2s ease;
+}
+
+.share-button:active {
+  transform: scale(0.95);
+}

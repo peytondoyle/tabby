@@ -1,0 +1,69 @@
+/* Tabby minimalist theme */
+:root {
+  /* Core colors - that's it! */
+  --tabby-black: #000000;
+  --tabby-white: #FFFFFF;
+  --tabby-blue: #007AFF;
+  --tabby-gray: #8E8E93;
+  --tabby-light-gray: #F2F2F7;
+  --tabby-dark-bg: #1C1C1E;
+
+  /* Typography - simple and clean */
+  --tabby-font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  --tabby-size-xs: 12px;
+  --tabby-size-sm: 14px;
+  --tabby-size-md: 16px;
+  --tabby-size-lg: 20px;
+  --tabby-size-xl: 24px;
+  --tabby-size-2xl: 32px;
+  --tabby-size-3xl: 40px;
+
+  /* Spacing - consistent and minimal */
+  --tabby-space-xs: 4px;
+  --tabby-space-sm: 8px;
+  --tabby-space-md: 16px;
+  --tabby-space-lg: 24px;
+  --tabby-space-xl: 32px;
+  --tabby-space-2xl: 48px;
+
+  /* Border radius */
+  --tabby-radius-sm: 8px;
+  --tabby-radius-md: 12px;
+  --tabby-radius-lg: 16px;
+  --tabby-radius-full: 9999px;
+
+  /* Shadows - subtle */
+  --tabby-shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+  --tabby-shadow-md: 0 4px 6px rgba(0,0,0,0.16);
+  --tabby-shadow-lg: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+/* Dark mode is the only mode */
+body {
+  background: var(--tabby-black);
+  color: var(--tabby-white);
+  font-family: var(--tabby-font);
+  font-size: var(--tabby-size-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Reset all the nonsense */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Clean iOS-style tap highlights */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}

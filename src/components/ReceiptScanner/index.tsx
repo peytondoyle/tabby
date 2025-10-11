@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { parseReceipt } from '@/lib/receiptScanning'
 import type { ParseResult } from '@/lib/receiptScanning'
 import { logServer } from '@/lib/errorLogger'
+import { testIds } from '@/lib/testIds'
 
 export type { ParseResult }
 
@@ -150,14 +151,16 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
             className="w-full max-w-md max-h-[90vh] overflow-y-auto border-2 mx-auto"
             style={{background: 'var(--ui-panel)', color: 'var(--ui-text)', borderRadius: 'var(--ui-radius)', border: '2px solid var(--ui-border)', boxShadow: 'var(--ui-elev-shadow)'}}
             onClick={(e) => e.stopPropagation()}
+            data-testid={testIds.receiptScannerModal}
           >
             {/* Header */}
-            <div className="p-6 border-b-2 border-line bg-paper">
+            <div className="p-6 border-b-2 border-border bg-surface">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold retro-text-shadow">📷 Scan Receipt</h2>
                 <button
                   onClick={onClose}
                   className="p-2 hover:bg-line rounded-full transition-opacity duration-150 ease-out hover:opacity-75 motion-reduce:transition-none pixel-perfect"
+                  data-testid={testIds.closeModalButton}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -177,7 +180,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   </div>
                   
                   <h3 className="text-2xl font-bold mb-2">Analyzing Receipt</h3>
-                  <p className="text-ink-dim mb-8">
+                  <p className="text-text-primary-dim mb-8">
                     {currentStep || 'AI is reading your receipt and extracting items...'}
                   </p>
 
@@ -189,95 +192,42 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   />
 
                   {/* Progress steps */}
-                  <div className="space-y-4 max-w-md mx-auto">
-                    <div className="flex items-center gap-3 text-left">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm ${
-                        currentStep === 'Selecting…' ? 'bg-brand' : 
-                        currentStep === 'Normalizing…' || currentStep === 'Uploading…' || currentStep === 'Analyzing…' || currentStep === 'Mapping…' ? 'bg-brand' : 'bg-gray-400'
-                      }`}>
-                        {currentStep === 'Selecting…' ? (
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
-                          />
-                        ) : (
-                          '✓'
-                        )}
-                      </div>
-                      <span className="text-ink-dim">Selecting…</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 text-left">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm ${
-                        currentStep === 'Normalizing…' ? 'bg-brand' :
-                        currentStep === 'Uploading…' || currentStep === 'Analyzing…' || currentStep === 'Mapping…' ? 'bg-brand' : 'bg-gray-400'
-                      }`}>
-                        {currentStep === 'Normalizing…' ? (
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
-                          />
-                        ) : (
-                          '✓'
-                        )}
-                      </div>
-                      <span className="text-ink-dim">Normalizing…</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 text-left">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm ${
-                        currentStep === 'Uploading…' ? 'bg-brand' :
-                        currentStep === 'Analyzing…' || currentStep === 'Mapping…' ? 'bg-brand' : 'bg-gray-400'
-                      }`}>
-                        {currentStep === 'Uploading…' ? (
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
-                          />
-                        ) : (
-                          '✓'
-                        )}
-                      </div>
-                      <span className="text-ink-dim">Uploading…</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 text-left">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm ${
-                        currentStep === 'Analyzing…' ? 'bg-brand' :
-                        currentStep === 'Mapping…' ? 'bg-brand' : 'bg-gray-400'
-                      }`}>
-                        {currentStep === 'Analyzing…' ? (
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
-                          />
-                        ) : (
-                          '✓'
-                        )}
-                      </div>
-                      <span className="text-ink-dim">Analyzing…</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 text-left">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm ${
-                        currentStep === 'Mapping…' ? 'bg-brand' : 'bg-gray-400'
-                      }`}>
-                        {currentStep === 'Mapping…' ? (
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
-                          />
-                        ) : (
-                          '✓'
-                        )}
-                      </div>
-                      <span className="text-ink-dim">Mapping…</span>
-                    </div>
+                  <div className="space-y-3 max-w-md mx-auto">
+                    {['Selecting…', 'Normalizing…', 'Uploading…', 'Analyzing…', 'Mapping…'].map((step, index) => {
+                      const steps = ['Selecting…', 'Normalizing…', 'Uploading…', 'Analyzing…', 'Mapping…']
+                      const currentIndex = steps.indexOf(currentStep)
+                      const stepIndex = index
+                      const isComplete = stepIndex < currentIndex
+                      const isActive = stepIndex === currentIndex
+                      const isPending = stepIndex > currentIndex
+
+                      return (
+                        <div key={step} className="flex items-center gap-3 text-left">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all ${
+                            isComplete ? 'bg-green-600 text-white' :
+                            isActive ? 'bg-blue-600 text-white' :
+                            'bg-gray-700 text-gray-400'
+                          }`}>
+                            {isComplete ? (
+                              '✓'
+                            ) : isActive ? (
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
+                              />
+                            ) : (
+                              <span className="text-xs">{index + 1}</span>
+                            )}
+                          </div>
+                          <span className={`transition-colors ${
+                            isComplete ? 'text-gray-400' :
+                            isActive ? 'text-white font-medium' :
+                            'text-gray-500'
+                          }`}>{step.replace('…', '')}</span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -285,12 +235,12 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               {/* Upload State */}
               {state === 'idle' && (
                 <div className="text-center">
-                  <div className="border-2 border-dashed border-line rounded-2xl p-12 mb-6 bg-paper">
+                  <div className="border border-white/14 rounded-2xl p-12 mb-6 bg-white/6">
                     <div className="text-6xl mb-4">
                       📷
                     </div>
                     <h3 className="text-xl font-bold mb-2">Take Photo</h3>
-                    <p className="text-ink-dim mb-4">
+                    <p className="text-text-primary-dim mb-4">
                       AI will automatically extract items and prices
                     </p>
                     <button
@@ -301,7 +251,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                     </button>
                   </div>
                   
-                  <div className="text-sm text-ink-dim space-y-1">
+                  <div className="text-sm text-text-primary-dim space-y-1">
                     <p>Supports: JPG, PNG, WebP, HEIC, HEIF</p>
                     <p>Max size: 10MB (auto-optimized)</p>
                   </div>
@@ -317,7 +267,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   <h3 className="text-xl font-bold mb-2">
                     {externalError ? "Couldn't save your bill" : "Scanning Failed"}
                   </h3>
-                  <p className="text-ink-dim mb-6">{errorMessage}</p>
+                  <p className="text-text-primary-dim mb-6">{errorMessage}</p>
                   
                   {/* Action buttons */}
                   <div className="flex gap-3 justify-center">

@@ -1,24 +1,30 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useFlowStore } from '@/lib/flowStore'
 import { LazyReceiptScanner } from '@/components/ReceiptScanner/LazyReceiptScanner'
 import type { ParseResult } from '@/lib/receiptScanning'
-import { BillyAssignScreen } from '@/components/flow/BillyAssignScreen'
+import { SimpleTabbyScreen } from '@/components/flow/SimpleTabbyScreen'
 import { KeyboardFlow } from '@/components/flow/KeyboardFlow'
 import { ShareStep } from '@/components/flow/ShareStep'
 import { AddPeopleModal } from '@/components/AddPeopleModal'
 import { PeopleDock } from '@/components/PeopleDock'
-import { PageContainer } from '@/components/PageContainer'
+// Removed PageContainer import - using full-width layout
 import { SplashScreen } from '@/components/SplashScreen'
 import { fetchBillByToken } from '@/lib/bills'
 import { isLocalId } from '@/lib/id'
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/design-system";
 import { logServer } from '@/lib/errorLogger'
 // import { useReducedMotion } from '@/lib/accessibility'
 import { flowItemToItem } from '@/lib/types'
+// import { cleanupOldFlowStates } from '@/lib/flowPersistence' // DISABLED
+
+// Performance optimization imports
+import VirtualizedListErrorBoundary from '@/components/ErrorBoundary/VirtualizedListErrorBoundary'
+import ListSuspenseWrapper from '@/components/Suspense/ListSuspenseWrapper'
+import { deviceDetector } from '@/lib/deviceCapabilities'
 
 export const Flow: React.FC = () => {
-  const { token } = useParams<{ token: string }>()
+  const { token, step } = useParams<{ token: string, step?: string }>()
   const navigate = useNavigate()
   const [scannerOpen, setScannerOpen] = useState(false)
   const [scannerError, setScannerError] = useState<string>()
@@ -27,23 +33,36 @@ export const Flow: React.FC = () => {
   const [isLoadingBill, setIsLoadingBill] = useState(false)
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [useKeyboardNavigation, setUseKeyboardNavigation] = useState(false)
-  
+
+  // Device capability detection for performance optimization
+  const device = deviceDetector.detect()
+
+  // DISABLED - Clean up old states on component mount
+  // useEffect(() => {
+  //   cleanupOldFlowStates()
+  // }, [])
+
   // const _prefersReducedMotion = useReducedMotion()
-  
-  const {
-    bill,
-    items,
-    people,
-    currentStep,
-    setStep,
-    setBillMeta,
-    replaceItems,
-    addPerson,
-    setPeople,
-    assign,
-    getItemAssignments,
-    computeTotals
-  } = useFlowStore()
+
+  // Use shallow comparison for objects to prevent unnecessary re-renders
+  const bill = useFlowStore(state => state.bill)
+  const items = useFlowStore(state => state.items)
+  const people = useFlowStore(state => state.people)
+  const currentStep = useFlowStore(state => state.currentStep)
+
+  // Get functions separately (they're stable references)
+  const setStep = useFlowStore(state => state.setStep)
+  const setBillMeta = useFlowStore(state => state.setBillMeta)
+  const replaceItems = useFlowStore(state => state.replaceItems)
+  const addPerson = useFlowStore(state => state.addPerson)
+  const setPeople = useFlowStore(state => state.setPeople)
+  const assign = useFlowStore(state => state.assign)
+  const getItemAssignments = useFlowStore(state => state.getItemAssignments)
+  const computeTotals = useFlowStore(state => state.computeTotals)
+  // DISABLED - Persistence functions
+  // const saveState = useFlowStore(state => state.saveState)
+  // const loadState = useFlowStore(state => state.loadState)
+  // const clearSavedState = useFlowStore(state => state.clearSavedState)
 
   // Keyboard navigation handlers
   const handleToggleItemSelection = (item: any, _index: number) => {
@@ -90,12 +109,16 @@ export const Flow: React.FC = () => {
     tip_share: 0
   }))
 
-  // Load existing bill data when token is provided
+  // COMPLETELY DISABLED - All persistence and URL sync
+  // Focus on just getting the app working without infinite loops
+
+  // Load existing bill only if we have a token and no items
   useEffect(() => {
-    if (token && !bill && items.length === 0) {
+    if (token && items.length === 0 && !bill) {
       loadExistingBill(token)
     }
-  }, [token, bill, items.length])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]) // Only run when token changes
 
 
 
@@ -170,7 +193,7 @@ export const Flow: React.FC = () => {
           assign(share.item_id, share.person_id)
         })
 
-        // Go to assignment step
+        // Simply set the step without navigating
         setStep('assign')
         console.log('[flow] Bill loaded successfully, moved to assign step')
       } else {
@@ -235,15 +258,21 @@ export const Flow: React.FC = () => {
         })
       }
       
-      // Close scanner and immediately go to assignment screen
+      // Close scanner and navigate to assignment screen
       setScannerOpen(false)
-      setStep('assign')
       setIsProcessingReceipt(false)
-      
-      // Navigate to the bill assignment route if we have a real bill ID
-      if (!billId.startsWith('local-')) {
-        navigate(`/bill/${billId}`)
-      }
+
+      // Simply set the step, no URL navigation yet
+      setStep('assign')
+
+      // DISABLED - Save the state
+      // if (!billId.startsWith('local-')) {
+      //   setTimeout(() => {
+      //     saveState(billId)
+      //     // Navigate after saving
+      //     navigate(`/bill/${billId}/assign`)
+      //   }, 100)
+      // }
       
     } catch (error) {
       setIsProcessingReceipt(false)
@@ -263,6 +292,11 @@ export const Flow: React.FC = () => {
       })
     }
     setStep('assign')
+
+    // DISABLED - Save state after navigation
+    // if (token) {
+    //   setTimeout(() => saveState(token), 100)
+    // }
   }
   
   const handleAddPeople = (newPeople: Array<{id: string, name: string, avatar?: string, color: string}>) => {
@@ -281,53 +315,69 @@ export const Flow: React.FC = () => {
   }
 
   const handleNext = () => {
+    // Simple step progression
     if (currentStep === 'start') {
       setStep('people')
     } else if (currentStep === 'people') {
+      setStep('review')
+    } else if (currentStep === 'review') {
       setStep('assign')
     } else if (currentStep === 'assign') {
       setStep('share')
     }
+
+    // DISABLED - Save state after navigation
+    // if (token) {
+    //   setTimeout(() => saveState(token), 100)
+    // }
   }
 
   const handlePrev = () => {
+    // Simple step navigation backwards
     if (currentStep === 'people') {
       setStep('start')
-    } else if (currentStep === 'assign') {
+    } else if (currentStep === 'review') {
       setStep('people')
+    } else if (currentStep === 'assign') {
+      setStep('review')
     } else if (currentStep === 'share') {
       setStep('assign')
     }
+
+    // DISABLED - Save state after navigation
+    // if (token) {
+    //   setTimeout(() => saveState(token), 100)
+    // }
   }
 
   const renderContent = () => {
     // Show loading state while processing receipt
     if (isProcessingReceipt) {
       return (
-        <PageContainer variant="hero">
+        <div className="min-h-screen flex items-center justify-center bg-background text-text-primary">
           <div className="text-center space-y-6">
             <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
             <h2 className="text-xl font-bold text-text-primary">Processing your receipt...</h2>
             <p className="text-text-secondary">Preparing your items for assignment</p>
           </div>
-        </PageContainer>
+        </div>
       )
     }
 
     // Show loading state while loading existing bill
     if (isLoadingBill) {
       return (
-        <PageContainer variant="hero">
+        <div className="min-h-screen flex items-center justify-center bg-background text-text-primary">
           <div className="text-center space-y-6">
             <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
             <h2 className="text-xl font-bold text-text-primary">Loading your bill...</h2>
             <p className="text-text-secondary">Getting your items and people ready</p>
           </div>
-        </PageContainer>
+        </div>
       )
     }
     
-    // Show Billy welcome screen if no bill + no items
+    // Show Tabby welcome screen if no bill + no items
     if (isEmpty) {
       return <SplashScreen onScanReceipt={handleScanPress} />
     }
@@ -335,27 +385,60 @@ export const Flow: React.FC = () => {
     // Show step-based flow when we have data
     switch (currentStep) {
       case 'start':
+        // Skip the old Items view and go directly to Assign
         return (
-          <PageContainer className="py-8">
-            <div className="text-center space-y-8">
-              <h1 className="text-3xl font-bold text-text-primary">Items</h1>
-              <div className="space-y-2 max-w-md mx-auto">
-                {items.map(item => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-surface rounded-lg border border-border">
-                    <span className="font-medium text-text-primary">{item.label || 'Untitled Item'}</span>
-                    <span className="font-semibold text-text-primary">${item.price.toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-              <Button onClick={handleAssignPress}>
-                Assign Items
+          <div className="space-y-4">
+            {/* Keyboard Navigation Toggle */}
+            <div className="flex justify-center">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setUseKeyboardNavigation(!useKeyboardNavigation)}
+                className="mb-4"
+              >
+                {useKeyboardNavigation ? 'Switch to Mouse Mode' : 'Switch to Keyboard Mode'}
               </Button>
             </div>
-          </PageContainer>
+            
+            {/* Wrap assignment components with error boundaries and suspense */}
+            <VirtualizedListErrorBoundary 
+              listType="item-list"
+              onError={(error, errorInfo) => {
+                console.error('[flow] Assignment step error:', error, errorInfo)
+                logServer('error', 'Assignment step error', { 
+                  error: error.message, 
+                  stack: error.stack,
+                  device: device,
+                  step: 'assign'
+                })
+              }}
+            >
+              <ListSuspenseWrapper listType="item-list">
+                {useKeyboardNavigation ? (
+                  <KeyboardFlow
+                    items={items.map(item => flowItemToItem(item, 'bill-id'))}
+                    people={people}
+                    personTotals={personTotals}
+                    billTotals={billTotals}
+                    selectedItems={selectedItems}
+                    onToggleItemSelection={handleToggleItemSelection}
+                    onClearSelection={handleClearSelection}
+                    onAssignItem={handleAssignItem}
+                    onUnassignItem={handleUnassignItem}
+                    onPersonClick={handlePersonClick}
+                    onPersonTotalClick={handlePersonTotalClick}
+                    getItemAssignments={getItemAssignments}
+                  />
+                ) : (
+                  <SimpleTabbyScreen onNext={handleNext} onBack={handleBack} />
+                )}
+              </ListSuspenseWrapper>
+            </VirtualizedListErrorBoundary>
+          </div>
         )
       case 'people':
         return (
-          <PageContainer className="py-8">
+          <div className="w-full py-8">
             <div className="text-center space-y-8">
               <h1 className="text-3xl font-bold text-text-primary">Add People</h1>
               <Button onClick={() => setAddPeopleOpen(true)}>
@@ -363,7 +446,7 @@ export const Flow: React.FC = () => {
               </Button>
             
               {people.length > 0 && (
-                <div className="max-w-md mx-auto">
+                <div className="w-full">
                   <PeopleDock billToken={bill?.token} />
                 </div>
               )}
@@ -375,7 +458,31 @@ export const Flow: React.FC = () => {
                 Continue
               </Button>
             </div>
-          </PageContainer>
+          </div>
+        )
+      case 'review':
+        return (
+          <div className="w-full py-8">
+            <div className="text-center space-y-8">
+              <h1 className="text-3xl font-bold text-text-primary">Review Items</h1>
+              <div className="space-y-2 w-full">
+                {items.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-surface rounded-lg border border-border">
+                    <span className="font-medium text-text-primary">{item.label || 'Untitled Item'}</span>
+                    <span className="font-semibold text-text-primary">${item.price.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-4 justify-center">
+                <Button variant="secondary" onClick={handlePrev}>
+                  Back
+                </Button>
+                <Button onClick={handleNext}>
+                  Continue to Assign
+                </Button>
+              </div>
+            </div>
+          </div>
         )
       case 'assign':
         return (
@@ -392,39 +499,72 @@ export const Flow: React.FC = () => {
               </Button>
             </div>
             
-            {useKeyboardNavigation ? (
-              <KeyboardFlow
-                items={items.map(item => flowItemToItem(item, 'bill-id'))}
-                people={people}
-                personTotals={personTotals}
-                billTotals={billTotals}
-                selectedItems={selectedItems}
-                onToggleItemSelection={handleToggleItemSelection}
-                onClearSelection={handleClearSelection}
-                onAssignItem={handleAssignItem}
-                onUnassignItem={handleUnassignItem}
-                onPersonClick={handlePersonClick}
-                onPersonTotalClick={handlePersonTotalClick}
-                getItemAssignments={getItemAssignments}
-              />
-            ) : (
-              <BillyAssignScreen onNext={handleNext} onBack={handleBack} />
-            )}
+            {/* Wrap assignment components with error boundaries and suspense */}
+            <VirtualizedListErrorBoundary 
+              listType="item-list"
+              onError={(error, errorInfo) => {
+                console.error('[flow] Assignment step error:', error, errorInfo)
+                logServer('error', 'Assignment step error', { 
+                  error: error.message, 
+                  stack: error.stack,
+                  device: device,
+                  step: 'assign'
+                })
+              }}
+            >
+              <ListSuspenseWrapper listType="item-list">
+                {useKeyboardNavigation ? (
+                  <KeyboardFlow
+                    items={items.map(item => flowItemToItem(item, 'bill-id'))}
+                    people={people}
+                    personTotals={personTotals}
+                    billTotals={billTotals}
+                    selectedItems={selectedItems}
+                    onToggleItemSelection={handleToggleItemSelection}
+                    onClearSelection={handleClearSelection}
+                    onAssignItem={handleAssignItem}
+                    onUnassignItem={handleUnassignItem}
+                    onPersonClick={handlePersonClick}
+                    onPersonTotalClick={handlePersonTotalClick}
+                    getItemAssignments={getItemAssignments}
+                  />
+                ) : (
+                  <SimpleTabbyScreen onNext={handleNext} onBack={handleBack} />
+                )}
+              </ListSuspenseWrapper>
+            </VirtualizedListErrorBoundary>
           </div>
         )
       case 'share':
-        return <ShareStep onPrev={handlePrev} onBack={handleBack} />
+        return (
+          <VirtualizedListErrorBoundary 
+            listType="dnd-container"
+            onError={(error, errorInfo) => {
+              console.error('[flow] Share step error:', error, errorInfo)
+              logServer('error', 'Share step error', { 
+                error: error.message, 
+                stack: error.stack,
+                device: device,
+                step: 'share'
+              })
+            }}
+          >
+            <ListSuspenseWrapper listType="dnd-container">
+              <ShareStep onPrev={handlePrev} onBack={handleBack} />
+            </ListSuspenseWrapper>
+          </VirtualizedListErrorBoundary>
+        )
       default:
         return null
     }
   }
 
   return (
-    <div className="min-h-screen bg-background text-text-primary flex flex-col">
+    <main className="page-shell">
       {/* Simple header - only show back button when not empty and not on start */}
       {!isEmpty && currentStep !== 'start' && (
-        <div className="bg-surface border-b border-border">
-          <div className="max-w-4xl mx-auto p-4">
+        <div className="sticky-bar">
+          <div className="w-full p-4">
             <Button variant="ghost" size="sm" onClick={handleBack}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -435,7 +575,9 @@ export const Flow: React.FC = () => {
       )}
 
       {/* Content */}
-      {renderContent()}
+      <div className="flex-1">
+        {renderContent()}
+      </div>
 
       {/* Receipt Scanner Modal */}
       <LazyReceiptScanner
@@ -452,6 +594,6 @@ export const Flow: React.FC = () => {
         onAddPeople={handleAddPeople}
         existingPeople={people.map(p => ({...p, color: 'bg-blue-500'}))}
       />
-    </div>
+    </main>
   )
 }

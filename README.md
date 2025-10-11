@@ -69,6 +69,21 @@ npm run dev:api
 ```
 Everything at `http://localhost:3000` (frontend + API routes).
 
+### Testing RPC Functions
+
+Test Supabase RPC functions with a sample bill token:
+
+```bash
+# Set environment variables first
+export SUPABASE_URL=https://your-project.supabase.co
+export SUPABASE_ANON_KEY=your-anon-key
+
+# Run the test
+node scripts/test-rpc.mjs
+```
+
+This script validates that your Supabase RPC functions are working correctly and can retrieve bill data by token.
+
 ### API Routes in Development
 
 The app includes API routes (like `/api/scan-receipt`) that only work in production or with Vercel's dev server:

@@ -53,6 +53,7 @@ export default tseslint.config([
         ],
         allowedColors: ['#ffffff', '#fff', '#000000', '#000', 'transparent']
       }],
+      'tabby-ui/no-hardcoded-colors': 'error',
       'no-restricted-imports': ['error', {
         patterns: [
           {

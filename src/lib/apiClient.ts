@@ -54,13 +54,14 @@ function sleep(ms: number): Promise<void> {
 
 export async function apiFetch<T = any>(
   path: string,
-  opts: { 
-    method?: HttpMethod; 
-    body?: any; 
+  opts: {
+    method?: HttpMethod;
+    body?: any;
     headers?: Record<string, string>;
     signal?: AbortSignal;
   } = {}
 ): Promise<T> {
+
   const method = opts.method || "GET";
   const url = path.startsWith("http") ? path : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
   const headers: Record<string, string> = {
@@ -97,35 +98,40 @@ export async function apiFetch<T = any>(
         // Check if we should retry this error
         if (attempt < RETRY_CONFIG.maxAttempts && shouldRetry(method, path, resp.status)) {
           const delay = calculateDelay(attempt);
-          logServer('warn', 'API request failed, retrying', {
-            route: path,
-            method,
-            attempt,
-            status: resp.status,
-            delayMs: delay,
-            error: err.message
-          });
-          
+          // Skip logging in dev mode
+          if (!import.meta.env.DEV) {
+            logServer('warn', 'API request failed, retrying', {
+              route: path,
+              method,
+              attempt,
+              status: resp.status,
+              delayMs: delay,
+              error: err.message
+            });
+          }
+
           lastError = err;
           await sleep(delay);
           continue;
         }
-        
-        // Log final error
-        logServer('error', 'API request failed', {
-          route: path,
-          method,
-          attempt,
-          status: resp.status,
-          error: err.message,
-          payload
-        });
+
+        // Log final error (skip in dev mode)
+        if (!import.meta.env.DEV) {
+          logServer('error', 'API request failed', {
+            route: path,
+            method,
+            attempt,
+            status: resp.status,
+            error: err.message,
+            payload
+          });
+        }
         
         throw err;
       }
       
-      // Success - log if this was a retry
-      if (attempt > 1) {
+      // Success - log if this was a retry (skip in dev mode)
+      if (attempt > 1 && !import.meta.env.DEV) {
         logServer('info', 'API request succeeded after retry', {
           route: path,
           method,
@@ -139,41 +145,48 @@ export async function apiFetch<T = any>(
       
     } catch (error) {
       lastError = error as Error;
-      
+
       // Don't retry if request was aborted
       if (error instanceof Error && error.name === 'AbortError') {
-        logServer('info', 'API request aborted', {
-          route: path,
-          method,
-          attempt
-        });
+        if (!import.meta.env.DEV) {
+          logServer('info', 'API request aborted', {
+            route: path,
+            method,
+            attempt
+          });
+        }
         throw error;
       }
-      
+
       // Check if we should retry this error
       if (attempt < RETRY_CONFIG.maxAttempts && shouldRetry(method, path)) {
         const delay = calculateDelay(attempt);
-        logServer('warn', 'API request failed, retrying', {
+        // Don't log in dev mode - we already know API is offline
+        if (!import.meta.env.DEV) {
+          logServer('warn', 'API request failed, retrying', {
+            route: path,
+            method,
+            attempt,
+            error: lastError.message,
+            delayMs: delay
+          });
+        }
+
+        await sleep(delay);
+        continue;
+      }
+
+      // Log final error (skip in dev mode)
+      if (!import.meta.env.DEV) {
+        logServer('error', 'API request failed', {
           route: path,
           method,
           attempt,
           error: lastError.message,
-          delayMs: delay
+          totalTimeMs: Date.now() - startTime
         });
-        
-        await sleep(delay);
-        continue;
       }
-      
-      // Log final error
-      logServer('error', 'API request failed', {
-        route: path,
-        method,
-        attempt,
-        error: lastError.message,
-        totalTimeMs: Date.now() - startTime
-      });
-      
+
       throw lastError;
     }
   }
@@ -195,6 +208,7 @@ export async function apiUpload<T = any>(
   formData: FormData,
   opts: { signal?: AbortSignal } = {}
 ): Promise<T> {
+
   const method = "POST";
   const url = path.startsWith("http") ? path : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
   
@@ -227,35 +241,39 @@ export async function apiUpload<T = any>(
         // Check if we should retry this error
         if (attempt < RETRY_CONFIG.maxAttempts && shouldRetry(method, path, resp.status)) {
           const delay = calculateDelay(attempt);
-          logServer('warn', 'API upload failed, retrying', {
-            route: path,
-            method,
-            attempt,
-            status: resp.status,
-            delayMs: delay,
-            error: err.message
-          });
-          
+          if (!import.meta.env.DEV) {
+            logServer('warn', 'API upload failed, retrying', {
+              route: path,
+              method,
+              attempt,
+              status: resp.status,
+              delayMs: delay,
+              error: err.message
+            });
+          }
+
           lastError = err;
           await sleep(delay);
           continue;
         }
-        
-        // Log final error
-        logServer('error', 'API upload failed', {
-          route: path,
-          method,
-          attempt,
-          status: resp.status,
-          error: err.message,
-          payload
-        });
+
+        // Log final error (skip in dev)
+        if (!import.meta.env.DEV) {
+          logServer('error', 'API upload failed', {
+            route: path,
+            method,
+            attempt,
+            status: resp.status,
+            error: err.message,
+            payload
+          });
+        }
         
         throw err;
       }
       
-      // Success - log if this was a retry
-      if (attempt > 1) {
+      // Success - log if this was a retry (skip in dev)
+      if (attempt > 1 && !import.meta.env.DEV) {
         logServer('info', 'API upload succeeded after retry', {
           route: path,
           method,
@@ -269,40 +287,46 @@ export async function apiUpload<T = any>(
       
     } catch (error) {
       lastError = error as Error;
-      
+
       // Don't retry if request was aborted
       if (error instanceof Error && error.name === 'AbortError') {
-        logServer('info', 'API upload aborted', {
-          route: path,
-          method,
-          attempt
-        });
+        if (!import.meta.env.DEV) {
+          logServer('info', 'API upload aborted', {
+            route: path,
+            method,
+            attempt
+          });
+        }
         throw error;
       }
-      
+
       // Check if we should retry this error
       if (attempt < RETRY_CONFIG.maxAttempts && shouldRetry(method, path)) {
         const delay = calculateDelay(attempt);
-        logServer('warn', 'API upload failed, retrying', {
+        if (!import.meta.env.DEV) {
+          logServer('warn', 'API upload failed, retrying', {
+            route: path,
+            method,
+            attempt,
+            error: lastError.message,
+            delayMs: delay
+          });
+        }
+
+        await sleep(delay);
+        continue;
+      }
+
+      // Log final error (skip in dev)
+      if (!import.meta.env.DEV) {
+        logServer('error', 'API upload failed', {
           route: path,
           method,
           attempt,
           error: lastError.message,
-          delayMs: delay
+          totalTimeMs: Date.now() - startTime
         });
-        
-        await sleep(delay);
-        continue;
       }
-      
-      // Log final error
-      logServer('error', 'API upload failed', {
-        route: path,
-        method,
-        attempt,
-        error: lastError.message,
-        totalTimeMs: Date.now() - startTime
-      });
       
       throw lastError;
     }

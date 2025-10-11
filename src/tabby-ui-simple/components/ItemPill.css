@@ -1,0 +1,47 @@
+.billy-item-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--billy-space-md);
+  padding: var(--billy-space-md) var(--billy-space-lg);
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  min-height: 56px;
+  width: 100%;
+}
+
+.billy-item-pill:active {
+  transform: scale(0.98);
+}
+
+.billy-item-pill.selected {
+  background: var(--billy-blue);
+  border-color: var(--billy-blue);
+}
+
+.billy-item-pill.assigned {
+  opacity: 0.5;
+}
+
+.item-emoji {
+  font-size: 28px;
+  line-height: 1;
+  min-width: 28px;
+}
+
+.item-name {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--billy-white);
+}
+
+.item-price {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--billy-white);
+  opacity: 0.9;
+}

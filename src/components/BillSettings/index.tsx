@@ -53,22 +53,22 @@ export const BillSettings: React.FC<BillSettingsProps> = ({ bill, editorToken, o
   }
   
   return (
-    <div className="space-y-4 p-4 bg-card rounded-lg border border-line">
-      <h3 className="text-lg font-semibold text-ink flex items-center gap-2">
+    <div className="space-y-4 p-4 bg-card rounded-lg border border-border">
+      <h3 className="text-lg font-semibold text-text-primary flex items-center gap-2">
         ⚙️ Split Settings
       </h3>
       
       {/* Tax Split Mode */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-ink-dim">Tax Split</label>
-        <div className="rounded-full bg-paper p-1 flex">
+        <label className="text-sm font-medium text-text-primary-dim">Tax Split</label>
+        <div className="rounded-full bg-surface p-1 flex">
           <motion.button
             onClick={() => handleTaxSplitChange('even')}
             disabled={updateBillMutation.isPending}
             className={`flex-1 py-2 px-3 text-sm font-medium rounded-full transition-all ${
               bill.tax_split_method === 'even' 
-                ? 'bg-card text-ink shadow-soft' 
-                : 'text-ink-dim hover:text-ink'
+                ? 'bg-card text-text-primary shadow-soft' 
+                : 'text-text-primary-dim hover:text-text-primary'
             }`}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -80,8 +80,8 @@ export const BillSettings: React.FC<BillSettingsProps> = ({ bill, editorToken, o
             disabled={updateBillMutation.isPending}
             className={`flex-1 py-2 px-3 text-sm font-medium rounded-full transition-all ${
               bill.tax_split_method === 'proportional' 
-                ? 'bg-card text-ink shadow-soft' 
-                : 'text-ink-dim hover:text-ink'
+                ? 'bg-card text-text-primary shadow-soft' 
+                : 'text-text-primary-dim hover:text-text-primary'
             }`}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -93,15 +93,15 @@ export const BillSettings: React.FC<BillSettingsProps> = ({ bill, editorToken, o
       
       {/* Tip Split Mode */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-ink-dim">Tip Split</label>
-        <div className="rounded-full bg-paper p-1 flex">
+        <label className="text-sm font-medium text-text-primary-dim">Tip Split</label>
+        <div className="rounded-full bg-surface p-1 flex">
           <motion.button
             onClick={() => handleTipSplitChange('even')}
             disabled={updateBillMutation.isPending}
             className={`flex-1 py-2 px-3 text-sm font-medium rounded-full transition-all ${
               bill.tip_split_method === 'even' 
-                ? 'bg-card text-ink shadow-soft' 
-                : 'text-ink-dim hover:text-ink'
+                ? 'bg-card text-text-primary shadow-soft' 
+                : 'text-text-primary-dim hover:text-text-primary'
             }`}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -113,8 +113,8 @@ export const BillSettings: React.FC<BillSettingsProps> = ({ bill, editorToken, o
             disabled={updateBillMutation.isPending}
             className={`flex-1 py-2 px-3 text-sm font-medium rounded-full transition-all ${
               bill.tip_split_method === 'proportional' 
-                ? 'bg-card text-ink shadow-soft' 
-                : 'text-ink-dim hover:text-ink'
+                ? 'bg-card text-text-primary shadow-soft' 
+                : 'text-text-primary-dim hover:text-text-primary'
             }`}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -127,10 +127,10 @@ export const BillSettings: React.FC<BillSettingsProps> = ({ bill, editorToken, o
       {/* Include Zero Items Toggle */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <label className="text-sm font-medium text-ink-dim">
+          <label className="text-sm font-medium text-text-primary-dim">
             Include people with 0 items
           </label>
-          <p className="text-xs text-ink-dim/70">
+          <p className="text-xs text-text-primary-dim/70">
             In even splits, include people who haven't been assigned any items
           </p>
         </div>

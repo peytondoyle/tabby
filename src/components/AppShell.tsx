@@ -1,7 +1,7 @@
 import React from 'react'
 import { Outlet, useLocation, useParams, useNavigate } from 'react-router-dom'
 import { Settings, Share2 } from '@/lib/icons'
-import { ThemeToggle } from '@/components/ThemeToggle'
+import { testIds } from '@/lib/testIds'
 
 
 export const AppShell: React.FC = () => {
@@ -34,12 +34,12 @@ export const AppShell: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col" data-testid={testIds.appShell}>
       {/* Clean, Slim Header */}
-      <header className="sticky top-0 z-50 bg-surface-elevated border-b border-border shadow-sm">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-white/10 shadow-sm" data-testid={testIds.header}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-14">
-            {/* Left: Billy Logo + Back Button (mobile) */}
+            {/* Left: Tabby Logo + Back Button (mobile) */}
             <div className="flex items-center gap-4">
               {/* Mobile Back Button */}
               {isBillPage && (
@@ -48,6 +48,7 @@ export const AppShell: React.FC = () => {
                   className="lg:hidden p-2 text-text-secondary hover:text-text-primary transition-colors rounded-lg hover:bg-surface"
                   title="Back to bills"
                   aria-label="Back to bills"
+                  data-testid={testIds.backButton}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -55,12 +56,12 @@ export const AppShell: React.FC = () => {
                 </button>
               )}
               
-              {/* Billy Logo */}
+              {/* Tabby Logo */}
               <button
                 onClick={() => navigate('/bills')}
                 className="text-xl font-bold text-text-primary hover:text-primary transition-colors"
               >
-                Billy
+                Tabby
               </button>
               
               {/* Desktop Breadcrumb */}
@@ -78,14 +79,13 @@ export const AppShell: React.FC = () => {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2">
-              <ThemeToggle />
               <button 
                 onClick={() => navigate('/bills')}
                 className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-lg hover:bg-surface"
-                title="View all bills"
-                aria-label="View all bills"
+                title="My Bills"
+                aria-label="My Bills"
               >
-                <Settings className="w-5 h-5" />
+                📋
               </button>
               {isBillPage && (
                 <button 

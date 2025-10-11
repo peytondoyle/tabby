@@ -1,0 +1,57 @@
+.billy-person-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #2C2C2E;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  overflow: hidden;
+}
+
+.billy-person-circle.small {
+  width: 48px;
+  height: 48px;
+}
+
+.billy-person-circle.medium {
+  width: 80px;
+  height: 80px;
+}
+
+.billy-person-circle.large {
+  width: 120px;
+  height: 120px;
+}
+
+.billy-person-circle:active {
+  transform: scale(0.95);
+}
+
+.billy-person-circle.selected {
+  border-color: var(--billy-blue);
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.2);
+}
+
+.billy-person-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.billy-person-circle .initial {
+  font-size: var(--billy-size-2xl);
+  font-weight: 600;
+  color: var(--billy-white);
+  text-transform: uppercase;
+}
+
+.billy-person-circle.small .initial {
+  font-size: var(--billy-size-lg);
+}
+
+.billy-person-circle.large .initial {
+  font-size: var(--billy-size-3xl);
+}

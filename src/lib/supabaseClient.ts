@@ -1,4 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
+import { assertEnvVars, hasLocalFallbacks } from './assertEnv'
+
+// Assert Supabase environment variables at startup
+assertEnvVars(
+  ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'],
+  hasLocalFallbacks
+)
 
 // Get Supabase configuration
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
@@ -20,11 +27,13 @@ if (SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.startsWith('sb_secret_')) {
 const hasValidCredentials = SUPABASE_URL && SUPABASE_ANON_KEY
 
 // Only create client if we have valid credentials
-export const supabase = hasValidCredentials 
+export const supabase = hasValidCredentials
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
-        autoRefreshToken: false,
-        persistSession: false
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storage: window?.localStorage
       }
     })
   : null

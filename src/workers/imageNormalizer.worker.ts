@@ -210,17 +210,17 @@ async function normalizeImage(file: File): Promise<NormalizationResult> {
     // const _rotatedDimensions = applyExifRotation(canvas, ctx, orientation, imageBitmap.width, imageBitmap.height)
     ctx.drawImage(imageBitmap, 0, 0)
     
-    // Step 5: Downscale if needed
+    // Step 5: Downscale if needed (optimized for speed)
     const beforeDownscale = canvas.width * canvas.height
-    const downscaledDimensions = downscaleImage(canvas, ctx, 2000)
+    const downscaledDimensions = downscaleImage(canvas, ctx, 1200) // Reduced from 2000 for faster processing
     if (canvas.width * canvas.height !== beforeDownscale) {
-      steps.push('downscaled to 2000px')
+      steps.push('downscaled to 1200px')
       console.log(`[worker] Downscaled image - new dimensions: ${downscaledDimensions.width}x${downscaledDimensions.height}`)
     }
     
-    // Step 6: Compress to target size
+    // Step 6: Compress to target size (optimized for speed)
     const beforeCompress = (await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 })).size
-    const compressedBlob = await compressImage(canvas, 4 * 1024 * 1024, 0.82)
+    const compressedBlob = await compressImage(canvas, 2 * 1024 * 1024, 0.7) // Reduced from 4MB and 0.82 quality
     if (compressedBlob.size !== beforeCompress) {
       steps.push(`compressed to ${Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100}MB`)
       console.log(`[worker] Compressed image - final size: ${compressedBlob.size} bytes`)
@@ -262,9 +262,15 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 // Add global error handler to prevent worker crashes
 self.onerror = (error) => {
   console.error('[worker] Global worker error:', error)
-  self.postMessage({ 
-    type: 'error', 
-    error: 'Worker crashed: ' + (error.message || 'Unknown error')
+  let errorMessage = 'Unknown error'
+  if (typeof error === 'string') {
+    errorMessage = error
+  } else if (error && typeof error === 'object' && 'message' in error) {
+    errorMessage = (error as any).message || 'Unknown error'
+  }
+  self.postMessage({
+    type: 'error',
+    error: 'Worker crashed: ' + errorMessage
   })
 }
 

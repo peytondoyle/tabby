@@ -199,21 +199,21 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
 
   if (isEditing) {
     return (
-      <div className="snap-start shrink-0 w-[200px] h-[88px] rounded-xl bg-card border border-line shadow-soft p-3">
+      <div className="snap-start shrink-0 w-[200px] h-[88px] rounded-xl bg-card border border-border shadow-soft p-3">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <input
               type="text"
               value={formData.avatar_url}
               onChange={(e) => setFormData(prev => ({ ...prev, avatar_url: e.target.value }))}
-              className="w-6 h-6 text-center text-sm border border-line rounded-full bg-paper focus:ring-1 ring-brand/30 focus:border-brand transition-all"
+              className="w-6 h-6 text-center text-sm border border-border rounded-full bg-surface focus:ring-1 ring-brand/30 focus:border-brand transition-all"
               placeholder="👤"
             />
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="flex-1 border border-line rounded px-2 py-1 bg-paper text-xs focus:ring-1 ring-brand/30 focus:border-brand transition-all"
+              className="flex-1 border border-border rounded px-2 py-1 bg-surface text-xs focus:ring-1 ring-brand/30 focus:border-brand transition-all"
               placeholder="Name"
               autoFocus
             />
@@ -227,7 +227,7 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
             </button>
             <button
               onClick={handleCancel}
-              className="flex-1 px-2 py-1 bg-paper text-ink text-xs rounded border border-line hover:bg-paper/80 transition-colors"
+              className="flex-1 px-2 py-1 bg-surface text-text-primary text-xs rounded border border-border hover:bg-surface/80 transition-colors"
             >
               Cancel
             </button>
@@ -238,7 +238,7 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
   }
 
   const chipClasses = [
-    "snap-start shrink-0 w-[200px] h-[88px] rounded-xl bg-card border border-line shadow-soft p-3 transition group relative",
+    "snap-start shrink-0 w-[200px] h-[88px] rounded-xl bg-card border border-border shadow-soft p-3 transition group relative",
     selectedItems && selectedItems.length > 0 && "ring-2 ring-brand/50 bg-brand/5 cursor-pointer hover:bg-brand/10",
     isDropSuccess && "bg-success/10 ring-2 ring-success/30",
     (!selectedItems || selectedItems.length === 0) && !isDropSuccess && "hover:shadow-pop"
@@ -261,17 +261,17 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
       >
         <div className="flex items-center gap-3 h-full">
           {/* Avatar */}
-          <div className="h-8 w-8 rounded-full ring-1 ring-line bg-paper flex items-center justify-center text-sm">
+          <div className="h-8 w-8 rounded-full ring-1 ring-line bg-surface flex items-center justify-center text-sm">
             {person.avatar_url || '👤'}
           </div>
 
           {/* Name and Venmo */}
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-ink truncate">
+            <div className="text-sm font-medium text-text-primary truncate">
               {person.name}
             </div>
             {person.venmo_handle && (
-              <div className="text-xs text-ink-dim truncate">
+              <div className="text-xs text-text-primary-dim truncate">
                 @{person.venmo_handle}
               </div>
             )}
@@ -290,11 +290,11 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
               </div>
             ) : (
               <div>
-                <div className="currency text-sm text-ink font-medium">
+                <div className="currency text-sm text-text-primary font-medium">
                   ${displayTotal.toFixed(2)}
                 </div>
                 {personTotal && (personTotal.tax_share > 0 || personTotal.tip_share > 0) && (
-                  <div className="text-xs text-ink-dim text-right">
+                  <div className="text-xs text-text-primary-dim text-right">
                     +${(personTotal.tax_share + personTotal.tip_share).toFixed(2)}
                   </div>
                 )}
@@ -312,7 +312,7 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
                 e.stopPropagation()
                 setIsEditing(true)
               }}
-              className="w-5 h-5 bg-paper text-ink text-xs rounded border border-line hover:bg-paper/80 transition-colors flex items-center justify-center"
+              className="w-5 h-5 bg-surface text-text-primary text-xs rounded border border-border hover:bg-surface/80 transition-colors flex items-center justify-center"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >
@@ -356,20 +356,20 @@ export const PersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
       {/* Assigned Items List */}
       {assignedItems.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-ink-dim uppercase tracking-wide">
+          <div className="text-xs font-medium text-text-primary-dim uppercase tracking-wide">
             Assigned Items ({assignedItems.length})
           </div>
           <div className="space-y-1">
             {assignedItems.map((item) => (
               <motion.div
                 key={item.item_id}
-                className="flex items-center justify-between p-2 bg-card rounded-lg border border-line group hover:border-brand/30 transition-colors"
+                className="flex items-center justify-between p-2 bg-card rounded-lg border border-border group hover:border-brand/30 transition-colors"
                 whileHover={{ scale: 1.01 }}
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <span className="text-sm">{item.emoji}</span>
-                  <span className="text-sm text-ink truncate font-medium">{item.label}</span>
-                  <span className="text-xs text-ink-dim ml-auto">${item.share_amount.toFixed(2)}</span>
+                  <span className="text-sm text-text-primary truncate font-medium">{item.label}</span>
+                  <span className="text-xs text-text-primary-dim ml-auto">${item.share_amount.toFixed(2)}</span>
                 </div>
                 
                 <motion.button

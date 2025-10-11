@@ -1,10 +1,9 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useFlowStore, type FlowPerson } from '@/lib/flowStore'
-import { Button } from '@/components/ui/Button'
-import { IconButton } from '@/components/ui/IconButton'
-import { Card } from '@/components/ui/Card'
-import { Modal } from '@/components/ui/Modal'
+import { Button, Card, Modal } from '@/components/design-system'
+import { IconButton } from '@/components/design-system'
+import { testIds } from '@/lib/testIds'
 
 interface PeopleStepProps {
   onNext: () => void
@@ -56,7 +55,7 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
   const canProceed = people.length >= 1
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="w-full" data-testid={testIds.stepPeopleRoot}>
       {/* Header */}
       <motion.div 
         className="text-center mb-8"
@@ -72,7 +71,7 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
 
       {/* People List or Empty State */}
       <motion.div 
-        className="space-y-3 mb-8"
+        className="space-y-4 mb-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
@@ -98,7 +97,7 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
             >
               <Card className="p-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-[var(--ui-primary)] text-white rounded-full flex items-center justify-center font-bold text-lg">
                       {person.name.charAt(0).toUpperCase()}
                     </div>
@@ -173,7 +172,7 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
               How would you like to add people?
             </p>
             
-            <div className="space-y-3">
+            <div className="space-y-4">
               <Button
                 variant="primary"
                 full

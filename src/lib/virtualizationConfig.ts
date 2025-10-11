@@ -1,6 +1,8 @@
+import { deviceDetector, getDeviceAwareThresholds } from './deviceCapabilities'
+
 // Virtualization configuration constants
 export const VIRTUALIZATION_CONFIG = {
-  // Thresholds for when to enable virtualization
+  // Thresholds for when to enable virtualization (device-aware defaults)
   ITEM_LIST_THRESHOLD: 40,
   ASSIGNED_ITEMS_THRESHOLD: 20,
   UNASSIGNED_ITEMS_THRESHOLD: 10,
@@ -19,24 +21,67 @@ export const VIRTUALIZATION_CONFIG = {
   MAX_QUICK_ASSIGN_ITEMS: 5
 } as const
 
-// Helper function to determine if virtualization should be enabled
+// Helper function to determine if virtualization should be enabled (device-aware)
 export const shouldVirtualize = (
   itemCount: number, 
-  threshold: number = VIRTUALIZATION_CONFIG.ITEM_LIST_THRESHOLD
+  threshold?: number
 ): boolean => {
-  return itemCount > threshold
+  const deviceThresholds = getDeviceAwareThresholds()
+  const finalThreshold = threshold ?? deviceThresholds.virtualizationThreshold
+  return itemCount > finalThreshold
 }
 
-// Helper function to get optimal estimated size based on content
+// Helper function to get optimal estimated size based on content (device-aware)
 export const getEstimatedItemSize = (hasAssignments: boolean = true): number => {
-  return hasAssignments 
+  const deviceThresholds = getDeviceAwareThresholds()
+  const baseSize = hasAssignments 
     ? VIRTUALIZATION_CONFIG.ESTIMATED_ITEM_SIZE 
     : VIRTUALIZATION_CONFIG.ESTIMATED_UNASSIGNED_ITEM_SIZE
+  
+  // Adjust based on device capabilities
+  return deviceThresholds.estimatedItemSize || baseSize
 }
 
-// Helper function to get overscan based on item count
+// Helper function to get overscan based on item count (device-aware)
 export const getOverscan = (itemCount: number): number => {
-  if (itemCount < 100) return VIRTUALIZATION_CONFIG.OVERSCAN
-  if (itemCount < 500) return VIRTUALIZATION_CONFIG.OVERSCAN * 2
-  return VIRTUALIZATION_CONFIG.OVERSCAN * 3
+  const deviceThresholds = getDeviceAwareThresholds()
+  const baseOverscan = deviceThresholds.overscan || VIRTUALIZATION_CONFIG.OVERSCAN
+  
+  // Scale overscan based on item count
+  if (itemCount < 100) return baseOverscan
+  if (itemCount < 500) return baseOverscan * 2
+  return baseOverscan * 3
+}
+
+// Device-aware configuration getters
+export const getDeviceAwareConfig = () => {
+  const device = deviceDetector.detect()
+  const recommendations = getDeviceAwareThresholds()
+  
+  return {
+    // Thresholds
+    itemListThreshold: recommendations.virtualizationThreshold,
+    assignedItemsThreshold: device.processingPower === 'high' ? 30 :
+                           device.processingPower === 'medium' ? 20 : 10,
+    unassignedItemsThreshold: device.processingPower === 'high' ? 15 :
+                             device.processingPower === 'medium' ? 10 : 5,
+    
+    // Sizes
+    estimatedItemSize: recommendations.estimatedItemSize,
+    estimatedUnassignedItemSize: Math.round(recommendations.estimatedItemSize * 0.5),
+    
+    // Performance
+    overscan: recommendations.overscan,
+    measurementDelay: device.processingPower === 'low' ? 100 : 50,
+    
+    // Features
+    enableAnimations: recommendations.enableAnimations,
+    enableComplexEffects: recommendations.enableComplexEffects,
+    maxConcurrentOperations: recommendations.maxConcurrentOperations,
+    
+    // Device info
+    isMobile: device.isMobile,
+    processingPower: device.processingPower,
+    connection: device.connection
+  }
 }

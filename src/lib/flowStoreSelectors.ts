@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useFlowStore } from './flowStore'
 import type { PersonId, ItemId } from '@/types/flow'
 import { handleMultiSelectDrop, undoMultiSelectAssignment, type UndoData } from './multiSelectDrop'
@@ -73,24 +74,24 @@ export const useFlowActions = () => useFlowStore(state => ({
 }))
 
 // Specific action selectors for better granularity
-export const useAssignmentActions = () => useFlowStore(state => ({
+export const useAssignmentActions = () => useFlowStore(useShallow(state => ({
   assign: state.assign,
   unassign: state.unassign,
   clearAssignments: state.clearAssignments,
   updateAssignmentWeight: state.updateAssignmentWeight
-}))
+})))
 
-export const usePersonActions = () => useFlowStore(state => ({
+export const usePersonActions = () => useFlowStore(useShallow(state => ({
   addPerson: state.addPerson,
   removePerson: state.removePerson,
   deduplicatePeople: state.deduplicatePeople,
   setPeople: state.setPeople
-}))
+})))
 
-export const useItemActions = () => useFlowStore(state => ({
+export const useItemActions = () => useFlowStore(useShallow(state => ({
   updateItem: state.updateItem,
   removeItem: state.removeItem
-}))
+})))
 
 // Memoized computed values
 export const useAssignedHash = (itemId: ItemId) => 

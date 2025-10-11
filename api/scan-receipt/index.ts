@@ -7,6 +7,7 @@ import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessR
 import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit.js'
 import { FILE_LIMITS } from '../_utils/schemas.js'
 import { processWithOpenAI } from './openai-ocr.js'
+import { processWithOpenAIOnly, checkOpenAIHealth } from './openai-only-ocr.js'
 
 // Server-side Supabase client using secret key
 const _supabaseAdmin = process.env.SUPABASE_SECRET_KEY 
@@ -215,36 +216,40 @@ export default async function handler(
     // Note: supabaseAdmin can be used here for server-side database operations
     // Example: await supabaseAdmin?.from('receipts').insert({ ... })
 
-    // Check if OCR is configured
-    const ocrConfigured = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim() !== ''
+    // Check if OpenAI is configured
+    const openaiConfigured = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim() !== ''
 
     let result: ScanReceiptResponse
 
-    if (ocrConfigured) {
-      // Use real OCR
-      console.log('[scan_api] Using OpenAI OCR processing')
+    if (openaiConfigured) {
+      // Use OpenAI-only processing with optimized settings
+      console.log('[scan_api] Using OpenAI-only processing')
       try {
         // Read file as buffer for OpenAI processing
         const imageBuffer = await fs.readFile(file.filepath)
         console.log(`[scan_api] File read successfully, size: ${imageBuffer.length} bytes`)
         
-        // Add timeout to OpenAI processing
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('OpenAI API timeout after 30 seconds')), 30000)
-        )
-        
-        const ocrPromise = processWithOpenAI(imageBuffer, file.mimetype)
-        result = await Promise.race([ocrPromise, timeoutPromise])
-        
-        console.log(`[scan_api] OpenAI OCR processing completed - ${result.items.length} items extracted`)
+        // Process with OpenAI (optimized for speed and cost)
+        const ocrResult = await processWithOpenAIOnly(imageBuffer, file.mimetype, 15000)
+        result = {
+          place: ocrResult.place,
+          date: ocrResult.date,
+          subtotal: ocrResult.subtotal,
+          tax: ocrResult.tax,
+          tip: ocrResult.tip,
+          total: ocrResult.total,
+          rawText: ocrResult.rawText,
+          items: ocrResult.items
+        }
+        console.log(`[scan_api] OpenAI processing completed - ${result.items.length} items extracted in ${ocrResult.processingTime}ms`)
       } catch (ocrError) {
-        console.error('[scan_api] OCR processing failed:', ocrError)
-        // Fall back to dev data if OCR fails
+        console.error('[scan_api] OpenAI processing failed:', ocrError)
+        // Fall back to dev data if OpenAI fails
         result = getDEVFallback()
       }
     } else {
       // DEV fallback
-      console.log('[scan_api] Using DEV fallback (OCR not configured)')
+      console.log('[scan_api] Using DEV fallback (OpenAI not configured)')
       result = getDEVFallback()
     }
 

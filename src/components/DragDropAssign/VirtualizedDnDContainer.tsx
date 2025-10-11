@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useMotionPreferences, getMotionVariants } from '@/lib/motionPreferences'
 import { OptimizedDraggableItem } from './OptimizedDraggableItem'
 import { OptimizedDroppablePerson } from './OptimizedDroppablePerson'
+import { deviceDetector } from '@/lib/deviceCapabilities'
 
 interface VirtualizedDnDContainerProps {
   items: Array<{
@@ -34,6 +35,38 @@ export const VirtualizedDnDContainer = memo<VirtualizedDnDContainerProps>(({
 }) => {
   const prefersReducedMotion = useMotionPreferences()
   const motionVariants = getMotionVariants(prefersReducedMotion)
+  
+  // Device capability detection for performance optimization
+  const device = deviceDetector.detect()
+  
+  // Device-aware motion variants
+  const deviceAwareMotionVariants = useMemo(() => {
+    const baseVariants = motionVariants
+    
+    if (device.processingPower === 'low' || prefersReducedMotion) {
+      return {
+        ...baseVariants,
+        // Simplified animations for low-end devices
+        transition: {
+          duration: 0.2,
+          ease: 'easeOut'
+        }
+      }
+    }
+    
+    if (device.processingPower === 'medium') {
+      return {
+        ...baseVariants,
+        transition: {
+          duration: 0.3,
+          ease: 'easeInOut'
+        }
+      }
+    }
+    
+    // High-end devices get full animations
+    return baseVariants
+  }, [motionVariants, device.processingPower, prefersReducedMotion])
 
   // Memoize assigned items lookup for performance
   const assignedItemsByPerson = useMemo(() => {
@@ -62,29 +95,50 @@ export const VirtualizedDnDContainer = memo<VirtualizedDnDContainerProps>(({
     onItemClick?.(itemId)
   }, [onItemClick])
 
-  // Get optimized container styles
+  // Get device-aware optimized container styles
   const getContainerStyles = useCallback(() => {
     const baseStyles = {
       display: 'flex',
       flexDirection: 'column' as const,
-      gap: '24px',
-      padding: '16px'
+      gap: device.isMobile ? '16px' : '24px',
+      padding: device.isMobile ? '12px' : '16px'
     }
 
-    if (isVirtualized) {
-      return {
-        ...baseStyles,
-        // Optimize for virtualized rendering
-        contain: 'layout style paint',
-        willChange: 'transform',
-        // Disable expensive properties during virtualization
-        boxShadow: 'none',
-        filter: 'none'
+    // Device-aware virtualization decision
+    const shouldUseVirtualization = isVirtualized && device.processingPower !== 'low'
+
+    if (shouldUseVirtualization) {
+      if (device.processingPower === 'high') {
+        return {
+          ...baseStyles,
+          // High-end device optimizations
+          contain: 'layout style paint',
+          willChange: 'transform',
+          transform: 'translateZ(0)', // Force GPU acceleration
+          // Disable expensive properties during virtualization
+          boxShadow: 'none',
+          filter: 'none'
+        }
+      } else {
+        // Medium-end device optimizations
+        return {
+          ...baseStyles,
+          contain: 'layout style',
+          willChange: 'transform',
+          // Disable expensive properties during virtualization
+          boxShadow: 'none',
+          filter: 'none'
+        }
       }
     }
 
-    return baseStyles
-  }, [isVirtualized])
+    // Low-end devices or non-virtualized
+    return {
+      ...baseStyles,
+      willChange: 'auto',
+      contain: 'layout'
+    }
+  }, [isVirtualized, device])
 
   return (
     <div 
@@ -94,9 +148,10 @@ export const VirtualizedDnDContainer = memo<VirtualizedDnDContainerProps>(({
       {/* Unassigned Items Section */}
       <motion.div
         className="space-y-4"
-        initial={motionVariants.initial}
-        animate={motionVariants.animate}
-        layout={motionVariants.layout}
+        initial={deviceAwareMotionVariants.initial}
+        animate={deviceAwareMotionVariants.animate}
+        layout={deviceAwareMotionVariants.layout}
+        transition={deviceAwareMotionVariants.transition}
       >
         <h3 className="text-lg font-semibold text-text-primary">
           Items to Assign
@@ -116,9 +171,10 @@ export const VirtualizedDnDContainer = memo<VirtualizedDnDContainerProps>(({
       {/* People Section */}
       <motion.div
         className="space-y-4"
-        initial={motionVariants.initial}
-        animate={motionVariants.animate}
-        layout={motionVariants.layout}
+        initial={deviceAwareMotionVariants.initial}
+        animate={deviceAwareMotionVariants.animate}
+        layout={deviceAwareMotionVariants.layout}
+        transition={deviceAwareMotionVariants.transition}
       >
         <h3 className="text-lg font-semibold text-text-primary">
           Assign to People

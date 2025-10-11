@@ -20,23 +20,28 @@ export default defineConfig(({ mode }) => ({
     },
   },
   server: {
+    // Allow connections from any host (Safari needs this)
+    host: true,
+    // Disable strict CORS for development
+    cors: true,
     // Proxy API calls to vercel dev server
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
+        secure: false,
         configure: (proxy) => {
           proxy.on('error', (err, _req, res) => {
             console.warn('⚠️  API proxy error (is vercel dev running on :3000?):', err.message)
             if (res && 'headersSent' in res && !res.headersSent) {
               res.writeHead(404, { 'Content-Type': 'application/json' })
-              res.end(JSON.stringify({ 
+              res.end(JSON.stringify({
                 error: 'API server not available',
                 message: 'Vercel dev server is not running on port 3000. Run `npm run dev:full` to start both servers.'
               }))
             }
           })
-          
+
           proxy.on('proxyReq', (_proxyReq, req) => {
             console.log(`🔄 Proxying ${req.method} ${req.url} to http://127.0.0.1:3000`)
           })

@@ -152,7 +152,7 @@ export const MemoizedPersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
 
   // Memoize chip classes
   const chipClasses = useMemo(() => [
-    "snap-start shrink-0 w-[200px] h-[88px] rounded-xl bg-card border border-line shadow-soft p-3 transition group relative",
+    "snap-start shrink-0 w-[200px] h-[88px] rounded-xl bg-card border border-border shadow-soft p-3 transition group relative",
     selectedItems && selectedItems.length > 0 && "ring-2 ring-brand/50 bg-brand/5 cursor-pointer hover:bg-brand/10",
     isDropSuccess && "bg-success/10 ring-2 ring-success/30",
     (!selectedItems || selectedItems.length === 0) && !isDropSuccess && "hover:shadow-pop"
@@ -160,13 +160,13 @@ export const MemoizedPersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
 
   if (isEditing) {
     return (
-      <div className="snap-start shrink-0 w-[200px] h-[88px] rounded-xl bg-card border border-line shadow-soft p-3">
+      <div className="snap-start shrink-0 w-[200px] h-[88px] rounded-xl bg-card border border-border shadow-soft p-3">
         <div className="flex flex-col gap-2 h-full">
           <input
             type="text"
             value={editingName}
             onChange={(e) => setEditingName(e.target.value)}
-            className="text-sm font-medium bg-transparent border-b border-line pb-1 focus:outline-none focus:border-brand"
+            className="text-sm font-medium bg-transparent border-b border-border pb-1 focus:outline-none focus:border-brand"
             placeholder="Name"
             autoFocus
           />
@@ -174,7 +174,7 @@ export const MemoizedPersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
             type="text"
             value={editingVenmo}
             onChange={(e) => setEditingVenmo(e.target.value)}
-            className="text-xs text-ink-dim bg-transparent border-b border-line pb-1 focus:outline-none focus:border-brand"
+            className="text-xs text-text-primary-dim bg-transparent border-b border-border pb-1 focus:outline-none focus:border-brand"
             placeholder="@venmo_handle"
           />
           <div className="flex gap-1 mt-auto">
@@ -218,11 +218,11 @@ export const MemoizedPersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
           
           {/* Name and Venmo */}
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-ink truncate">
+            <div className="text-sm font-medium text-text-primary truncate">
               {person.name}
             </div>
             {person.venmo_handle && (
-              <div className="text-xs text-ink-dim truncate">
+              <div className="text-xs text-text-primary-dim truncate">
                 @{person.venmo_handle}
               </div>
             )}
@@ -241,11 +241,11 @@ export const MemoizedPersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
               </div>
             ) : (
               <div>
-                <div className="currency text-sm text-ink font-medium">
+                <div className="currency text-sm text-text-primary font-medium">
                   ${displayTotal.toFixed(2)}
                 </div>
                 {personTotal && (personTotal.tax_share > 0 || personTotal.tip_share > 0) && (
-                  <div className="text-xs text-ink-dim text-right">
+                  <div className="text-xs text-text-primary-dim text-right">
                     +${(personTotal.tax_share + personTotal.tip_share).toFixed(2)}
                   </div>
                 )}
@@ -257,7 +257,7 @@ export const MemoizedPersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
           <div className="flex flex-col gap-1">
             <button
               onClick={handleBadgeClick}
-              className="w-5 h-5 rounded-full bg-ink-dim/20 hover:bg-ink-dim/30 flex items-center justify-center text-xs text-ink-dim hover:text-ink transition-colors"
+              className="w-5 h-5 rounded-full bg-ink-dim/20 hover:bg-ink-dim/30 flex items-center justify-center text-xs text-text-primary-dim hover:text-text-primary transition-colors"
               title="Edit person"
             >
               ✏️
@@ -289,7 +289,7 @@ export const MemoizedPersonChip = forwardRef<PersonChipRef, PersonChipProps>(({
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-sm">{item.emoji}</span>
                 <span className="truncate">{item.label}</span>
-                <span className="text-ink-dim">
+                <span className="text-text-primary-dim">
                   {item.weight < 1 ? `${Math.round(item.weight * 100)}%` : ''}
                 </span>
               </div>
