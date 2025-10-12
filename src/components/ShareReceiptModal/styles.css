@@ -159,82 +159,83 @@
 /* Modern Person Card - Optimized for iMessage */
 .modern-person-card {
   background: #ffffff;
-  border-radius: 18px;
-  padding: 20px 18px;
-  width: 280px;
-  min-width: 280px;
-  max-width: 280px;
+  border-radius: 16px;
+  padding: 16px 14px;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: 'Courier New', 'Courier', 'Monaco', 'Menlo', monospace;
   box-sizing: border-box;
 }
 
 .modern-person-header {
   text-align: center;
-  margin-bottom: 18px;
-  padding-bottom: 16px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #e5e5e5;
 }
 
 .modern-person-avatar-large {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   color: #fff;
-  margin: 0 auto 10px;
+  margin: 0 auto 8px;
+  line-height: 1;
 }
 
 .modern-person-title {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
   color: #1a1a1a;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
 }
 
 .modern-person-subtitle {
-  font-size: 14px;
+  font-size: 12px;
   color: #666;
   margin: 0 0 2px 0;
   font-weight: 500;
 }
 
 .modern-person-date {
-  font-size: 12px;
+  font-size: 11px;
   color: #999;
   margin: 0;
   font-weight: 400;
 }
 
 .modern-items-section {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .modern-section-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: #999;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
 }
 
 .modern-items-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .modern-item-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: 6px 0;
   border-bottom: 1px solid #f0f0f0;
 }
 
@@ -245,22 +246,22 @@
 .modern-item-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
   min-width: 0;
 }
 
 .modern-item-emoji {
   flex-shrink: 0;
-  width: 20px;
+  width: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .modern-item-name {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 400;
   color: #1a1a1a;
   flex: 1;
   word-wrap: break-word;
@@ -268,17 +269,17 @@
 }
 
 .modern-item-price {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #1a1a1a;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-left: 8px;
+  margin-left: 6px;
 }
 
 .modern-breakdown-section {
-  margin-bottom: 12px;
-  padding: 12px 0;
+  margin-bottom: 10px;
+  padding: 10px 0;
   border-top: 1px solid #e5e5e5;
   border-bottom: 1px solid #e5e5e5;
 }
@@ -287,8 +288,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 0;
-  font-size: 13px;
+  padding: 4px 0;
+  font-size: 12px;
   color: #666;
 }
 
@@ -305,18 +306,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  margin-bottom: 12px;
+  padding: 10px 0;
+  margin-bottom: 10px;
 }
 
 .modern-person-total-section .modern-total-label {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #1a1a1a;
 }
 
 .modern-person-total-section .modern-total-amount {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
   color: #1a1a1a;
 }
@@ -324,13 +325,13 @@
 /* Modern Summary Card - Optimized for iMessage */
 .modern-summary-card {
   background: #ffffff;
-  border-radius: 18px;
-  padding: 20px 18px;
-  width: 280px;
-  min-width: 280px;
-  max-width: 280px;
+  border-radius: 16px;
+  padding: 16px 14px;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: 'Courier New', 'Courier', 'Monaco', 'Menlo', monospace;
   box-sizing: border-box;
 }
 
