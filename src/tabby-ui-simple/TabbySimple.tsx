@@ -130,6 +130,7 @@ export const TabbySimple: React.FC = () => {
   const [subtotal, setSubtotal] = useState(0);
   const [tax, setTax] = useState(0);
   const [tip, setTip] = useState(0);
+  const [discount, setDiscount] = useState(0);
   const [billToken, setBillToken] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState('');
   const [showShareReceipt, setShowShareReceipt] = useState(false);
@@ -331,7 +332,19 @@ export const TabbySimple: React.FC = () => {
       setSubtotal(result.subtotal || 0);
       setTax(result.tax || 0);
       setTip(result.tip || 0);
+      setDiscount(result.discount || 0);
       setTotal(result.total || 0);
+
+      // Log what was scanned for debugging
+      console.log('[TabbySimple] Scan results:', {
+        place: result.place,
+        subtotal: result.subtotal,
+        tax: result.tax,
+        tip: result.tip,
+        discount: result.discount,
+        total: result.total,
+        itemCount: result.items.length
+      });
 
       // Create bill in backend
       const receiptData = {
@@ -2185,6 +2198,7 @@ export const TabbySimple: React.FC = () => {
         subtotal={subtotal}
         tax={tax}
         tip={tip}
+        discount={discount}
         total={total}
       />
     </div>

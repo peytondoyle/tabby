@@ -40,6 +40,7 @@ interface ScanReceiptResponse {
   subtotal?: number | null
   tax?: number | null
   tip?: number | null
+  discount?: number | null
   total?: number | null
   rawText?: string | null
   items: Array<{
@@ -223,6 +224,7 @@ export default async function handler(
           subtotal: ocrResult.subtotal,
           tax: ocrResult.tax,
           tip: ocrResult.tip,
+          discount: ocrResult.discount,
           total: ocrResult.total,
           rawText: ocrResult.rawText,
           items: ocrResult.items

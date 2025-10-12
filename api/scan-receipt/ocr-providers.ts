@@ -6,6 +6,7 @@ export interface OCRResult {
   subtotal?: number | null;
   tax?: number | null;
   tip?: number | null;
+  discount?: number | null;
   total?: number | null;
   rawText?: string | null;
   items: Array<{
@@ -62,11 +63,9 @@ class OpenAIProvider implements OCRProvider {
 {
   "place": "Restaurant Name",
   "date": "YYYY-MM-DD",
-  "items": [
-    {"label": "Item Name", "price": 12.00, "emoji": "🍕"},
-    {"label": "Discount Name", "price": -2.00, "emoji": "🎟️"}
-  ],
+  "items": [{"label": "Item Name", "price": 12.00, "emoji": "🍕"}],
   "subtotal": 0.00,
+  "discount": 0.00,
   "tax": 0.00,
   "tip": 0.00,
   "total": 0.00
@@ -74,28 +73,29 @@ class OpenAIProvider implements OCRProvider {
 
 CRITICAL RULES:
 
-1. FOOD/DRINK ITEMS: Extract all food and drink items with their prices.
+1. FOOD/DRINK ITEMS: Extract all food and drink items with their FULL prices (before discounts).
    - Use food emojis: 🍕 🥗 🍜 🥟 🍚 🍔 🍟 🌮 🥤 ☕ 🍺 🍷
-   - DO NOT include taxes, tips, or fees as items
+   - DO NOT include taxes, tips, fees, or discounts as items
+   - Items should be the original menu prices
 
-2. DISCOUNTS & PROMOS: Look for discounts, promos, coupons, or BOGO deals.
-   - Labels: "Discount", "Promo", "Coupon", "BOGO", "Buy One Get One", "10% Off", "Rewards"
-   - Add these as LINE ITEMS with NEGATIVE prices
-   - Use emoji: 🎟️ or 💰
-   - Example: {"label": "Rewards Discount", "price": -5.00, "emoji": "🎟️"}
+2. DISCOUNTS & PROMOS: Look for ANY discounts, promos, coupons, or deals.
+   - Labels: "Discount", "Promo", "Coupon", "BOGO", "Buy One Get One", "10% Off", "Rewards", "Member Discount", "Membership Savings"
+   - SUM UP all discount amounts and put in the "discount" field as a POSITIVE number
+   - Example: $3 reward + $2 promo = discount: 5.00
+   - DO NOT include discounts as items in the items array
 
-3. SUBTOTAL: Sum of all food/drink items AFTER discounts, BEFORE fees/taxes/tips.
-   - This is what the customer owes for just the food
-   - May be labeled "Subtotal" or calculated from items minus discounts
+3. SUBTOTAL: The subtotal shown on the receipt (items AFTER discounts applied).
+   - This is what the customer owes for food after discounts but before fees/taxes/tips
+   - May be labeled "Subtotal" on the receipt
 
 4. TAX: LOOK CAREFULLY for tax. Common labels:
    - "Tax", "Sales Tax", "GST", "VAT", "Tax & Fees"
-   - Extract the EXACT dollar amount
+   - Extract the EXACT dollar amount as POSITIVE number
    - If $0.00, return 0.00 (not null)
 
 5. TIP: LOOK CAREFULLY for tip. Common labels:
    - "Tip", "Gratuity", "Service Charge", "Service Fee"
-   - Extract the EXACT dollar amount
+   - Extract the EXACT dollar amount as POSITIVE number
    - If $0.00, return 0.00 (not null)
 
 6. FEES: Look for delivery/platform fees:
@@ -105,11 +105,11 @@ CRITICAL RULES:
 
 7. TOTAL: Final charged amount at the bottom (should equal subtotal + tax + tip).
 
-8. Use null only if the field is truly not found.
+8. Use 0.00 for discount if no discounts found (not null).
 
 9. IMPORTANT: For delivery apps (DoorDash/UberEats/GrubHub):
    - All fees (Delivery, Service, Platform, etc.) go into the "tip" field
-   - Discounts go as negative line items, not subtracted from tip
+   - Discounts go in the "discount" field as a POSITIVE number
    - Make sure you don't miss tax and tip fields!
 
 Extract ACTUAL VALUES from the receipt image, not the example values shown above.`
@@ -147,6 +147,7 @@ Extract ACTUAL VALUES from the receipt image, not the example values shown above
       subtotal: parsed.subtotal || null,
       tax: parsed.tax || null,
       tip: parsed.tip || null,
+      discount: parsed.discount || null,
       total: parsed.total || null,
       rawText: parsed.rawText || content,
       items: parsed.items || [],

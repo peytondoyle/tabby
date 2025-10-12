@@ -205,6 +205,7 @@ export type ParseResult = {
   subtotal?: number | null
   tax?: number | null
   tip?: number | null
+  discount?: number | null
   total?: number | null
   rawText?: string | null
 }
@@ -622,7 +623,7 @@ export async function parseReceipt(
     }
     
     // Normalize the response data
-    const responseData = data as { items?: unknown[]; place?: string; date?: string; subtotal?: unknown; tax?: unknown; tip?: unknown; total?: unknown; rawText?: string }
+    const responseData = data as { items?: unknown[]; place?: string; date?: string; subtotal?: unknown; tax?: unknown; tip?: unknown; discount?: unknown; total?: unknown; rawText?: string }
     const rawItems = Array.isArray(responseData.items) ? responseData.items : []
 
     // Validate that we have valid items
@@ -649,11 +650,12 @@ export async function parseReceipt(
     const originalSubtotal = normalizeNumber(responseData.subtotal)
     const originalTax = normalizeNumber(responseData.tax)
     const originalTip = normalizeNumber(responseData.tip)
+    const originalDiscount = normalizeNumber(responseData.discount)
     const originalTotal = normalizeNumber(responseData.total)
-    
+
     // Adjust tip to include service charges
     const adjustedTip = originalTip + serviceChargeTotal
-    
+
     const result: ParseResult = {
       place: responseData.place || null,
       date: responseData.date || null,
@@ -661,6 +663,7 @@ export async function parseReceipt(
       subtotal: originalSubtotal,
       tax: originalTax,
       tip: adjustedTip,
+      discount: originalDiscount,
       total: originalTotal,
       rawText: responseData.rawText || null
     }
