@@ -159,7 +159,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
             <div key={item.id} className="receipt-item">
               <span className="item-info">
                 <span className="item-emoji">
-                  <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={18} color="#1a1a1a" />
+                  <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={13} color="#1a1a1a" />
                 </span>
                 <span className="item-name">{item.name || item.label || 'Item'}</span>
               </span>
@@ -169,19 +169,19 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         </div>
 
         <div className="receipt-totals" style={{ marginBottom: '12px' }}>
-          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px', color: '#1a1a1a' }}>
+          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '11px', color: '#1a1a1a' }}>
             <span style={{ fontWeight: '400' }}>Subtotal:</span>
-            <span style={{ fontWeight: '600' }}>${itemsSubtotal.toFixed(2)}</span>
+            <span style={{ fontWeight: '500' }}>${itemsSubtotal.toFixed(2)}</span>
           </div>
-          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px', color: '#1a1a1a' }}>
+          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '11px', color: '#1a1a1a' }}>
             <span style={{ fontWeight: '400' }}>Tax:</span>
-            <span style={{ fontWeight: '600' }}>${personTax.toFixed(2)}</span>
+            <span style={{ fontWeight: '500' }}>${personTax.toFixed(2)}</span>
           </div>
-          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px', color: '#1a1a1a' }}>
+          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '11px', color: '#1a1a1a' }}>
             <span style={{ fontWeight: '400' }}>Tip:</span>
-            <span style={{ fontWeight: '600' }}>${personTip.toFixed(2)}</span>
+            <span style={{ fontWeight: '500' }}>${personTip.toFixed(2)}</span>
           </div>
-          <div className="receipt-total-row receipt-grand-total" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1.5px solid rgba(0,0,0,0.2)', marginTop: '5px', paddingTop: '8px', fontSize: '14px', fontWeight: '700', color: '#1a1a1a' }}>
+          <div className="receipt-total-row receipt-grand-total" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1.5px solid rgba(0,0,0,0.2)', marginTop: '4px', paddingTop: '6px', fontSize: '12px', fontWeight: '700', color: '#1a1a1a' }}>
             <span>Total:</span>
             <span>${personTotal.toFixed(2)}</span>
           </div>
@@ -234,7 +234,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
                   <div key={item.id} className="receipt-item-compact">
                     <span className="item-info-compact">
                       <span className="item-emoji-compact">
-                        <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={14} color="#1a1a1a" />
+                        <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={11} color="#1a1a1a" />
                       </span>
                       <span className="item-name-compact">{item.name || item.label || 'Item'}</span>
                     </span>
@@ -265,16 +265,16 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
           );
         })}
 
-        <div className="receipt-grand-totals" style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1.5px solid rgba(0,0,0,0.2)' }}>
-          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px', color: '#1a1a1a' }}>
+        <div className="receipt-grand-totals" style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1.5px solid rgba(0,0,0,0.2)' }}>
+          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '11px', color: '#1a1a1a' }}>
             <span style={{ fontWeight: '400' }}>Subtotal:</span>
-            <span style={{ fontWeight: '600' }}>${subtotal.toFixed(2)}</span>
+            <span style={{ fontWeight: '500' }}>${subtotal.toFixed(2)}</span>
           </div>
-          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px', color: '#1a1a1a' }}>
+          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '11px', color: '#1a1a1a' }}>
             <span style={{ fontWeight: '400' }}>Tax:</span>
-            <span style={{ fontWeight: '600' }}>${tax.toFixed(2)}</span>
+            <span style={{ fontWeight: '500' }}>${tax.toFixed(2)}</span>
           </div>
-          <div className="receipt-total-row receipt-grand-total" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1.5px solid rgba(0,0,0,0.2)', marginTop: '5px', paddingTop: '8px', fontSize: '14px', fontWeight: '700', color: '#1a1a1a' }}>
+          <div className="receipt-total-row receipt-grand-total" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1.5px solid rgba(0,0,0,0.2)', marginTop: '4px', paddingTop: '6px', fontSize: '12px', fontWeight: '700', color: '#1a1a1a' }}>
             <span>Bill Total:</span>
             <span>${total.toFixed(2)}</span>
           </div>
