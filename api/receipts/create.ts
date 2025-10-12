@@ -9,10 +9,23 @@ import { createReceipt as saveReceipt } from "../_utils/memoryDb.js";
 import { nanoid } from 'nanoid';
 
 // Server-side Supabase client using secret key
-const supabaseAdmin = process.env.SUPABASE_SECRET_KEY && process.env.VITE_SUPABASE_URL
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+console.log('[receipt_create_init] Supabase config check:', {
+  hasViteUrl: !!process.env.VITE_SUPABASE_URL,
+  hasNextPublicUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+  hasSupabaseUrl: !!process.env.SUPABASE_URL,
+  hasSecretKey: !!process.env.SUPABASE_SECRET_KEY,
+  hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  finalUrl: SUPABASE_URL?.substring(0, 20) + '...',
+  configured: !!(SUPABASE_URL && SUPABASE_KEY)
+});
+
+const supabaseAdmin = SUPABASE_URL && SUPABASE_KEY
   ? createClient(
-      process.env.VITE_SUPABASE_URL,
-      process.env.SUPABASE_SECRET_KEY,
+      SUPABASE_URL,
+      SUPABASE_KEY,
       {
         auth: {
           autoRefreshToken: false,

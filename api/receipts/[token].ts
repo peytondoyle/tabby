@@ -4,10 +4,13 @@ import { applyCors } from '../_utils/cors.js'
 import { getReceipt } from '../_utils/memoryDb.js'
 
 // Server-side Supabase client using secret key
-const supabaseAdmin = process.env.SUPABASE_SECRET_KEY
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabaseAdmin = SUPABASE_URL && SUPABASE_KEY
   ? createClient(
-      process.env.VITE_SUPABASE_URL || '',
-      process.env.SUPABASE_SECRET_KEY,
+      SUPABASE_URL,
+      SUPABASE_KEY,
       {
         auth: {
           autoRefreshToken: false,
