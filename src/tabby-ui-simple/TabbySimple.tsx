@@ -150,6 +150,14 @@ export const TabbySimple: React.FC = () => {
         console.log('[TabbySimple] URL shows assign step:', urlToken);
         setStep('assign');
       }
+    } else if (location.pathname === '/') {
+      // Reset to upload screen when navigating home
+      console.log('[TabbySimple] Navigated to home, resetting to upload');
+      setStep('upload');
+      setItems([]);
+      setPeople([]);
+      setBillToken(null);
+      setRestaurantName('');
     }
   }, [urlToken, location.pathname]);
 
