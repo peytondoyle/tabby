@@ -501,7 +501,8 @@ export const MyBillsPage: React.FC = () => {
                   
                   <div className="flex items-center gap-2">
                     <IconButton
-                      tone="primary"
+                      variant="default"
+                      icon="🔗"
                       aria-label="Share bill"
                       onClick={async (e) => {
                         e.stopPropagation()
@@ -522,20 +523,17 @@ export const MyBillsPage: React.FC = () => {
                           console.error('Error sharing:', error)
                         }
                       }}
-                    >
-                      🔗
-                    </IconButton>
+                    />
 
                     <IconButton
-                      tone="danger"
+                      variant="danger"
+                      icon="🗑️"
                       aria-label="Delete bill"
                       onClick={(e) => {
                         e.stopPropagation()
                         setDeleteModal({ isOpen: true, billTitle: bill.title || 'Untitled Bill', billToken: bill.token })
                       }}
-                    >
-                      🗑️
-                    </IconButton>
+                    />
                   </div>
                 </div>
               </div>
