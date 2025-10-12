@@ -87,9 +87,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('[receipt_create] Creating receipt for user:', user_id);
     }
 
-    // Generate tokens
-    const editorToken = `receipt_${Date.now()}`;
-    const viewerToken = `view_${nanoid(12)}`;
+    // Generate tokens (Supabase format: e_ for editor, v_ for viewer)
+    const editorToken = `e_${nanoid(16)}`;
+    const viewerToken = `v_${nanoid(16)}`;
 
     // Calculate subtotal from items
     const subtotal = items.reduce((sum, item) => sum + item.price, 0);
