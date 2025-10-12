@@ -176,12 +176,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Continue anyway - items can be added later
           } else {
             console.log('[receipt_create] Items saved to Supabase');
-            // Map old item IDs to new Supabase IDs
+            // Map old item IDs to new Supabase IDs and update receiptItems
             receiptItems.forEach((item, index) => {
               if (insertedItems && insertedItems[index]) {
-                itemIdMap.set(item.id, insertedItems[index].id);
+                const oldId = item.id;
+                const newId = insertedItems[index].id;
+                itemIdMap.set(oldId, newId);
+                // Update the item with the new Supabase ID
+                item.id = newId;
               }
             });
+            console.log('[receipt_create] Updated item IDs:', receiptItems.map(i => i.id));
           }
         }
 
