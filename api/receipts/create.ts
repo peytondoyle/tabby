@@ -122,21 +122,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (supabaseAdmin) {
       try {
         console.log('[receipt_create] Saving to Supabase...')
+        console.log('[receipt_create] Editor token:', editorToken);
 
         // Insert receipt
+        const insertData = {
+          editor_token: editorToken,
+          viewer_token: viewerToken,
+          title: place || 'Receipt Upload',
+          place: place || null,
+          date: date || new Date().toISOString().split('T')[0],
+          subtotal: subtotal,
+          sales_tax: tax || 0,
+          tip: tip || 0,
+        };
+        console.log('[receipt_create] Insert data:', insertData);
+
         const { data: receiptData, error: receiptError } = await supabaseAdmin
           .from('receipts')
-          .insert({
-            editor_token: editorToken,
-            viewer_token: viewerToken,
-            title: place || 'Receipt Upload',
-            place: place || null,
-            date: date || new Date().toISOString().split('T')[0],
-            subtotal: subtotal,
-            sales_tax: tax || 0,
-            tip: tip || 0,
-          })
-          .select('id')
+          .insert(insertData)
+          .select('id, editor_token, viewer_token')
           .single();
 
         if (receiptError) {
@@ -145,7 +149,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         receiptId = receiptData.id;
-        console.log('[receipt_create] Receipt saved to Supabase with ID:', receiptId);
+        console.log('[receipt_create] Receipt saved to Supabase:', {
+          id: receiptData.id,
+          editor_token: receiptData.editor_token,
+          viewer_token: receiptData.viewer_token
+        });
 
         // Insert items and get their IDs back
         const itemIdMap = new Map<string, string>(); // old ID -> new Supabase ID
