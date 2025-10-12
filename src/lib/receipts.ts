@@ -501,3 +501,31 @@ export async function updateReceiptShares(token: string, shares: Array<{ item_id
     throw error
   }
 }
+
+/**
+ * Update receipt metadata (place, title, date, subtotal, tax, tip)
+ */
+export async function updateReceiptMetadata(
+  token: string,
+  updates: {
+    place?: string | null;
+    title?: string | null;
+    date?: string | null;
+    subtotal?: number | null;
+    sales_tax?: number | null;
+    tip?: number | null;
+  }
+): Promise<any> {
+  try {
+    console.log('[updateReceiptMetadata] Updating metadata for receipt:', token, updates)
+    const response = await apiFetch<{ receipt: any }>(`/api/receipts/${token}/update`, {
+      method: "PUT",
+      body: updates,
+    })
+    console.log('[updateReceiptMetadata] Successfully updated metadata:', response)
+    return response
+  } catch (error) {
+    console.error('[updateReceiptMetadata] Failed to update metadata:', error)
+    throw error
+  }
+}

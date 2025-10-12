@@ -7,7 +7,7 @@ import { getReceiptHistory } from '../lib/receiptHistory';
 import { useAuth } from '../lib/authContext';
 import { AuthModal } from '../components/AuthModal';
 import { HomeButton } from '../components/HomeButton';
-import { fetchReceiptByToken, updateReceiptPeople, updateReceiptShares } from '../lib/receipts';
+import { fetchReceiptByToken, updateReceiptPeople, updateReceiptShares, updateReceiptMetadata } from '../lib/receipts';
 import { trackPersonName, getQuickAddSuggestions, getUserIdentity, setUserIdentity } from '../lib/peopleHistory';
 import './TabbySimple.css';
 
@@ -392,7 +392,7 @@ export const TabbySimple: React.FC = () => {
     }
   };
 
-  const handleSaveBillEdits = () => {
+  const handleSaveBillEdits = async () => {
     const newSubtotal = parseFloat(editableSubtotal) || 0;
     const newTax = parseFloat(editableTax) || 0;
     const newTip = parseFloat(editableTip) || 0;
@@ -402,6 +402,20 @@ export const TabbySimple: React.FC = () => {
     setTax(newTax);
     setTip(newTip);
     setTotal(newTotal);
+
+    // Persist to database
+    if (billToken) {
+      try {
+        await updateReceiptMetadata(billToken, {
+          subtotal: newSubtotal,
+          sales_tax: newTax,
+          tip: newTip
+        });
+        console.log('[TabbySimple] Bill totals updated successfully');
+      } catch (error) {
+        console.error('[TabbySimple] Failed to update bill totals:', error);
+      }
+    }
 
     // Recalculate all person totals with new tax/tip
     setPeople(people.map(person => {
@@ -1718,10 +1732,20 @@ export const TabbySimple: React.FC = () => {
                         type="text"
                         value={editableRestaurantName}
                         onChange={(e) => setEditableRestaurantName(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && editableRestaurantName.trim()) {
+                        onKeyPress={async (e) => {
+                          if (e.key === 'Enter' && editableRestaurantName.trim() && billToken) {
                             setRestaurantName(editableRestaurantName.trim());
                             setIsEditingRestaurantName(false);
+
+                            // Persist to database
+                            try {
+                              await updateReceiptMetadata(billToken, {
+                                place: editableRestaurantName.trim()
+                              });
+                              console.log('[TabbySimple] Restaurant name updated successfully');
+                            } catch (error) {
+                              console.error('[TabbySimple] Failed to update restaurant name:', error);
+                            }
                           }
                         }}
                         autoFocus
@@ -1738,10 +1762,20 @@ export const TabbySimple: React.FC = () => {
                         }}
                       />
                       <button
-                        onClick={() => {
-                          if (editableRestaurantName.trim()) {
+                        onClick={async () => {
+                          if (editableRestaurantName.trim() && billToken) {
                             setRestaurantName(editableRestaurantName.trim());
                             setIsEditingRestaurantName(false);
+
+                            // Persist to database
+                            try {
+                              await updateReceiptMetadata(billToken, {
+                                place: editableRestaurantName.trim()
+                              });
+                              console.log('[TabbySimple] Restaurant name updated successfully');
+                            } catch (error) {
+                              console.error('[TabbySimple] Failed to update restaurant name:', error);
+                            }
                           }
                         }}
                         style={{
