@@ -7,7 +7,7 @@ import { getReceiptHistory } from '../lib/receiptHistory';
 import { useAuth } from '../lib/authContext';
 import { AuthModal } from '../components/AuthModal';
 import { HomeButton } from '../components/HomeButton';
-import { fetchReceiptByToken } from '../lib/receipts';
+import { fetchReceiptByToken, updateReceiptPeople, updateReceiptShares } from '../lib/receipts';
 import { trackPersonName, getQuickAddSuggestions, getUserIdentity, setUserIdentity } from '../lib/peopleHistory';
 import './TabbySimple.css';
 
@@ -44,6 +44,46 @@ const PERSON_COLORS = [
 const getPersonColor = (index: number): string => {
   return PERSON_COLORS[index % PERSON_COLORS.length];
 };
+
+/**
+ * Helper to persist people and assignments to the database
+ */
+async function persistPeopleAndShares(
+  token: string | null,
+  people: Person[],
+  items: Item[]
+): Promise<void> {
+  if (!token) {
+    console.log('[persistPeopleAndShares] No token, skipping database save');
+    return;
+  }
+
+  try {
+    // Save people to database
+    await updateReceiptPeople(token, people.map(p => ({
+      id: p.id,
+      name: p.name,
+      avatar_url: null,
+      venmo_handle: null
+    })));
+
+    // Build shares array from people's items
+    const shares = people.flatMap(person =>
+      person.items.map(itemId => ({
+        item_id: itemId,
+        person_id: person.id,
+        weight: items.find(i => i.id === itemId)?.splitBetween?.length || 1
+      }))
+    );
+
+    // Save shares to database
+    await updateReceiptShares(token, shares);
+
+    console.log('[persistPeopleAndShares] Successfully saved people and shares to database');
+  } catch (error) {
+    console.error('[persistPeopleAndShares] Failed to persist to database:', error);
+  }
+}
 
 export const TabbySimple: React.FC = () => {
   const navigate = useNavigate();
@@ -304,10 +344,14 @@ export const TabbySimple: React.FC = () => {
         items: [],
         total: 0,
       };
-      setPeople([...people, newPerson]);
+      const updatedPeople = [...people, newPerson];
+      setPeople(updatedPeople);
       trackPersonName(personName); // Track for future suggestions
       setNewPersonName('');
       setShowAddPerson(false);
+
+      // Persist to database
+      persistPeopleAndShares(billToken, updatedPeople, items);
     }
   };
 
@@ -408,11 +452,12 @@ export const TabbySimple: React.FC = () => {
   };
 
   const assignItemToPerson = (itemId: string, personId: string) => {
-    setItems(items.map(item =>
+    const updatedItems = items.map(item =>
       item.id === itemId ? { ...item, assignedTo: personId } : item
-    ));
+    );
+    setItems(updatedItems);
 
-    setPeople(people.map(person => {
+    const updatedPeople = people.map(person => {
       if (person.id === personId) {
         const assignedItems = items.filter(i =>
           i.id === itemId || person.items.includes(i.id)
@@ -436,7 +481,11 @@ export const TabbySimple: React.FC = () => {
         };
       }
       return person;
-    }));
+    });
+    setPeople(updatedPeople);
+
+    // Persist to database
+    persistPeopleAndShares(billToken, updatedPeople, updatedItems);
   };
 
   const unassignedItems = items.filter(item => !item.assignedTo);
@@ -889,7 +938,13 @@ export const TabbySimple: React.FC = () => {
                   <span className="person-name-text">{person.name}</span>
                   <button
                     className="remove-btn"
-                    onClick={() => setPeople(people.filter(p => p.id !== person.id))}
+                    onClick={() => {
+                      const updatedPeople = people.filter(p => p.id !== person.id);
+                      setPeople(updatedPeople);
+
+                      // Persist to database
+                      persistPeopleAndShares(billToken, updatedPeople, items);
+                    }}
                   >
                     Remove
                   </button>
@@ -1141,32 +1196,34 @@ export const TabbySimple: React.FC = () => {
                             onDragEnd={handleDragEnd}
                             onClick={() => {
                               // Unassign on click
+                              let updatedItems;
                               if (isSplit) {
                                 // Remove this person from splitBetween
                                 const newSplitBetween = item.splitBetween!.filter(id => id !== person.id);
                                 if (newSplitBetween.length === 1) {
                                   // If only one person left, make it non-split
-                                  setItems(items.map(i =>
+                                  updatedItems = items.map(i =>
                                     i.id === item.id ? { ...i, splitBetween: undefined, assignedTo: newSplitBetween[0] } : i
-                                  ));
+                                  );
                                 } else if (newSplitBetween.length === 0) {
                                   // If no one left, unassign completely
-                                  setItems(items.map(i =>
+                                  updatedItems = items.map(i =>
                                     i.id === item.id ? { ...i, splitBetween: undefined, assignedTo: undefined } : i
-                                  ));
+                                  );
                                 } else {
                                   // Update splitBetween array
-                                  setItems(items.map(i =>
+                                  updatedItems = items.map(i =>
                                     i.id === item.id ? { ...i, splitBetween: newSplitBetween, assignedTo: newSplitBetween[0] } : i
-                                  ));
+                                  );
                                 }
                               } else {
-                                setItems(items.map(i =>
+                                updatedItems = items.map(i =>
                                   i.id === item.id ? { ...i, assignedTo: undefined } : i
-                                ));
+                                );
                               }
+                              setItems(updatedItems);
 
-                              setPeople(people.map(p => {
+                              const updatedPeople = people.map(p => {
                                 if (p.id === person.id) {
                                   const newItems = p.items.filter(id => id !== item.id);
                                   const remainingItemsData = items.filter(i => newItems.includes(i.id));
@@ -1190,7 +1247,11 @@ export const TabbySimple: React.FC = () => {
                                   };
                                 }
                                 return p;
-                              }));
+                              });
+                              setPeople(updatedPeople);
+
+                              // Persist to database
+                              persistPeopleAndShares(billToken, updatedPeople, updatedItems);
                             }}
                           >
                             <span className="item-emoji-small">
@@ -1374,14 +1435,15 @@ export const TabbySimple: React.FC = () => {
                 onClick={() => {
                   if (splitPeople.length >= 2) {
                     // Mark item as split and assigned
-                    setItems(items.map(item =>
+                    const updatedItems = items.map(item =>
                       item.id === selectedItem.id
                         ? { ...item, assignedTo: splitPeople[0], splitBetween: splitPeople }
                         : item
-                    ));
+                    );
+                    setItems(updatedItems);
 
                     // Add item to all selected people with recalculated totals
-                    setPeople(people.map(person => {
+                    const updatedPeople = people.map(person => {
                       if (splitPeople.includes(person.id)) {
                         const newItems = [...new Set([...person.items, selectedItem.id])];
                         // Get all items for this person
@@ -1418,7 +1480,11 @@ export const TabbySimple: React.FC = () => {
                         };
                       }
                       return person;
-                    }));
+                    });
+                    setPeople(updatedPeople);
+
+                    // Persist to database
+                    persistPeopleAndShares(billToken, updatedPeople, updatedItems);
 
                     setShowSplitItem(false);
                     setSelectedItem(null);
@@ -1450,10 +1516,15 @@ export const TabbySimple: React.FC = () => {
                     className="remove-btn"
                     onClick={() => {
                       // Remove person and unassign their items
-                      setPeople(people.filter(p => p.id !== person.id));
-                      setItems(items.map(item =>
+                      const updatedPeople = people.filter(p => p.id !== person.id);
+                      const updatedItems = items.map(item =>
                         item.assignedTo === person.id ? { ...item, assignedTo: undefined } : item
-                      ));
+                      );
+                      setPeople(updatedPeople);
+                      setItems(updatedItems);
+
+                      // Persist to database
+                      persistPeopleAndShares(billToken, updatedPeople, updatedItems);
                     }}
                   >
                     Remove

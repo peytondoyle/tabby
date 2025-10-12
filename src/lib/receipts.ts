@@ -402,10 +402,10 @@ export async function deleteReceipt(token: string): Promise<boolean> {
     // Use the new schema-aligned delete function
     await deleteReceiptByToken(token)
     return true
-    
+
   } catch (error) {
     console.error('Error deleting receipt:', error)
-    
+
     // If server fails and local fallback is allowed, handle locally
     const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'
     if (allowLocalFallback && token.startsWith('local-')) {
@@ -415,7 +415,43 @@ export async function deleteReceipt(token: string): Promise<boolean> {
       localStorage.setItem('local-receipts', JSON.stringify(updatedReceipts))
       return true
     }
-    
+
     return false
+  }
+}
+
+/**
+ * Update people for a receipt
+ */
+export async function updateReceiptPeople(token: string, people: Array<{ id?: string; name: string; avatar_url?: string | null; venmo_handle?: string | null }>): Promise<any> {
+  try {
+    console.log('[updateReceiptPeople] Updating people for receipt:', token, people)
+    const response = await apiFetch<{ people: any[]; count: number }>(`/api/receipts/${token}/people`, {
+      method: "POST",
+      body: { people },
+    })
+    console.log('[updateReceiptPeople] Successfully updated people:', response)
+    return response
+  } catch (error) {
+    console.error('[updateReceiptPeople] Failed to update people:', error)
+    throw error
+  }
+}
+
+/**
+ * Update item assignments (shares) for a receipt
+ */
+export async function updateReceiptShares(token: string, shares: Array<{ item_id: string; person_id: string; weight?: number }>): Promise<any> {
+  try {
+    console.log('[updateReceiptShares] Updating shares for receipt:', token, shares)
+    const response = await apiFetch<{ shares: any[]; count: number }>(`/api/receipts/${token}/shares`, {
+      method: "POST",
+      body: { shares: shares.map(s => ({ ...s, weight: s.weight || 1 })) },
+    })
+    console.log('[updateReceiptShares] Successfully updated shares:', response)
+    return response
+  } catch (error) {
+    console.error('[updateReceiptShares] Failed to update shares:', error)
+    throw error
   }
 }
