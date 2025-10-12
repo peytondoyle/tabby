@@ -561,24 +561,30 @@ export async function parseReceipt(
     onProgress?.('Selecting…')
     console.info('[scan_step] File selected for processing...')
 
-    // Step 1.5: Check cache
-    try {
-      const arrayBuffer = await file.arrayBuffer()
-      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
-      const hashArray = Array.from(new Uint8Array(hashBuffer))
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-      cacheKey = `scan-cache-${hashHex}`
+    // Step 1.5: Check cache (only if explicitly enabled)
+    const useScanCache = localStorage.getItem('use-scan-cache') !== '0'
 
-      const cached = localStorage.getItem(cacheKey)
-      if (cached) {
-        console.info(`[scan_cache] Cache hit for ${hashHex.substring(0, 8)}...`)
-        onProgress?.('Loaded from cache!')
-        return JSON.parse(cached)
+    if (useScanCache) {
+      try {
+        const arrayBuffer = await file.arrayBuffer()
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+        const hashArray = Array.from(new Uint8Array(hashBuffer))
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+        cacheKey = `scan-cache-${hashHex}`
+
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          console.info(`[scan_cache] Cache hit for ${hashHex.substring(0, 8)}...`)
+          onProgress?.('Loaded from cache!')
+          return JSON.parse(cached)
+        }
+        console.info(`[scan_cache] Cache miss for ${hashHex.substring(0, 8)}...`)
+      } catch (cacheError) {
+        console.warn('[scan_cache] Cache check failed:', cacheError)
+        // Continue with normal processing
       }
-      console.info(`[scan_cache] Cache miss for ${hashHex.substring(0, 8)}...`)
-    } catch (cacheError) {
-      console.warn('[scan_cache] Cache check failed:', cacheError)
-      // Continue with normal processing
+    } else {
+      console.info('[scan_cache] Scan cache disabled by user')
     }
 
     // Step 2: Normalize file
@@ -799,11 +805,31 @@ export function getCurrentDate() {
   const now = new Date()
   return {
     iso: now.toISOString().split('T')[0],
-    formatted: now.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
+    formatted: now.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     })
   }
+}
+
+// Utility to clear all scan caches (for fixing bad cached receipts)
+export function clearScanCache() {
+  try {
+    const keys = Object.keys(localStorage)
+    const cacheKeys = keys.filter(key => key.startsWith('scan-cache-'))
+    cacheKeys.forEach(key => localStorage.removeItem(key))
+    console.info(`[scan_cache] Cleared ${cacheKeys.length} cached scans`)
+    return cacheKeys.length
+  } catch (error) {
+    console.error('[scan_cache] Failed to clear cache:', error)
+    return 0
+  }
+}
+
+// Utility to disable/enable scan cache
+export function setScanCacheEnabled(enabled: boolean) {
+  localStorage.setItem('use-scan-cache', enabled ? '1' : '0')
+  console.info(`[scan_cache] Scan cache ${enabled ? 'enabled' : 'disabled'}`)
 }

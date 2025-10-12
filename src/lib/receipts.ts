@@ -425,17 +425,17 @@ function createLocalReceipt(parsed: ParseResult): string {
 }
 
 /**
- * Delete by server token via RESTful path param; DO NOT send JSON body on DELETE
+ * Delete by server token via query parameter
  */
 export async function deleteReceiptByToken(token: string) {
-  const res = await apiFetch<{ ok: boolean }>(`/api/receipts/${encodeURIComponent(token)}`, {
+  const res = await apiFetch<{ ok: boolean }>(`/api/receipts/delete?token=${encodeURIComponent(token)}`, {
     method: "DELETE",
   });
   if (!res.ok) {
-    const msg = (res as any)?.data?.error || "Delete failed";
+    const msg = (res as any)?.data?.error || (res as any)?.message || "Delete failed";
     throw new Error(msg);
   }
-  return (res as any).data;
+  return res;
 }
 
 /**

@@ -71,9 +71,9 @@ export const ReceiptPage: React.FC = () => {
         }));
 
         // Calculate totals
-        const subtotal = Number(billData.bill.subtotal || 0);
-        const tax = Number(billData.bill.sales_tax || 0);
-        const tip = Number(billData.bill.tip || 0);
+        const subtotal = Number(billData.receipt.subtotal || 0);
+        const tax = Number(billData.receipt.sales_tax || 0);
+        const tip = Number(billData.receipt.tip || 0);
         const total = subtotal + tax + tip;
 
         // Try to get people and assignments from localStorage if available
@@ -115,8 +115,8 @@ export const ReceiptPage: React.FC = () => {
 
         const receiptData: ReceiptData = {
           token,
-          restaurantName: billData.bill.place || billData.bill.title || 'Restaurant',
-          date: billData.bill.date || new Date().toISOString().split('T')[0],
+          restaurantName: billData.receipt.place || billData.receipt.title || 'Restaurant',
+          date: billData.receipt.date || new Date().toISOString().split('T')[0],
           items,
           people,
           subtotal,
