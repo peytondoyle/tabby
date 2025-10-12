@@ -270,7 +270,8 @@ export async function createReceipt(payload: ReceiptCreatePayload, userId?: stri
 
     return {
       id: receiptId,
-      token: receiptToken
+      token: receiptToken,
+      items: apiResponse.items || []
     };
 
   } catch (error) {
@@ -319,7 +320,8 @@ export async function createReceipt(payload: ReceiptCreatePayload, userId?: stri
 
     return {
       id: receiptId,
-      token: receiptToken
+      token: receiptToken,
+      items: []
     };
   }
 }

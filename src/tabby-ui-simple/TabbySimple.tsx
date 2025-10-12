@@ -47,31 +47,45 @@ const getPersonColor = (index: number): string => {
 
 /**
  * Helper to persist people and assignments to the database
+ * Returns updated people with Supabase UUIDs
  */
 async function persistPeopleAndShares(
   token: string | null,
   people: Person[],
   items: Item[]
-): Promise<void> {
+): Promise<Person[]> {
   if (!token) {
     console.log('[persistPeopleAndShares] No token, skipping database save');
-    return;
+    return people;
   }
 
   try {
-    // Save people to database
-    await updateReceiptPeople(token, people.map(p => ({
+    // Save people to database and get back Supabase UUIDs
+    const peopleResponse = await updateReceiptPeople(token, people.map(p => ({
       id: p.id,
       name: p.name,
       avatar_url: null,
       venmo_handle: null
     })));
 
-    // Build shares array from people's items
-    const shares = people.flatMap(person =>
+    // Update people with Supabase UUIDs
+    const updatedPeople: Person[] = peopleResponse.people.map((apiPerson: any, index: number) => {
+      const originalPerson = people[index];
+      return {
+        id: apiPerson.id, // Supabase UUID
+        name: apiPerson.name,
+        items: originalPerson?.items || [],
+        total: originalPerson?.total || 0
+      };
+    });
+
+    console.log('[persistPeopleAndShares] Updated people with Supabase UUIDs:', updatedPeople);
+
+    // Build shares array using Supabase UUIDs
+    const shares = updatedPeople.flatMap(person =>
       person.items.map(itemId => ({
         item_id: itemId,
-        person_id: person.id,
+        person_id: person.id, // Now using Supabase UUID
         weight: items.find(i => i.id === itemId)?.splitBetween?.length || 1
       }))
     );
@@ -80,8 +94,11 @@ async function persistPeopleAndShares(
     await updateReceiptShares(token, shares);
 
     console.log('[persistPeopleAndShares] Successfully saved people and shares to database');
+
+    return updatedPeople;
   } catch (error) {
     console.error('[persistPeopleAndShares] Failed to persist to database:', error);
+    return people; // Return original people on error
   }
 }
 
@@ -301,6 +318,25 @@ export const TabbySimple: React.FC = () => {
       console.log('Bill created with token:', token, user?.id ? `(user: ${user.id})` : '(no user)');
       setBillToken(token);
 
+      // Load items with Supabase UUIDs from sessionStorage
+      const supabaseItemsJson = sessionStorage.getItem(`receipt-items-${token}`);
+      if (supabaseItemsJson) {
+        try {
+          const supabaseItems = JSON.parse(supabaseItemsJson);
+          console.log('[TabbySimple] Loaded items with Supabase UUIDs:', supabaseItems);
+          // Update items with Supabase UUIDs
+          const updatedItems: Item[] = supabaseItems.map((item: any) => ({
+            id: item.id, // Supabase UUID
+            emoji: item.emoji || '🍽️',
+            name: item.label || item.name || 'Item',
+            price: Number(item.price || item.unit_price || 0),
+          }));
+          setItems(updatedItems);
+        } catch (error) {
+          console.error('[TabbySimple] Failed to load Supabase items:', error);
+        }
+      }
+
       // Check if restaurant name needs editing
       const placeLower = (result.place || '').toLowerCase().trim();
       const needsNameEdit = !result.place ||
@@ -335,7 +371,7 @@ export const TabbySimple: React.FC = () => {
     }
   };
 
-  const handleAddPerson = (name?: string) => {
+  const handleAddPerson = async (name?: string) => {
     const personName = (name || newPersonName).trim();
     if (personName) {
       const newPerson: Person = {
@@ -350,8 +386,9 @@ export const TabbySimple: React.FC = () => {
       setNewPersonName('');
       setShowAddPerson(false);
 
-      // Persist to database
-      persistPeopleAndShares(billToken, updatedPeople, items);
+      // Persist to database and get Supabase UUIDs
+      const peopleWithSupabaseIds = await persistPeopleAndShares(billToken, updatedPeople, items);
+      setPeople(peopleWithSupabaseIds);
     }
   };
 
@@ -451,7 +488,7 @@ export const TabbySimple: React.FC = () => {
     return itemsSubtotal + personTax + personTip;
   };
 
-  const assignItemToPerson = (itemId: string, personId: string) => {
+  const assignItemToPerson = async (itemId: string, personId: string) => {
     const updatedItems = items.map(item =>
       item.id === itemId ? { ...item, assignedTo: personId } : item
     );
@@ -484,8 +521,9 @@ export const TabbySimple: React.FC = () => {
     });
     setPeople(updatedPeople);
 
-    // Persist to database
-    persistPeopleAndShares(billToken, updatedPeople, updatedItems);
+    // Persist to database and get Supabase UUIDs
+    const peopleWithSupabaseIds = await persistPeopleAndShares(billToken, updatedPeople, updatedItems);
+    setPeople(peopleWithSupabaseIds);
   };
 
   const unassignedItems = items.filter(item => !item.assignedTo);

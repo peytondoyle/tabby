@@ -762,7 +762,13 @@ export async function createReceiptFromReceipt(receiptData: ReceiptScanResult, _
     const payload = buildCreatePayload(parseResult)
     const result = await createReceipt(payload, userId)
 
-    console.info(`[scan_ok] Bill created successfully via server API - bill ID: ${result.id}, token: ${result.token}`)
+    console.info(`[scan_ok] Bill created successfully via server API - bill ID: ${result.id}, token: ${result.token}, items: ${result.items?.length || 0}`)
+
+    // Store the items with Supabase UUIDs in sessionStorage for the frontend to use
+    if (result.items && result.items.length > 0) {
+      sessionStorage.setItem(`receipt-items-${result.token}`, JSON.stringify(result.items))
+      console.info(`[scan_ok] Stored ${result.items.length} items with Supabase UUIDs for token: ${result.token}`)
+    }
 
     // Return the token (used for fetching the bill later)
     return result.token
