@@ -137,60 +137,61 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     const personTotal = itemsSubtotal + personTax + personTip;
 
     return (
-      <div ref={cardRef} className="receipt-card" style={{
-        borderTop: `4px solid ${getPersonColor(personIndex)}`
-      }}>
-        <div className="receipt-header">
-          <h2 className="restaurant-name">{restaurantName}</h2>
-          <p className="receipt-meta">{date}</p>
-        </div>
-
-        <div className="person-badge">
-          <div
-            className="person-avatar-small"
-            style={{ background: getPersonColor(personIndex) }}
-          >
+      <div ref={cardRef} className="receipt-card modern-person-card">
+        {/* Person Header */}
+        <div className="modern-person-header">
+          <div className="modern-person-avatar-large" style={{ background: getPersonColor(personIndex) }}>
             {person.name[0].toUpperCase()}
           </div>
-          <span className="person-name-badge">{person.name}</span>
+          <h2 className="modern-person-title">{person.name}</h2>
+          <p className="modern-person-subtitle">{restaurantName}</p>
+          <p className="modern-person-date">{date}</p>
         </div>
 
-        <div className="receipt-items">
-          {personItems.map(item => (
-            <div key={item.id} className="receipt-item">
-              <span className="item-info">
-                <span className="item-emoji">
-                  <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={12} color="#1a1a1a" />
-                </span>
-                <span className="item-name">{item.name || item.label || 'Item'}</span>
-              </span>
-              <span className="item-price">${item.price ? item.price.toFixed(2) : '0.00'}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="receipt-totals" style={{ marginBottom: '12px', width: '100%' }}>
-          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '10px', color: '#1a1a1a', width: '100%' }}>
-            <span style={{ fontWeight: '400' }}>Subtotal:</span>
-            <span style={{ fontWeight: '500' }}>${itemsSubtotal.toFixed(2)}</span>
-          </div>
-          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '10px', color: '#1a1a1a', width: '100%' }}>
-            <span style={{ fontWeight: '400' }}>Tax:</span>
-            <span style={{ fontWeight: '500' }}>${personTax.toFixed(2)}</span>
-          </div>
-          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '10px', color: '#1a1a1a', width: '100%' }}>
-            <span style={{ fontWeight: '400' }}>Tip:</span>
-            <span style={{ fontWeight: '500' }}>${personTip.toFixed(2)}</span>
-          </div>
-          <div className="receipt-total-row receipt-grand-total" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1.5px solid rgba(0,0,0,0.2)', marginTop: '4px', paddingTop: '6px', fontSize: '11px', fontWeight: '700', color: '#1a1a1a', width: '100%' }}>
-            <span>Total:</span>
-            <span>${personTotal.toFixed(2)}</span>
+        {/* Items List */}
+        <div className="modern-items-section">
+          <h3 className="modern-section-label">Items</h3>
+          <div className="modern-items-list">
+            {personItems.map(item => (
+              <div key={item.id} className="modern-item-row">
+                <div className="modern-item-info">
+                  <span className="modern-item-emoji">
+                    <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={20} color="#1a1a1a" />
+                  </span>
+                  <span className="modern-item-name">{item.name || item.label || 'Item'}</span>
+                </div>
+                <span className="modern-item-price">${item.price ? item.price.toFixed(2) : '0.00'}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="receipt-footer">
-          <span className="tabby-logo">📋</span>
-          <span>Split with Tabby</span>
+        {/* Breakdown */}
+        <div className="modern-breakdown-section">
+          <div className="modern-breakdown-row">
+            <span>Subtotal</span>
+            <span>${itemsSubtotal.toFixed(2)}</span>
+          </div>
+          <div className="modern-breakdown-row">
+            <span>Tax</span>
+            <span>${personTax.toFixed(2)}</span>
+          </div>
+          <div className="modern-breakdown-row">
+            <span>Tip</span>
+            <span>${personTip.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* Total */}
+        <div className="modern-person-total-section">
+          <span className="modern-total-label">Amount Due</span>
+          <span className="modern-total-amount">${personTotal.toFixed(2)}</span>
+        </div>
+
+        {/* Footer */}
+        <div className="modern-footer">
+          <span className="modern-footer-icon">📋</span>
+          <span className="modern-footer-text">Split with Tabby</span>
         </div>
       </div>
     );
