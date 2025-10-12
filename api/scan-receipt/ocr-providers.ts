@@ -81,13 +81,13 @@ Rules:
               type: "image_url",
               image_url: {
                 url: imageUrl,
-                detail: "low"
+                detail: "high"
               }
             }
           ]
         }
       ],
-      max_tokens: 300,
+      max_tokens: 400,
       temperature: 0
     });
 
