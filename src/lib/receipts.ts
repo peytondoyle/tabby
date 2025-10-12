@@ -227,43 +227,37 @@ export async function createReceipt(payload: ReceiptCreatePayload, userId?: stri
   // Add user_id to payload if provided
   const payloadWithUser = userId ? { ...payload, user_id: userId } : payload;
 
-  // Try API first, but don't block on it
-  let apiResponse = null
+  // Try API/Supabase first (primary data source)
   try {
-    apiResponse = await apiFetch<{ receipt: { id: string; token?: string; [key: string]: any }; items: any[]; createdAt: string }>("/api/receipts/create", {
+    const apiResponse = await apiFetch<{ receipt: { id: string; token?: string; [key: string]: any }; items: any[]; createdAt: string }>("/api/receipts/create", {
       method: "POST",
       body: payloadWithUser,
     });
-  } catch (error) {
-    console.warn('[receipt_create] API call failed, will use localStorage:', error)
-  }
 
-  // Extract receipt data from nested response or create local ID
-  const receiptData = apiResponse?.receipt;
-  const receiptId = receiptData?.id || `receipt_${Date.now()}`;
-  const receiptToken = receiptData?.token || receiptId;
+    const receiptData = apiResponse.receipt;
+    const receiptId = receiptData.id;
+    const receiptToken = receiptData.token || receiptId;
 
-  // ALWAYS save to localStorage immediately (source of truth)
-  const fullReceiptData = {
-    id: receiptId,
-    token: receiptToken,
-    title: payload.place || 'New Receipt',
-    place: payload.place,
-    date: new Date().toISOString().split('T')[0],
-    items: payload.items,
-    subtotal: payload.total,
-    sales_tax: payload.tax,
-    tip: payload.tip,
-    total: payload.total,
-    people: payload.people || [],
-    shares: [],
-    created_at: new Date().toISOString()
-  }
+    // Cache in localStorage as secondary backup (NOT source of truth)
+    const fullReceiptData = {
+      id: receiptId,
+      token: receiptToken,
+      title: payload.place || 'New Receipt',
+      place: payload.place,
+      date: new Date().toISOString().split('T')[0],
+      items: payload.items,
+      subtotal: payload.total,
+      sales_tax: payload.tax,
+      tip: payload.tip,
+      total: payload.total,
+      people: payload.people || [],
+      shares: [],
+      created_at: new Date().toISOString()
+    }
 
-  saveReceiptToLocalStorage(fullReceiptData)
+    saveReceiptToLocalStorage(fullReceiptData)
 
-  // Track receipt creation for history (localStorage backup for ALL users)
-  if (receiptId) {
+    // Track receipt creation for history
     trackReceiptAccess({
       token: receiptToken,
       title: payload.place || 'New Receipt',
@@ -271,13 +265,63 @@ export async function createReceipt(payload: ReceiptCreatePayload, userId?: stri
       date: new Date().toISOString().split('T')[0],
       totalAmount: payload.total ? Number(payload.total) : undefined
     })
-  }
 
-  // Return normalized response for backward compatibility
-  return {
-    id: receiptId,
-    token: receiptToken
-  };
+    console.info('[receipt_create] Receipt created successfully via API:', receiptToken)
+
+    return {
+      id: receiptId,
+      token: receiptToken
+    };
+
+  } catch (error) {
+    console.error('[receipt_create] API call failed:', error)
+
+    // Check if localStorage fallback is allowed
+    const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'
+
+    if (!allowLocalFallback) {
+      console.error('[receipt_create] localStorage fallback disabled, throwing error')
+      throw new Error(`Failed to create receipt via API: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+
+    // Fallback to localStorage ONLY if explicitly allowed
+    console.warn('[receipt_create] Falling back to localStorage (API unavailable)')
+
+    const receiptId = `local-${Date.now()}`;
+    const receiptToken = `e_local_${Date.now()}`;
+
+    const fullReceiptData = {
+      id: receiptId,
+      token: receiptToken,
+      title: payload.place || 'New Receipt',
+      place: payload.place,
+      date: new Date().toISOString().split('T')[0],
+      items: payload.items,
+      subtotal: payload.total,
+      sales_tax: payload.tax,
+      tip: payload.tip,
+      total: payload.total,
+      people: payload.people || [],
+      shares: [],
+      created_at: new Date().toISOString()
+    }
+
+    saveReceiptToLocalStorage(fullReceiptData)
+
+    trackReceiptAccess({
+      token: receiptToken,
+      title: payload.place || 'New Receipt',
+      place: payload.place,
+      date: new Date().toISOString().split('T')[0],
+      totalAmount: payload.total ? Number(payload.total) : undefined,
+      isLocal: true
+    })
+
+    return {
+      id: receiptId,
+      token: receiptToken
+    };
+  }
 }
 
 /**
