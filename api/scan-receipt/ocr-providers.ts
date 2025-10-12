@@ -69,13 +69,36 @@ class OpenAIProvider implements OCRProvider {
   "total": 0.00
 }
 
-Rules:
-- Use actual emoji Unicode (🍕 🥗 🍜 🥟 🍚), not text
-- Items = food/drink only (no fees/taxes/tips)
-- Subtotal = sum of items before fees
-- Total = final charged amount
-- Use null if restaurant name not found
-- Extract actual values, not examples`
+CRITICAL RULES:
+1. Items: Extract ONLY food and drink items. DO NOT include fees, taxes, tips, delivery charges, service charges, or other non-food items.
+
+2. Subtotal: The sum of all food/drink items BEFORE any fees, taxes, or tips. This may be labeled as "Subtotal" or calculated from items.
+
+3. Tax: LOOK CAREFULLY for tax fields. Common labels:
+   - "Tax"
+   - "Sales Tax"
+   - "GST"
+   - "VAT"
+   Extract the EXACT dollar amount shown for tax.
+
+4. Tip: LOOK CAREFULLY for tip fields. Common labels:
+   - "Tip"
+   - "Gratuity"
+   - "Service Charge" (count as tip)
+   - "Service Fee" (count as tip)
+   Extract the EXACT dollar amount shown for tip.
+
+5. Other fees: Fees like "Delivery Fee", "Platform Fee", "Small Order Fee" should be ADDED TO TIP.
+
+6. Total: The final charged amount at the bottom of the receipt.
+
+7. Use actual emoji Unicode (🍕 🥗 🍜 🥟 🍚 🍔 🍟 🌮 🥤 ☕), not text descriptions.
+
+8. Use null only if the field is truly not found. If tax or tip is $0.00, return 0.00, not null.
+
+9. For DoorDash/UberEats/GrubHub receipts: Service Fee + Delivery Fee should be added together and put in the "tip" field.
+
+Extract ACTUAL VALUES from the receipt image, not the example values shown above.`
             },
             {
               type: "image_url",
@@ -87,7 +110,7 @@ Rules:
           ]
         }
       ],
-      max_tokens: 400,
+      max_tokens: 600,
       temperature: 0
     });
 
