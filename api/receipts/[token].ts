@@ -141,6 +141,32 @@ export default async function handler(
         const people_count = people?.length || 0
         const total_amount = (receipt.subtotal || 0) + (receipt.sales_tax || 0) + (receipt.tip || 0)
 
+        // Transform people to include their assigned items
+        const transformedPeople = people?.map(person => {
+          // Get all item IDs assigned to this person
+          const assignedItems = shares
+            ?.filter(share => share.person_id === person.id)
+            .map(share => share.item_id) || []
+
+          // Calculate person's total (items + proportional tax/tip)
+          const personItemsTotal = assignedItems.reduce((sum, itemId) => {
+            const item = items?.find(i => i.id === itemId)
+            return sum + (item?.unit_price || 0)
+          }, 0)
+
+          const proportion = receipt.subtotal > 0 ? personItemsTotal / receipt.subtotal : 0
+          const personTax = (receipt.sales_tax || 0) * proportion
+          const personTip = (receipt.tip || 0) * proportion
+          const personTotal = personItemsTotal + personTax + personTip
+
+          return {
+            id: person.id,
+            name: person.name,
+            items: assignedItems,
+            total: personTotal
+          }
+        }) || []
+
         const receiptSummary = {
           id: receipt.id,
           token: receipt.editor_token, // Use editor_token as the primary token
@@ -148,6 +174,9 @@ export default async function handler(
           place: receipt.place,
           date: receipt.date,
           created_at: receipt.created_at,
+          subtotal: receipt.subtotal,
+          sales_tax: receipt.sales_tax,
+          tip: receipt.tip,
           item_count,
           people_count,
           total_amount
@@ -158,8 +187,7 @@ export default async function handler(
           bill: receiptSummary, // Keep 'bill' for backwards compatibility with frontend
           receipt: receiptSummary, // Also include 'receipt' for consistency
           items: transformedItems,
-          people: people || [],
-          shares: shares || []
+          people: transformedPeople
         })
       }
 

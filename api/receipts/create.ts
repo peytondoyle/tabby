@@ -134,7 +134,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         receiptId = receiptData.id;
         console.log('[receipt_create] Receipt saved to Supabase with ID:', receiptId);
 
-        // Insert items
+        // Insert items and get their IDs back
+        const itemIdMap = new Map<string, string>(); // old ID -> new Supabase ID
         if (receiptItems.length > 0) {
           const itemsToInsert = receiptItems.map(item => ({
             receipt_id: receiptId,
@@ -144,15 +145,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             qty: item.quantity
           }));
 
-          const { error: itemsError } = await supabaseAdmin
+          const { data: insertedItems, error: itemsError } = await supabaseAdmin
             .from('items')
-            .insert(itemsToInsert);
+            .insert(itemsToInsert)
+            .select('id');
 
           if (itemsError) {
             console.error('[receipt_create] Supabase items error:', itemsError);
             // Continue anyway - items can be added later
           } else {
             console.log('[receipt_create] Items saved to Supabase');
+            // Map old item IDs to new Supabase IDs
+            receiptItems.forEach((item, index) => {
+              if (insertedItems && insertedItems[index]) {
+                itemIdMap.set(item.id, insertedItems[index].id);
+              }
+            });
+          }
+        }
+
+        // Insert people and their item assignments if provided
+        if (people && people.length > 0) {
+          const peopleToInsert = people.map(person => ({
+            receipt_id: receiptId,
+            name: person.name
+          }));
+
+          const { data: insertedPeople, error: peopleError } = await supabaseAdmin
+            .from('people')
+            .insert(peopleToInsert)
+            .select('id');
+
+          if (peopleError) {
+            console.error('[receipt_create] Supabase people error:', peopleError);
+          } else {
+            console.log('[receipt_create] People saved to Supabase');
+
+            // Create item_shares for each person's items
+            const itemShares: any[] = [];
+            people.forEach((person, personIndex) => {
+              if (insertedPeople && insertedPeople[personIndex]) {
+                const personId = insertedPeople[personIndex].id;
+                // Map old item IDs to new Supabase IDs
+                person.items.forEach(oldItemId => {
+                  const newItemId = itemIdMap.get(oldItemId);
+                  if (newItemId) {
+                    itemShares.push({
+                      item_id: newItemId,
+                      person_id: personId,
+                      weight: 1
+                    });
+                  }
+                });
+              }
+            });
+
+            if (itemShares.length > 0) {
+              const { error: sharesError } = await supabaseAdmin
+                .from('item_shares')
+                .insert(itemShares);
+
+              if (sharesError) {
+                console.error('[receipt_create] Supabase item_shares error:', sharesError);
+              } else {
+                console.log('[receipt_create] Item shares saved to Supabase');
+              }
+            }
           }
         }
 

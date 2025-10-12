@@ -144,23 +144,53 @@ export const TabbySimple: React.FC = () => {
             setTotal(Number(receiptData.total_amount || receiptData.subtotal + receiptData.sales_tax + receiptData.tip || 0));
             setBillToken(urlToken);
 
-            // Load people and assignments from localStorage if available
-            const localShareData = localStorage.getItem(`bill-share-${urlToken}`);
-            if (localShareData) {
-              try {
-                const shareData = JSON.parse(localShareData);
-                if (shareData.people) {
-                  setPeople(shareData.people);
-                }
-                if (shareData.assignments) {
-                  // Apply assignments to items
-                  setItems(prevItems => prevItems.map(item => ({
+            // Load people from API if available
+            if (billData.people && billData.people.length > 0) {
+              console.log('[TabbySimple] Loading people from API:', billData.people);
+              setPeople(billData.people);
+
+              // Apply item assignments from people data
+              setItems(prevItems => prevItems.map(item => {
+                // Find which person(s) have this item
+                const assignedPeople = billData.people.filter((p: Person) =>
+                  p.items.includes(item.id)
+                );
+
+                if (assignedPeople.length > 1) {
+                  // Item is split between multiple people
+                  return {
                     ...item,
-                    assignedTo: shareData.assignments[item.id]
-                  })));
+                    assignedTo: assignedPeople[0].id,
+                    splitBetween: assignedPeople.map((p: Person) => p.id)
+                  };
+                } else if (assignedPeople.length === 1) {
+                  // Item assigned to one person
+                  return {
+                    ...item,
+                    assignedTo: assignedPeople[0].id
+                  };
                 }
-              } catch (e) {
-                console.error('Error loading share data:', e);
+                return item;
+              }));
+            } else {
+              // Fallback to localStorage if no people in API response
+              const localShareData = localStorage.getItem(`bill-share-${urlToken}`);
+              if (localShareData) {
+                try {
+                  const shareData = JSON.parse(localShareData);
+                  if (shareData.people) {
+                    setPeople(shareData.people);
+                  }
+                  if (shareData.assignments) {
+                    // Apply assignments to items
+                    setItems(prevItems => prevItems.map(item => ({
+                      ...item,
+                      assignedTo: shareData.assignments[item.id]
+                    })));
+                  }
+                } catch (e) {
+                  console.error('Error loading share data:', e);
+                }
               }
             }
           }
