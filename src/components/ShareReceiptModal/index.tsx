@@ -66,32 +66,64 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     if (!cardRef.current) return;
 
     try {
-      const dataUrl = await toPng(cardRef.current, {
-        quality: 1.0,
-        pixelRatio: 2,
-        backgroundColor: 'transparent',
+      console.log('[ShareReceipt] Starting image generation...');
+      console.log('[ShareReceipt] Card dimensions:', {
+        width: cardRef.current.offsetWidth,
+        height: cardRef.current.offsetHeight
       });
 
+      // Wait a bit for any fonts/emojis to fully render
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Generate high-quality image
+      const dataUrl = await toPng(cardRef.current, {
+        quality: 1.0,
+        pixelRatio: 3, // Higher quality for retina displays
+        backgroundColor: '#f8f8f8', // Match the card background
+        cacheBust: true, // Prevent caching issues
+        style: {
+          transform: 'scale(1)', // Ensure proper scaling
+        },
+        filter: (node) => {
+          // Don't include certain elements that might cause issues
+          const exclusions = ['SCRIPT', 'NOSCRIPT', 'STYLE'];
+          return !exclusions.includes(node.nodeName);
+        }
+      });
+
+      console.log('[ShareReceipt] Image generated successfully, size:', dataUrl.length);
+
       // Create download link
+      const timestamp = new Date().getTime();
+      const filename = `${restaurantName.replace(/\s+/g, '-')}-${timestamp}.png`;
       const link = document.createElement('a');
-      link.download = `${restaurantName.replace(/\s+/g, '-')}-receipt.png`;
+      link.download = filename;
       link.href = dataUrl;
       link.click();
 
+      console.log('[ShareReceipt] Download triggered:', filename);
+
       // Try native share if available
       if (navigator.share && navigator.canShare) {
-        const blob = await (await fetch(dataUrl)).blob();
-        const file = new File([blob], `${restaurantName}-receipt.png`, { type: 'image/png' });
+        try {
+          const blob = await (await fetch(dataUrl)).blob();
+          const file = new File([blob], filename, { type: 'image/png' });
 
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `${restaurantName} Receipt`,
-          });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: `${restaurantName} Receipt`,
+              text: `Split bill from ${restaurantName}`
+            });
+            console.log('[ShareReceipt] Native share succeeded');
+          }
+        } catch (shareError) {
+          console.log('[ShareReceipt] Native share failed or cancelled:', shareError);
         }
       }
     } catch (error) {
-      console.error('Error generating image:', error);
+      console.error('[ShareReceipt] Error generating image:', error);
+      alert('Failed to generate receipt image. Please try again.');
     }
   };
 
@@ -136,20 +168,20 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
           ))}
         </div>
 
-        <div className="receipt-totals">
-          <div className="receipt-total-row">
-            <span>Subtotal:</span>
-            <span>${itemsSubtotal.toFixed(2)}</span>
+        <div className="receipt-totals" style={{ marginBottom: '16px' }}>
+          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: '14px', color: '#1a1a1a' }}>
+            <span style={{ fontWeight: '400' }}>Subtotal:</span>
+            <span style={{ fontWeight: '600' }}>${itemsSubtotal.toFixed(2)}</span>
           </div>
-          <div className="receipt-total-row">
-            <span>Tax:</span>
-            <span>${personTax.toFixed(2)}</span>
+          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: '14px', color: '#1a1a1a' }}>
+            <span style={{ fontWeight: '400' }}>Tax:</span>
+            <span style={{ fontWeight: '600' }}>${personTax.toFixed(2)}</span>
           </div>
-          <div className="receipt-total-row">
-            <span>Tip:</span>
-            <span>${personTip.toFixed(2)}</span>
+          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: '14px', color: '#1a1a1a' }}>
+            <span style={{ fontWeight: '400' }}>Tip:</span>
+            <span style={{ fontWeight: '600' }}>${personTip.toFixed(2)}</span>
           </div>
-          <div className="receipt-total-row receipt-grand-total">
+          <div className="receipt-total-row receipt-grand-total" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid rgba(0,0,0,0.2)', marginTop: '6px', paddingTop: '10px', fontSize: '15px', fontWeight: '700', color: '#1a1a1a' }}>
             <span>Total:</span>
             <span>${personTotal.toFixed(2)}</span>
           </div>
@@ -233,16 +265,16 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
           );
         })}
 
-        <div className="receipt-grand-totals">
-          <div className="receipt-total-row">
-            <span>Subtotal:</span>
-            <span>${subtotal.toFixed(2)}</span>
+        <div className="receipt-grand-totals" style={{ marginTop: '20px', paddingTop: '16px', borderTop: '2px solid rgba(0,0,0,0.2)' }}>
+          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: '14px', color: '#1a1a1a' }}>
+            <span style={{ fontWeight: '400' }}>Subtotal:</span>
+            <span style={{ fontWeight: '600' }}>${subtotal.toFixed(2)}</span>
           </div>
-          <div className="receipt-total-row">
-            <span>Tax:</span>
-            <span>${tax.toFixed(2)}</span>
+          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: '14px', color: '#1a1a1a' }}>
+            <span style={{ fontWeight: '400' }}>Tax:</span>
+            <span style={{ fontWeight: '600' }}>${tax.toFixed(2)}</span>
           </div>
-          <div className="receipt-total-row receipt-grand-total">
+          <div className="receipt-total-row receipt-grand-total" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid rgba(0,0,0,0.2)', marginTop: '6px', paddingTop: '10px', fontSize: '15px', fontWeight: '700', color: '#1a1a1a' }}>
             <span>Bill Total:</span>
             <span>${total.toFixed(2)}</span>
           </div>
