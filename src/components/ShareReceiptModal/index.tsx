@@ -156,7 +156,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
               <div key={item.id} className="modern-item-row">
                 <div className="modern-item-info">
                   <span className="modern-item-emoji">
-                    <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={20} color="#1a1a1a" />
+                    <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={18} color="#1a1a1a" />
                   </span>
                   <span className="modern-item-name">{item.name || item.label || 'Item'}</span>
                 </div>
