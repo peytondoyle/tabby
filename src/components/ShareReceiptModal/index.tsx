@@ -79,8 +79,8 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
 
       // Generate high-quality image
       const canvas = await html2canvas(cardRef.current, {
-        scale: 4, // Higher DPI for sharper images
-        backgroundColor: '#f8f8f8',
+        scale: 3, // High DPI for sharper images
+        backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,
         allowTaint: false,
@@ -198,92 +198,49 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
 
   const renderFullBreakdown = () => {
     return (
-      <div ref={cardRef} className="receipt-card receipt-card-tall">
-        <div className="receipt-header">
-          <h2 className="restaurant-name">{restaurantName}</h2>
-          <p className="receipt-meta">{date}</p>
+      <div ref={cardRef} className="receipt-card modern-summary-card">
+        {/* Header */}
+        <div className="modern-header">
+          <h2 className="modern-restaurant-name">{restaurantName}</h2>
+          <p className="modern-subtitle">
+            {date.split(',')[0]}, {date.split(',').slice(1).join(',')}
+          </p>
         </div>
 
-        {people.length === 0 && (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-            No people added yet
-          </div>
-        )}
+        {/* People List */}
+        <div className="modern-people-list">
+          {people.length === 0 && (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '14px' }}>
+              No people added yet
+            </div>
+          )}
 
-        {people.map((person, personIndex) => {
-          const personItems = items.filter(item => person.items.includes(item.id));
-          const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
-          const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
-          const personTax = tax * proportion;
-          const personTip = tip * proportion;
-          const personTotal = itemsSubtotal + personTax + personTip;
-
-          return (
-            <div key={person.id} className="person-breakdown">
-              <div className="person-breakdown-header">
+          {people.map((person, personIndex) => (
+            <div key={person.id} className="modern-person-row">
+              <div className="modern-person-info">
                 <div
-                  className="person-avatar-small"
+                  className="modern-avatar"
                   style={{ background: getPersonColor(personIndex) }}
                 >
                   {person.name[0].toUpperCase()}
                 </div>
-                <span className="person-name-breakdown">{person.name}</span>
+                <span className="modern-person-name">{person.name}</span>
               </div>
-
-              <div className="receipt-items-compact">
-                {personItems.map(item => (
-                  <div key={item.id} className="receipt-item-compact">
-                    <span className="item-info-compact">
-                      <span className="item-emoji-compact">
-                        <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={10} color="#1a1a1a" />
-                      </span>
-                      <span className="item-name-compact">{item.name || item.label || 'Item'}</span>
-                    </span>
-                    <span className="item-price-compact">${item.price ? item.price.toFixed(2) : '0.00'}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="person-totals-compact">
-                <div className="total-row-compact">
-                  <span>Subtotal:</span>
-                  <span>${itemsSubtotal.toFixed(2)}</span>
-                </div>
-                <div className="total-row-compact">
-                  <span>Tax:</span>
-                  <span>${personTax.toFixed(2)}</span>
-                </div>
-                <div className="total-row-compact">
-                  <span>Tip:</span>
-                  <span>${personTip.toFixed(2)}</span>
-                </div>
-                <div className="total-row-compact total-row-bold">
-                  <span>Total:</span>
-                  <span>${personTotal.toFixed(2)}</span>
-                </div>
-              </div>
+              <span className="modern-person-total">${person.total.toFixed(2)}</span>
             </div>
-          );
-        })}
-
-        <div className="receipt-grand-totals" style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1.5px solid rgba(0,0,0,0.2)', width: '100%' }}>
-          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '10px', color: '#1a1a1a', width: '100%' }}>
-            <span style={{ fontWeight: '400' }}>Subtotal:</span>
-            <span style={{ fontWeight: '500' }}>${subtotal.toFixed(2)}</span>
-          </div>
-          <div className="receipt-total-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '10px', color: '#1a1a1a', width: '100%' }}>
-            <span style={{ fontWeight: '400' }}>Tax:</span>
-            <span style={{ fontWeight: '500' }}>${tax.toFixed(2)}</span>
-          </div>
-          <div className="receipt-total-row receipt-grand-total" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1.5px solid rgba(0,0,0,0.2)', marginTop: '4px', paddingTop: '6px', fontSize: '11px', fontWeight: '700', color: '#1a1a1a', width: '100%' }}>
-            <span>Bill Total:</span>
-            <span>${total.toFixed(2)}</span>
-          </div>
+          ))}
         </div>
 
-        <div className="receipt-footer">
-          <span className="tabby-logo">📋</span>
-          <span>Split with Tabby</span>
+        {/* Bill Total */}
+        <div className="modern-bill-total">
+          <span className="modern-total-label">Bill Total</span>
+          <span className="modern-total-amount">${total.toFixed(2)}</span>
+        </div>
+
+        {/* Footer */}
+        <div className="modern-footer">
+          <span className="modern-footer-icon">📋</span>
+          <span className="modern-footer-text">Split with Tabby</span>
         </div>
       </div>
     );
