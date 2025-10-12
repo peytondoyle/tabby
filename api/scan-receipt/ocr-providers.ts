@@ -58,59 +58,36 @@ class OpenAIProvider implements OCRProvider {
           content: [
             {
               type: "text",
-              text: `You are a receipt data extraction assistant. Extract ALL information from this receipt and return it as valid JSON.
-
-IMPORTANT INSTRUCTIONS:
-1. Extract ONLY food/drink items in the "items" array - DO NOT include delivery fees, service fees, taxes, tips, or discounts as items
-2. For each item, include a relevant food emoji as an actual Unicode emoji character (e.g., 🍕 for pizza, 🍜 for noodles, 🥗 for salad, 🥟 for spring rolls, 🍚 for rice, 🥡 for tofu). IMPORTANT: Use the actual emoji character, NOT the emoji name or text like "pizza" or "spring_roll"
-3. The "subtotal" is the sum of all food items ONLY (before any fees, taxes, tips, or discounts)
-4. The "tax" is the sales tax amount
-5. The "tip" is the gratuity/tip amount (if present)
-6. The "total" is the FINAL AMOUNT CHARGED (the bottom line total after all fees, taxes, tips, and discounts)
-7. If you see delivery fees, service fees, or other fees, DO NOT add them as items - they are already factored into the total
-8. If you see discounts or promotional credits, DO NOT add them as items - they are already factored into the total
-
-Return ONLY valid JSON in this exact format (no markdown, no explanation):
+              text: `Extract receipt data as JSON:
 {
-  "place": "Actual Restaurant Name Here",
+  "place": "Restaurant Name",
   "date": "YYYY-MM-DD",
-  "items": [
-    {"label": "Spring Roll", "price": 2.50, "emoji": "🥟"},
-    {"label": "Fried Rice", "price": 11.50, "emoji": "🍚"},
-    {"label": "Pizza", "price": 12.50, "emoji": "🍕"}
-  ],
-  "subtotal": 26.50,
-  "tax": 2.12,
-  "tip": 5.30,
-  "total": 33.92
+  "items": [{"label": "Item Name", "price": 0.00, "emoji": "🍕"}],
+  "subtotal": 0.00,
+  "tax": 0.00,
+  "tip": 0.00,
+  "total": 0.00
 }
 
-CRITICAL RULES:
-- The "emoji" field must contain actual emoji Unicode characters (🥟 🍚 🍕), NOT emoji names or text!
-- If you cannot find the restaurant name, use null (not "restaurant or store name" or any placeholder text)
-- All numbers must be actual extracted values, not 0.00 or placeholder examples
-- Extract the ACTUAL values from the receipt image, not the example values shown above
-
-Example for a receipt with food items ($63.80), delivery fee ($1.49), service fee ($11.48), tax ($6.38), tip ($8.31), discount (-$1.49), membership benefit (-$6.70):
-- items: Only the food items totaling $63.80
-- subtotal: 63.80
-- tax: 6.38
-- tip: 8.31
-- total: 83.27 (the final amount charged after all fees and discounts)
-
-Now extract the receipt data:`
+Rules:
+- Use actual emoji Unicode (🍕 🥗 🍜 🥟 🍚), not text
+- Items = food/drink only (no fees/taxes/tips)
+- Subtotal = sum of items before fees
+- Total = final charged amount
+- Use null if restaurant name not found
+- Extract actual values, not examples`
             },
             {
               type: "image_url",
               image_url: {
                 url: imageUrl,
-                detail: "high"
+                detail: "low"
               }
             }
           ]
         }
       ],
-      max_tokens: 500,
+      max_tokens: 300,
       temperature: 0
     });
 

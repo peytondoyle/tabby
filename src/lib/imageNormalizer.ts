@@ -120,7 +120,7 @@ class ImageNormalizerWorker {
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(imageBitmap, 0, 0)
       
-      const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 })
+      const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.75 })
       const normalizedFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' })
       
       return {

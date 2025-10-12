@@ -6,7 +6,7 @@ import { applyCors } from '../_utils/cors.js'
 import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from '../_utils/request.js'
 import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit.js'
 import { FILE_LIMITS } from '../_utils/schemas.js'
-import { processWithFallback } from './ocr-providers.js'
+import { processWithFallback, processWithMultipleProviders } from './ocr-providers.js'
 
 // Server-side Supabase client using secret key
 const _supabaseAdmin = process.env.SUPABASE_SECRET_KEY
@@ -215,8 +215,8 @@ export default async function handler(
         const imageBuffer = await fs.readFile(file.filepath)
         console.log(`[scan_api] File read successfully, size: ${imageBuffer.length} bytes`)
 
-        // Process with OCR providers (with fallback)
-        const ocrResult = await processWithFallback(imageBuffer, file.mimetype)
+        // Process with OCR providers (parallel processing for speed)
+        const ocrResult = await processWithMultipleProviders(imageBuffer, file.mimetype, 8000)
         result = {
           place: ocrResult.place,
           date: ocrResult.date,

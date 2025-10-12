@@ -551,12 +551,35 @@ export async function parseReceipt(
   const fileName = file.name
   
   console.info(`[scan_start] Starting receipt parse - file: ${fileName} (${fileSize} bytes, ${fileType})`)
-  
+
+  // Track cache key for saving later
+  let cacheKey: string | null = null
+
   try {
     // Step 1: Select file
     onProgress?.('Selecting…')
     console.info('[scan_step] File selected for processing...')
-    
+
+    // Step 1.5: Check cache
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+      const hashArray = Array.from(new Uint8Array(hashBuffer))
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+      cacheKey = `scan-cache-${hashHex}`
+
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) {
+        console.info(`[scan_cache] Cache hit for ${hashHex.substring(0, 8)}...`)
+        onProgress?.('Loaded from cache!')
+        return JSON.parse(cached)
+      }
+      console.info(`[scan_cache] Cache miss for ${hashHex.substring(0, 8)}...`)
+    } catch (cacheError) {
+      console.warn('[scan_cache] Cache check failed:', cacheError)
+      // Continue with normal processing
+    }
+
     // Step 2: Normalize file
     onProgress?.('Normalizing…')
     console.info('[scan_step] Normalizing file in Web Worker...')
@@ -642,6 +665,16 @@ export async function parseReceipt(
 
     const totalDuration = Date.now() - startTime
     console.info(`[scan_ok] Receipt parsed successfully in ${totalDuration}ms - items: ${result.items.length}, place: ${!!result.place}, total: $${result.total || 0}`)
+
+    // Save to cache for instant future loads
+    if (cacheKey) {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(result))
+        console.info(`[scan_cache] Cached result for future use (${cacheKey.substring(11, 19)}...)`)
+      } catch (cacheError) {
+        console.warn('[scan_cache] Failed to cache result:', cacheError)
+      }
+    }
 
     performanceMonitor.end(true)
     return result

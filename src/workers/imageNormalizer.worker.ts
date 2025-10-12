@@ -173,8 +173,8 @@ async function normalizeImage(file: File): Promise<NormalizationResult> {
         ctx.drawImage(imageBitmap, 0, 0)
         
         // Convert to JPEG blob
-        currentFile = new File([await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 })], 
-                             file.name.replace(/\.(heic|heif)$/i, '.jpg'), 
+        currentFile = new File([await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.75 })],
+                             file.name.replace(/\.(heic|heif)$/i, '.jpg'),
                              { type: 'image/jpeg' })
         steps.push('HEIC→JPEG')
         console.log(`[worker] Converted HEIC to JPEG - new size: ${currentFile.size} bytes`)
@@ -212,15 +212,15 @@ async function normalizeImage(file: File): Promise<NormalizationResult> {
     
     // Step 5: Downscale if needed (optimized for speed)
     const beforeDownscale = canvas.width * canvas.height
-    const downscaledDimensions = downscaleImage(canvas, ctx, 1200) // Reduced from 2000 for faster processing
+    const downscaledDimensions = downscaleImage(canvas, ctx, 1024) // Optimized for OCR speed
     if (canvas.width * canvas.height !== beforeDownscale) {
-      steps.push('downscaled to 1200px')
+      steps.push('downscaled to 1024px')
       console.log(`[worker] Downscaled image - new dimensions: ${downscaledDimensions.width}x${downscaledDimensions.height}`)
     }
-    
+
     // Step 6: Compress to target size (optimized for speed)
-    const beforeCompress = (await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 })).size
-    const compressedBlob = await compressImage(canvas, 2 * 1024 * 1024, 0.7) // Reduced from 4MB and 0.82 quality
+    const beforeCompress = (await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.75 })).size
+    const compressedBlob = await compressImage(canvas, 2 * 1024 * 1024, 0.75) // Optimized for OCR quality/speed balance
     if (compressedBlob.size !== beforeCompress) {
       steps.push(`compressed to ${Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100}MB`)
       console.log(`[worker] Compressed image - final size: ${compressedBlob.size} bytes`)

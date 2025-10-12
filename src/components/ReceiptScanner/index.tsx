@@ -175,31 +175,57 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               {/* Analyzing State */}
               {state === 'analyzing' && (
                 <div className="text-center py-12">
-                  <div className="text-6xl mb-8">
-                    🔍
-                  </div>
-                  
-                  <h3 className="text-2xl font-bold mb-2">Analyzing Receipt</h3>
-                  <p className="text-text-primary-dim mb-8">
-                    {currentStep || 'AI is reading your receipt and extracting items...'}
-                  </p>
+                  {/* Show instant success if cached */}
+                  {currentStep === 'Loaded from cache!' ? (
+                    <>
+                      <div className="text-6xl mb-8">
+                        ⚡
+                      </div>
+                      <h3 className="text-2xl font-bold mb-2 text-green-400">Loaded from Cache!</h3>
+                      <p className="text-text-primary-dim mb-8">
+                        Found previous scan result - instant load
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-6xl mb-8">
+                        🔍
+                      </div>
 
-                  {/* Loading indicator */}
-                  <motion.div
-                    className="w-16 h-16 border-4 border-brand border-t-transparent rounded-full mx-auto mb-8"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  />
+                      <h3 className="text-2xl font-bold mb-2">Analyzing Receipt</h3>
+                      <p className="text-text-primary-dim mb-8">
+                        {currentStep === 'Selecting…' && 'Checking file...'}
+                        {currentStep === 'Normalizing…' && 'Optimizing image for AI...'}
+                        {currentStep === 'Analyzing…' && 'AI reading receipt...'}
+                        {currentStep === 'Mapping…' && 'Extracting items and prices...'}
+                        {!currentStep && 'Processing your receipt...'}
+                      </p>
+
+                      {/* Loading indicator */}
+                      <motion.div
+                        className="w-16 h-16 border-4 border-brand border-t-transparent rounded-full mx-auto mb-8"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      />
+                    </>
+                  )}
 
                   {/* Progress steps */}
                   <div className="space-y-3 max-w-md mx-auto">
-                    {['Selecting…', 'Normalizing…', 'Uploading…', 'Analyzing…', 'Mapping…'].map((step, index) => {
-                      const steps = ['Selecting…', 'Normalizing…', 'Uploading…', 'Analyzing…', 'Mapping…']
+                    {['Selecting…', 'Normalizing…', 'Analyzing…', 'Mapping…'].map((step, index) => {
+                      const steps = ['Selecting…', 'Normalizing…', 'Analyzing…', 'Mapping…']
                       const currentIndex = steps.indexOf(currentStep)
                       const stepIndex = index
-                      const isComplete = stepIndex < currentIndex
-                      const isActive = stepIndex === currentIndex
-                      const isPending = stepIndex > currentIndex
+                      const isComplete = stepIndex < currentIndex || currentStep === 'Loaded from cache!'
+                      const isActive = stepIndex === currentIndex && currentStep !== 'Loaded from cache!'
+                      const isPending = stepIndex > currentIndex && currentStep !== 'Loaded from cache!'
+
+                      const stepDescriptions: Record<string, string> = {
+                        'Selecting…': 'Validating file',
+                        'Normalizing…': 'Optimizing image (1024px, JPEG)',
+                        'Analyzing…': 'AI reading receipt (GPT-4o-mini)',
+                        'Mapping…': 'Extracting items & prices'
+                      }
 
                       return (
                         <div key={step} className="flex items-center gap-3 text-left">
@@ -220,11 +246,18 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                               <span className="text-xs">{index + 1}</span>
                             )}
                           </div>
-                          <span className={`transition-colors ${
-                            isComplete ? 'text-gray-400' :
-                            isActive ? 'text-white font-medium' :
-                            'text-gray-500'
-                          }`}>{step.replace('…', '')}</span>
+                          <div className="flex-1">
+                            <div className={`transition-colors ${
+                              isComplete ? 'text-gray-400' :
+                              isActive ? 'text-white font-medium' :
+                              'text-gray-500'
+                            }`}>
+                              {step.replace('…', '')}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {stepDescriptions[step]}
+                            </div>
+                          </div>
                         </div>
                       )
                     })}
