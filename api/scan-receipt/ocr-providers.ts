@@ -62,7 +62,10 @@ class OpenAIProvider implements OCRProvider {
 {
   "place": "Restaurant Name",
   "date": "YYYY-MM-DD",
-  "items": [{"label": "Item Name", "price": 0.00, "emoji": "🍕"}],
+  "items": [
+    {"label": "Item Name", "price": 12.00, "emoji": "🍕"},
+    {"label": "Discount Name", "price": -2.00, "emoji": "🎟️"}
+  ],
   "subtotal": 0.00,
   "tax": 0.00,
   "tip": 0.00,
@@ -70,33 +73,44 @@ class OpenAIProvider implements OCRProvider {
 }
 
 CRITICAL RULES:
-1. Items: Extract ONLY food and drink items. DO NOT include fees, taxes, tips, delivery charges, service charges, or other non-food items.
 
-2. Subtotal: The sum of all food/drink items BEFORE any fees, taxes, or tips. This may be labeled as "Subtotal" or calculated from items.
+1. FOOD/DRINK ITEMS: Extract all food and drink items with their prices.
+   - Use food emojis: 🍕 🥗 🍜 🥟 🍚 🍔 🍟 🌮 🥤 ☕ 🍺 🍷
+   - DO NOT include taxes, tips, or fees as items
 
-3. Tax: LOOK CAREFULLY for tax fields. Common labels:
-   - "Tax"
-   - "Sales Tax"
-   - "GST"
-   - "VAT"
-   Extract the EXACT dollar amount shown for tax.
+2. DISCOUNTS & PROMOS: Look for discounts, promos, coupons, or BOGO deals.
+   - Labels: "Discount", "Promo", "Coupon", "BOGO", "Buy One Get One", "10% Off", "Rewards"
+   - Add these as LINE ITEMS with NEGATIVE prices
+   - Use emoji: 🎟️ or 💰
+   - Example: {"label": "Rewards Discount", "price": -5.00, "emoji": "🎟️"}
 
-4. Tip: LOOK CAREFULLY for tip fields. Common labels:
-   - "Tip"
-   - "Gratuity"
-   - "Service Charge" (count as tip)
-   - "Service Fee" (count as tip)
-   Extract the EXACT dollar amount shown for tip.
+3. SUBTOTAL: Sum of all food/drink items AFTER discounts, BEFORE fees/taxes/tips.
+   - This is what the customer owes for just the food
+   - May be labeled "Subtotal" or calculated from items minus discounts
 
-5. Other fees: Fees like "Delivery Fee", "Platform Fee", "Small Order Fee" should be ADDED TO TIP.
+4. TAX: LOOK CAREFULLY for tax. Common labels:
+   - "Tax", "Sales Tax", "GST", "VAT", "Tax & Fees"
+   - Extract the EXACT dollar amount
+   - If $0.00, return 0.00 (not null)
 
-6. Total: The final charged amount at the bottom of the receipt.
+5. TIP: LOOK CAREFULLY for tip. Common labels:
+   - "Tip", "Gratuity", "Service Charge", "Service Fee"
+   - Extract the EXACT dollar amount
+   - If $0.00, return 0.00 (not null)
 
-7. Use actual emoji Unicode (🍕 🥗 🍜 🥟 🍚 🍔 🍟 🌮 🥤 ☕), not text descriptions.
+6. FEES: Look for delivery/platform fees:
+   - "Delivery Fee", "Platform Fee", "Service Fee", "Small Order Fee", "Convenience Fee", "Regulatory Fee"
+   - ADD ALL FEES TO THE TIP FIELD
+   - Example: If Tip=$8.31, Service Fee=$2.00, Delivery Fee=$3.00 → return tip: 13.31
 
-8. Use null only if the field is truly not found. If tax or tip is $0.00, return 0.00, not null.
+7. TOTAL: Final charged amount at the bottom (should equal subtotal + tax + tip).
 
-9. For DoorDash/UberEats/GrubHub receipts: Service Fee + Delivery Fee should be added together and put in the "tip" field.
+8. Use null only if the field is truly not found.
+
+9. IMPORTANT: For delivery apps (DoorDash/UberEats/GrubHub):
+   - All fees (Delivery, Service, Platform, etc.) go into the "tip" field
+   - Discounts go as negative line items, not subtracted from tip
+   - Make sure you don't miss tax and tip fields!
 
 Extract ACTUAL VALUES from the receipt image, not the example values shown above.`
             },
