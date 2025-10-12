@@ -79,13 +79,16 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
 
       // Generate high-quality image
       const canvas = await html2canvas(cardRef.current, {
-        scale: 3, // Increased DPI for sharper images
+        scale: 4, // Higher DPI for sharper images
         backgroundColor: '#f8f8f8',
         logging: false,
         useCORS: true,
-        allowTaint: true,
-        width: 280,
-        height: cardRef.current.offsetHeight
+        allowTaint: false,
+        imageTimeout: 0,
+        removeContainer: true,
+        // Let html2canvas use natural element dimensions
+        windowWidth: cardRef.current.scrollWidth,
+        windowHeight: cardRef.current.scrollHeight
       });
 
       const dataUrl = canvas.toDataURL('image/png', 1.0);

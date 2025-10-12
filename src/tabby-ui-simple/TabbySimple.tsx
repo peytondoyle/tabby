@@ -879,8 +879,18 @@ export const TabbySimple: React.FC = () => {
   }
 
   if (step === 'editName') {
-    const handleContinue = () => {
+    const handleContinue = async () => {
       if (!restaurantName.trim() || !billToken) return;
+
+      // Persist restaurant name to database
+      try {
+        await updateReceiptMetadata(billToken, {
+          place: restaurantName.trim()
+        });
+        console.log('[TabbySimple] Restaurant name saved:', restaurantName.trim());
+      } catch (error) {
+        console.error('[TabbySimple] Failed to save restaurant name:', error);
+      }
 
       if (people.length > 0) {
         // People were added during scan, go to assign
