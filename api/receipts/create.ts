@@ -214,9 +214,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('[receipt_create] Supabase save failed:', error);
-        // Fall back to memory storage
+        console.error('[receipt_create] Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+
+        // If Supabase is configured but failed, return error instead of falling back
+        const errorResponse = {
+          error: "Failed to save receipt to database",
+          code: "DATABASE_ERROR",
+          details: error.message
+        };
+        sendErrorResponse(res as any, errorResponse, 500, ctx);
+        logRequestCompletion(ctx, 500, error.message);
+        return;
       }
     } else {
       console.log('[receipt_create] Supabase not configured, using memory storage');
