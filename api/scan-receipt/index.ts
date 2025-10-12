@@ -6,11 +6,10 @@ import { applyCors } from '../_utils/cors.js'
 import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from '../_utils/request.js'
 import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit.js'
 import { FILE_LIMITS } from '../_utils/schemas.js'
-import { processWithOpenAI } from './openai-ocr.js'
-import { processWithOpenAIOnly, checkOpenAIHealth } from './openai-only-ocr.js'
+import { processWithFallback } from './ocr-providers.js'
 
 // Server-side Supabase client using secret key
-const _supabaseAdmin = process.env.SUPABASE_SECRET_KEY 
+const _supabaseAdmin = process.env.SUPABASE_SECRET_KEY
   ? createClient(
       process.env.VITE_SUPABASE_URL || 'https://evraslbpgcafyvvtbqxy.supabase.co',
       process.env.SUPABASE_SECRET_KEY,
@@ -22,11 +21,6 @@ const _supabaseAdmin = process.env.SUPABASE_SECRET_KEY
       }
     )
   : null
-
-// Validate that we're not using legacy keys
-if (process.env.SUPABASE_SECRET_KEY && process.env.SUPABASE_SECRET_KEY.startsWith('eyJ')) {
-  throw new Error('Legacy service_role key detected! Please use the new Secret key format.')
-}
 
 // Feature flags
 const REQUIRE_REAL_OCR = process.env.REQUIRE_REAL_OCR === '1'
@@ -119,12 +113,18 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
+  // Handle health check first - before any other processing
+  if (req.method === 'GET' && req.query.health === '1') {
+    res.status(200).json({ ok: true, uptimeMs: 0 })
+    return
+  }
+
   // Apply CORS headers and handle OPTIONS preflight
   if (applyCors(req, res)) return
 
   // Create request context for consistent logging
   const ctx = createRequestContext(req as any, res as any, 'scan_receipt')
-  
+
   // Check rate limiting
   const rateLimitCheck = checkRateLimit(req as any, 'scan_receipt', ctx)
   if (!rateLimitCheck.success) {
@@ -141,29 +141,13 @@ export default async function handler(
 
   const method = req.method || 'UNKNOWN'
   const queryRedacted = redactQuery(req.query)
-  
+
   ctx.log('info', `Request started`, { method, url: req.url, query: queryRedacted })
 
   try {
 
-    // Handle GET health check
+    // Handle other GET requests
     if (req.method === 'GET') {
-      const { health } = req.query
-      
-      if (health === '1') {
-        const response = {
-          ok: true,
-          uptimeMs: Date.now() - startTime
-        }
-        
-        // Add rate limit headers
-        addRateLimitHeaders(res as any, req as any, 'scan_receipt')
-        
-        // Send success response
-        sendSuccessResponse(res as any, response, 200, ctx)
-        return
-      }
-      
       const error = { error: 'GET method requires ?health=1 parameter', code: 'INVALID_HEALTH_PARAM' }
       sendErrorResponse(res as any, error, 405, ctx)
       return
@@ -219,19 +203,20 @@ export default async function handler(
 
     // Check if OpenAI is configured
     const openaiConfigured = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim() !== ''
+    console.log('[scan_api] OpenAI configured:', openaiConfigured, 'Key present:', !!process.env.OPENAI_API_KEY, 'Key length:', process.env.OPENAI_API_KEY?.length || 0)
 
     let result: ScanReceiptResponse
 
     if (openaiConfigured) {
-      // Use OpenAI-only processing with optimized settings
-      console.log('[scan_api] Using OpenAI-only processing')
+      // Use OCR processing with fallback
+      console.log('[scan_api] Using OCR processing')
       try {
-        // Read file as buffer for OpenAI processing
+        // Read file as buffer for OCR processing
         const imageBuffer = await fs.readFile(file.filepath)
         console.log(`[scan_api] File read successfully, size: ${imageBuffer.length} bytes`)
-        
-        // Process with OpenAI (optimized for speed and cost)
-        const ocrResult = await processWithOpenAIOnly(imageBuffer, file.mimetype, 15000)
+
+        // Process with OCR providers (with fallback)
+        const ocrResult = await processWithFallback(imageBuffer, file.mimetype)
         result = {
           place: ocrResult.place,
           date: ocrResult.date,
@@ -242,10 +227,20 @@ export default async function handler(
           rawText: ocrResult.rawText,
           items: ocrResult.items
         }
-        console.log(`[scan_api] OpenAI processing completed - ${result.items.length} items extracted in ${ocrResult.processingTime}ms`)
-      } catch (ocrError) {
-        console.error('[scan_api] OpenAI processing failed:', ocrError)
-        // Fall back to dev data if OpenAI fails
+        console.log(`[scan_api] OCR processing completed - ${result.items.length} items extracted in ${ocrResult.processingTime}ms`)
+      } catch (ocrError: any) {
+        console.error('[scan_api] OCR processing failed:', {
+          message: ocrError?.message,
+          name: ocrError?.name,
+          code: ocrError?.code,
+          status: ocrError?.status,
+          stack: ocrError?.stack?.split('\n').slice(0, 3)
+        })
+        ctx.log('error', 'OCR processing failed', {
+          error: ocrError?.message,
+          code: ocrError?.code
+        })
+        // Fall back to dev data if OCR fails
         result = getDEVFallback()
       }
     } else {

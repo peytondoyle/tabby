@@ -8,6 +8,7 @@ export const HomeButton: React.FC = () => {
   return (
     <button
       onClick={() => {
+        console.log('[HomeButton] Clicked - navigating to /');
         navigate('/');
       }}
       onMouseEnter={() => setIsHovered(true)}

@@ -155,7 +155,8 @@ export default async function handler(
 
         return res.status(200).json({
           ok: true,
-          receipt: receiptSummary,
+          bill: receiptSummary, // Keep 'bill' for backwards compatibility with frontend
+          receipt: receiptSummary, // Also include 'receipt' for consistency
           items: transformedItems,
           people: people || [],
           shares: shares || []
@@ -174,20 +175,23 @@ export default async function handler(
       console.log('[receipt_fetch] Found receipt in memory:', token)
 
       // Return receipt from memory with items
+      const memoryReceiptData = {
+        id: memoryReceipt.id,
+        editor_token: memoryReceipt.token,
+        viewer_token: memoryReceipt.token,
+        title: memoryReceipt.title,
+        place: memoryReceipt.place,
+        date: memoryReceipt.date,
+        created_at: memoryReceipt.created_at,
+        subtotal: memoryReceipt.total_amount,
+        sales_tax: 0,
+        tip: 0
+      }
+
       return res.status(200).json({
         ok: true,
-        receipt: {
-          id: memoryReceipt.id,
-          editor_token: memoryReceipt.token,
-          viewer_token: memoryReceipt.token,
-          title: memoryReceipt.title,
-          place: memoryReceipt.place,
-          date: memoryReceipt.date,
-          created_at: memoryReceipt.created_at,
-          subtotal: memoryReceipt.total_amount,
-          sales_tax: 0,
-          tip: 0
-        },
+        bill: memoryReceiptData, // Keep 'bill' for backwards compatibility
+        receipt: memoryReceiptData, // Also include 'receipt' for consistency
         items: memoryReceipt.items || [],
         people: [],
         shares: []

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { parseReceipt, createReceiptFromReceipt, type ParseResult } from '../lib/receiptScanning';
 import { ShareReceiptModal } from '../components/ShareReceiptModal';
 import { FoodIcon } from '../lib/foodIcons';
@@ -47,6 +47,7 @@ const getPersonColor = (index: number): string => {
 
 export const TabbySimple: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { token: urlToken } = useParams<{ token: string }>();
   const { user, signOut } = useAuth();
   const [step, setStep] = useState<'upload' | 'scanning' | 'editName' | 'people' | 'assign'>('upload');
@@ -84,7 +85,7 @@ export const TabbySimple: React.FC = () => {
   // Determine step from URL
   useEffect(() => {
     if (urlToken) {
-      const path = window.location.pathname;
+      const path = location.pathname;
       if (path.includes('/people')) {
         console.log('[TabbySimple] URL shows people step:', urlToken);
         setStep('people');
@@ -93,7 +94,7 @@ export const TabbySimple: React.FC = () => {
         setStep('assign');
       }
     }
-  }, [urlToken]);
+  }, [urlToken, location.pathname]);
 
   // Auto-add "Me" when reaching people step on new bills
   useEffect(() => {
@@ -121,7 +122,10 @@ export const TabbySimple: React.FC = () => {
         try {
           const billData = await fetchReceiptByToken(urlToken);
 
-          if (billData && billData.bill) {
+          // Handle both 'bill' and 'receipt' keys from API
+          const receiptData = billData.bill || billData.receipt;
+
+          if (billData && receiptData) {
             // Load items
             const loadedItems: Item[] = (billData.items || []).map((item: any) => ({
               id: item.id,
@@ -133,11 +137,11 @@ export const TabbySimple: React.FC = () => {
             }));
 
             setItems(loadedItems);
-            setRestaurantName(billData.bill.place || billData.bill.title || 'Restaurant');
-            setSubtotal(Number(billData.bill.subtotal || 0));
-            setTax(Number(billData.bill.sales_tax || 0));
-            setTip(Number(billData.bill.tip || 0));
-            setTotal(Number(billData.bill.total_amount || 0));
+            setRestaurantName(receiptData.place || receiptData.title || 'Restaurant');
+            setSubtotal(Number(receiptData.subtotal || 0));
+            setTax(Number(receiptData.sales_tax || 0));
+            setTip(Number(receiptData.tip || 0));
+            setTotal(Number(receiptData.total_amount || receiptData.subtotal + receiptData.sales_tax + receiptData.tip || 0));
             setBillToken(urlToken);
 
             // Load people and assignments from localStorage if available
