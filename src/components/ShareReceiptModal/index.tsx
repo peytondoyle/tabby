@@ -202,9 +202,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         {/* Header */}
         <div className="modern-header">
           <h2 className="modern-restaurant-name">{restaurantName}</h2>
-          <p className="modern-subtitle">
-            {date.split(',')[0]}, {date.split(',').slice(1).join(',')}
-          </p>
+          <p className="modern-subtitle">{date}</p>
         </div>
 
         {/* People List */}

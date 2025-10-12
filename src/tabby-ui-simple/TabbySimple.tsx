@@ -204,10 +204,9 @@ export const TabbySimple: React.FC = () => {
             // Load people from API if available
             if (billData.people && billData.people.length > 0) {
               console.log('[TabbySimple] Loading people from API:', billData.people);
-              setPeople(billData.people);
 
-              // Apply item assignments from people data
-              setItems(prevItems => prevItems.map(item => {
+              // First, apply item assignments from people data
+              const updatedItems = loadedItems.map(item => {
                 // Find which person(s) have this item
                 const assignedPeople = billData.people.filter((p: Person) =>
                   p.items.includes(item.id)
@@ -228,7 +227,37 @@ export const TabbySimple: React.FC = () => {
                   };
                 }
                 return item;
-              }));
+              });
+
+              setItems(updatedItems);
+
+              // Recalculate person totals with actual item prices
+              const peopleWithTotals = billData.people.map((person: Person) => {
+                const personItems = updatedItems.filter(item => person.items.includes(item.id));
+                let itemsSubtotal = 0;
+
+                personItems.forEach(item => {
+                  if (item.splitBetween && item.splitBetween.length > 0) {
+                    itemsSubtotal += item.price / item.splitBetween.length;
+                  } else {
+                    itemsSubtotal += item.price;
+                  }
+                });
+
+                const receiptSubtotal = Number(receiptData.subtotal || 0);
+                const proportion = receiptSubtotal > 0 ? itemsSubtotal / receiptSubtotal : 0;
+                const personTax = Number(receiptData.sales_tax || 0) * proportion;
+                const personTip = Number(receiptData.tip || 0) * proportion;
+                const total = itemsSubtotal + personTax + personTip;
+
+                return {
+                  ...person,
+                  total
+                };
+              });
+
+              setPeople(peopleWithTotals);
+              console.log('[TabbySimple] Recalculated people totals:', peopleWithTotals);
             } else {
               // Fallback to localStorage if no people in API response
               const localShareData = localStorage.getItem(`bill-share-${urlToken}`);
