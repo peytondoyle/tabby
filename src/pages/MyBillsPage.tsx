@@ -10,7 +10,7 @@ import { apiFetch } from '@/lib/apiClient'
 import { logServer } from '@/lib/errorLogger'
 // import { OnboardingFlow } from '@/components/OnboardingFlow'
 import { getCurrentDate } from '@/lib/receiptScanning'
-import { fetchReceipts, deleteReceipt, type ReceiptListItem } from '@/lib/receipts'
+import { fetchReceipts, deleteReceipt, createReceipt, buildCreatePayload, type ReceiptListItem } from '@/lib/receipts'
 import { getReceiptHistory, removeReceiptFromHistory, type ReceiptHistoryItem } from '@/lib/receiptHistory'
 import { Button, IconButton, Container, Stack, Card, TabbySheet } from "@/components/design-system";
 import { designTokens } from "@/lib/styled";
@@ -314,7 +314,6 @@ export const MyBillsPage: React.FC = () => {
 
     try {
       // Use the new schema-aligned createReceipt function
-      const { createReceipt, buildCreatePayload } = await import('@/lib/receipts')
       const payload = buildCreatePayload(result)
       const created = await createReceipt(payload) as any
 

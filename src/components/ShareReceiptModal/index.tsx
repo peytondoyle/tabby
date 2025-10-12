@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { toPng } from 'html-to-image';
 import { FoodIcon } from '../../lib/foodIcons';
 import { HomeButton } from '../HomeButton';
 import './styles.css';
@@ -75,26 +74,21 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
       // Wait a bit for any fonts/emojis to fully render
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Generate high-quality image with exact dimensions
-      const dataUrl = await toPng(cardRef.current, {
-        quality: 1.0,
-        pixelRatio: 2, // Reduced from 3 to avoid overflow issues
-        backgroundColor: '#f8f8f8', // Match the card background
-        cacheBust: true, // Prevent caching issues
-        width: 280, // Fixed width to match card
-        height: cardRef.current.offsetHeight,
-        style: {
-          transform: 'scale(1)',
-          margin: '0',
-          padding: '0',
-        },
-        filter: (node) => {
-          // Don't include certain elements that might cause issues
-          const exclusions = ['SCRIPT', 'NOSCRIPT', 'STYLE'];
-          return !exclusions.includes(node.nodeName);
-        }
+      // Dynamic import html2canvas for code splitting
+      const html2canvas = (await import('html2canvas')).default;
+
+      // Generate high-quality image
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 2, // High DPI for sharp images
+        backgroundColor: '#f8f8f8',
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        width: 280,
+        height: cardRef.current.offsetHeight
       });
 
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
       console.log('[ShareReceipt] Image generated successfully, size:', dataUrl.length);
 
       // Create download link

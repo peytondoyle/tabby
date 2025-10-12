@@ -5,6 +5,7 @@ import { apiUpload } from './apiClient'
 import { API_BASE } from './apiBase'
 import { logServer } from './errorLogger'
 import { normalizeFile } from './imageNormalizer'
+import { createReceipt, buildCreatePayload } from './receipts'
 
 // Note: Image normalization is now handled by Web Worker in imageNormalizer.ts
 // Old functions removed - see imageNormalizer.ts for Web Worker implementation
@@ -752,7 +753,6 @@ export async function createReceiptFromReceipt(receiptData: ReceiptScanResult, _
     }
 
     // Use the new schema-aligned createReceipt function with userId
-    const { createReceipt, buildCreatePayload } = await import('./receipts')
     const payload = buildCreatePayload(parseResult)
     const result = await createReceipt(payload, userId)
 

@@ -11,7 +11,7 @@ import { PeopleDock } from '@/components/PeopleDock'
 import { HomeButton } from '@/components/HomeButton'
 // Removed PageContainer import - using full-width layout
 import { SplashScreen } from '@/components/SplashScreen'
-import { fetchReceiptByToken } from '@/lib/receipts'
+import { fetchReceiptByToken, createReceipt, buildCreatePayload } from '@/lib/receipts'
 import { isLocalId } from '@/lib/id'
 import { Button } from "@/components/design-system";
 import { logServer } from '@/lib/errorLogger'
@@ -225,7 +225,6 @@ export const Flow: React.FC = () => {
     
     try {
       // Create bill via server API using new schema-aligned functions
-      const { createReceipt, buildCreatePayload } = await import('@/lib/receipts')
       const payload = buildCreatePayload(result)
       const { id: billId } = await createReceipt(payload)
       console.info(`[flow] Bill created with ID: ${billId}`)

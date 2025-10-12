@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ShareReceiptModal } from '../components/ShareReceiptModal';
+import { LazyShareReceiptModal as ShareReceiptModal } from '../components/ShareReceiptModal/LazyShareReceiptModal';
 import { fetchReceiptByToken } from '../lib/receipts';
 import { HomeButton } from '@/components/HomeButton';
 

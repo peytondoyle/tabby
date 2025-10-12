@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { parseReceipt, createReceiptFromReceipt, type ParseResult } from '../lib/receiptScanning';
-import { ShareReceiptModal } from '../components/ShareReceiptModal';
+import { LazyShareReceiptModal as ShareReceiptModal } from '../components/ShareReceiptModal/LazyShareReceiptModal';
 import { FoodIcon } from '../lib/foodIcons';
 import { getReceiptHistory } from '../lib/receiptHistory';
 import { useAuth } from '../lib/authContext';
