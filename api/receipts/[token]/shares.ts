@@ -77,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: receipt, error: receiptError } = await supabaseAdmin
       .from('receipts')
       .select('id')
-      .or(`id.eq.${token},editor_token.eq.${token},viewer_token.eq.${token}`)
+      .or(`editor_token.eq.${token},viewer_token.eq.${token}`)
       .single();
 
     if (receiptError || !receipt) {

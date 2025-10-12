@@ -52,7 +52,7 @@ export default async function handler(
 
       console.log('[receipt_fetch] Checking Supabase...')
 
-      // Fetch receipt data - query by id, editor_token, or viewer_token
+      // Fetch receipt data - query by editor_token or viewer_token (not UUID id)
       const { data: receipt, error: receiptError } = await supabaseAdmin
         .from('receipts')
         .select(`
@@ -67,7 +67,7 @@ export default async function handler(
           sales_tax,
           tip
         `)
-        .or(`id.eq.${token},editor_token.eq.${token},viewer_token.eq.${token}`)
+        .or(`editor_token.eq.${token},viewer_token.eq.${token}`)
         .single()
 
       if (!receiptError && receipt) {

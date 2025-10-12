@@ -77,12 +77,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // First, fetch the receipt to get its ID
     console.log('[receipts_people] Looking for receipt with token:', token);
     console.log('[receipts_people] Supabase admin configured:', !!supabaseAdmin);
-    console.log('[receipts_people] Query:', `id.eq.${token},editor_token.eq.${token},viewer_token.eq.${token}`);
+    console.log('[receipts_people] Query:', `editor_token.eq.${token},viewer_token.eq.${token}`);
 
-    const { data: receipt, error: receiptError } = await supabaseAdmin
+    const { data: receipt, error: receiptError} = await supabaseAdmin
       .from('receipts')
       .select('id, editor_token, viewer_token')
-      .or(`id.eq.${token},editor_token.eq.${token},viewer_token.eq.${token}`)
+      .or(`editor_token.eq.${token},viewer_token.eq.${token}`)
       .single();
 
     console.log('[receipts_people] Query result:', { receipt, error: receiptError });
