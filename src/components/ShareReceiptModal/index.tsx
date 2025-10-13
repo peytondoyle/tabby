@@ -143,9 +143,6 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
       <div ref={cardRef} className="receipt-card modern-person-card">
         {/* Person Header */}
         <div className="modern-person-header">
-          <div className="modern-person-avatar-large" style={{ background: getPersonColor(personIndex) }}>
-            {person.name[0].toUpperCase()}
-          </div>
           <h2 className="modern-person-title">{person.name}</h2>
           <p className="modern-person-subtitle">{restaurantName}</p>
           <p className="modern-person-date">{date}</p>
@@ -159,7 +156,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
               <div key={item.id} className="modern-item-row">
                 <div className="modern-item-info">
                   <span className="modern-item-emoji">
-                    <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={14} color="#1a1a1a" />
+                    <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={8} color="#1a1a1a" />
                   </span>
                   <span className="modern-item-name">{item.name || item.label || 'Item'}</span>
                 </div>
@@ -225,15 +222,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
 
           {people.map((person, personIndex) => (
             <div key={person.id} className="modern-person-row">
-              <div className="modern-person-info">
-                <div
-                  className="modern-avatar"
-                  style={{ background: getPersonColor(personIndex) }}
-                >
-                  {person.name[0].toUpperCase()}
-                </div>
-                <span className="modern-person-name">{person.name}</span>
-              </div>
+              <span className="modern-person-name">{person.name}</span>
               <span className="modern-person-total">${person.total.toFixed(2)}</span>
             </div>
           ))}
