@@ -24,7 +24,7 @@ export async function getFoodIcon(foodName: string): Promise<string> {
       p_food_name: normalized,
       p_name_variants: [foodName, normalized],
     })
-    .single();
+    .single<{ icon_id: string | null; icon_url: string | null; needs_generation: boolean }>();
 
   if (cacheError) {
     console.error('[foodIconsService] Cache lookup error:', cacheError);
@@ -33,7 +33,7 @@ export async function getFoodIcon(foodName: string): Promise<string> {
   }
 
   // If icon exists in cache, return it
-  if (!cacheResult.needs_generation && cacheResult.icon_url) {
+  if (cacheResult && !cacheResult.needs_generation && cacheResult.icon_url) {
     console.log('[foodIconsService] Cache HIT:', normalized);
     return cacheResult.icon_url;
   }
@@ -86,7 +86,8 @@ export async function getFoodIconsBatch(
   const { data: icons, error } = await supabase
     .rpc('get_food_icons_batch', {
       p_food_names: normalized,
-    });
+    })
+    .returns<Array<{ food_name: string; icon_url: string }>>();
 
   if (error) {
     console.error('[foodIconsService] Batch lookup error:', error);
