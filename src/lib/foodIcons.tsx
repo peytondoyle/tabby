@@ -134,29 +134,66 @@ export const FoodIcon: React.FC<FoodIconProps> = ({
   className = '',
   color = 'currentColor'
 }) => {
+  const [imageLoaded, setImageLoaded] = React.useState(false);
+  const [imageError, setImageError] = React.useState(false);
+
   // Priority 1: AI-generated beautiful flat design icon
   if (iconUrl) {
     return (
-      <img
-        src={iconUrl}
-        alt={itemName}
+      <div
         className={className}
         style={{
           width: `${size}px`,
           height: `${size}px`,
-          objectFit: 'cover',
-          borderRadius: '4px',
-          display: 'inline-block',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
         }}
-        onError={(e) => {
-          // On load error, hide the image and it will fall through to emoji
-          (e.target as HTMLImageElement).style.display = 'none';
-        }}
-      />
+      >
+        {/* Loading skeleton while image loads */}
+        {!imageLoaded && !imageError && (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              backgroundColor: '#f0f0f0',
+              borderRadius: '4px',
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }}
+          />
+        )}
+
+        {/* Actual icon image */}
+        <img
+          src={iconUrl}
+          alt={itemName}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            borderRadius: '4px',
+            display: imageLoaded && !imageError ? 'block' : 'none',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => {
+            setImageError(true);
+            setImageLoaded(false);
+          }}
+        />
+
+        {/* Fallback icon on error */}
+        {imageError && (
+          <Utensils size={size * 0.7} color={color} style={{ opacity: 0.5 }} />
+        )}
+      </div>
     );
   }
 
-  // Priority 2: AI-generated emoji
+  // Priority 2: AI-generated emoji (only if no icon URL is being generated)
   if (emoji) {
     return (
       <span
