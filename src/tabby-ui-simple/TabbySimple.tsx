@@ -1140,9 +1140,9 @@ export const TabbySimple: React.FC = () => {
                 setStep('assign');
               }
             }}
-            disabled={people.length === 0}
+            disabled={people.length === 0 || isScanning}
           >
-            Continue to Assign Items
+            {isScanning ? 'Scanning...' : 'Continue to Assign Items'}
           </button>
         </div>
 
