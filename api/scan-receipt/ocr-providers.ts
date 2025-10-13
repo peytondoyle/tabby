@@ -32,8 +32,10 @@ class OpenAIProvider implements OCRProvider {
 
   constructor() {
     if (process.env.OPENAI_API_KEY) {
+      // Strip quotes that may have been added by environment variable storage
+      const apiKey = process.env.OPENAI_API_KEY.replace(/^["']|["']$/g, '').trim();
       this.client = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
+        apiKey: apiKey,
       });
     }
   }
