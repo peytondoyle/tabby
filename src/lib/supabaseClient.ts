@@ -7,9 +7,9 @@ assertEnvVars(
   hasLocalFallbacks
 )
 
-// Get Supabase configuration
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+// Get Supabase configuration (trim any whitespace/newlines)
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim()
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
 
 // Warn if secret key is accidentally used in client code
 if (SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.startsWith('sb_secret_')) {

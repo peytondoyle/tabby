@@ -23,7 +23,9 @@ export function validateEnvVars(
   const warnings: string[] = []
 
   for (const varName of requiredVars) {
-    if (!import.meta.env[varName]) {
+    const value = import.meta.env[varName]
+    // Check if value exists and is not empty after trimming
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
       missing.push(varName)
     }
   }
