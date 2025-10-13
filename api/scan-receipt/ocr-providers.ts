@@ -76,9 +76,99 @@ class OpenAIProvider implements OCRProvider {
 CRITICAL RULES:
 
 1. FOOD/DRINK ITEMS: Extract all food and drink items with their FULL prices (before discounts).
-   - Use food emojis: 🍕 🥗 🍜 🥟 🍚 🍔 🍟 🌮 🥤 ☕ 🍺 🍷
    - DO NOT include taxes, tips, fees, or discounts as items
    - Items should be the original menu prices
+   - IMPORTANT: For each item, choose the MOST SPECIFIC emoji that best represents that food:
+
+   EMOJI SELECTION GUIDE - Choose the BEST match:
+
+   Proteins & Mains:
+   🍗 Fried chicken, wings, chicken pieces
+   🍖 Ribs, large meat cuts, BBQ
+   🥩 Steak, beef, red meat
+   🍤 Shrimp, prawns
+   🦞 Lobster, crab
+   🐟 Fish fillets, grilled fish
+   🍱 Bento boxes, combo meals
+   🍛 Curry dishes (any type)
+   🍲 Soups, stews, hot pots
+   🥘 Paella, casseroles, one-pot dishes
+
+   Asian Cuisine:
+   🍜 Ramen, noodle soups, pho
+   🍝 Pasta, spaghetti, Italian noodles
+   🥟 Dumplings, gyoza, potstickers
+   🥠 Fortune cookies, Chinese snacks
+   🍚 Plain rice, steamed rice
+   🍙 Onigiri, rice balls
+   🍣 Sushi, sashimi
+   🥡 Chinese takeout, stir-fry, lo mein
+   🥢 Asian dishes (use with main emoji)
+
+   American/Fast Food:
+   🍔 Burgers, hamburgers
+   🍟 Fries, french fries
+   🌭 Hot dogs
+   🌮 Tacos, burritos, Mexican
+   🌯 Wraps, burritos, rolled items
+   🍕 Pizza, pizza slices
+   🥪 Sandwiches, subs
+
+   Salads & Vegetables:
+   🥗 Salads, green salads
+   🥦 Broccoli dishes
+   🥕 Carrot dishes
+   🌽 Corn, corn-based dishes
+   🥔 Potatoes, mashed potatoes
+   🍠 Sweet potato, yams
+   🫘 Beans, legumes
+   🥜 Peanuts, nuts (cashews, almonds)
+
+   Breakfast:
+   🥞 Pancakes, waffles
+   🧇 Waffles
+   🥓 Bacon
+   🍳 Eggs (any style)
+   🥐 Croissants, pastries
+   🥯 Bagels
+
+   Desserts:
+   🍰 Cake, cheesecake
+   🧁 Cupcakes, muffins
+   🍪 Cookies
+   🍩 Donuts, doughnuts
+   🍨 Ice cream, gelato
+   🍦 Soft serve, ice cream cone
+   🥧 Pie
+   🍮 Pudding, flan, custard
+
+   Drinks:
+   ☕ Coffee, espresso, lattes
+   🍵 Tea, green tea, hot tea
+   🧃 Juice boxes, kids drinks
+   🥤 Soda, soft drinks, fountain drinks
+   🧋 Boba tea, bubble tea
+   🍺 Beer
+   🍻 Beer (multiple)
+   🍷 Wine
+   🍸 Cocktails, mixed drinks
+   🍹 Tropical cocktails
+   🥂 Champagne, sparkling wine
+   🥛 Milk, milkshakes
+
+   Tips for choosing:
+   - "Chicken Cashew Nuts" → 🥜 (highlight the cashews, not generic chicken)
+   - "Chicken Broccoli" → 🥦 (highlight the broccoli)
+   - "Orange Chicken" → 🍊 or 🥡 (citrus or Chinese takeout)
+   - "Pad Thai" → 🍜 (noodle dish)
+   - "Spring Rolls" → 🥡 (Asian appetizer)
+   - "Caesar Salad" → 🥗 (salad)
+   - "Tonkotsu Ramen" → 🍜 (ramen)
+   - "Margherita Pizza" → 🍕 (pizza)
+   - "Latte" → ☕ (coffee)
+   - "Boba Milk Tea" → 🧋 (bubble tea)
+
+   Choose the emoji that best captures the ESSENCE of the dish, not just the protein!
 
 2. DISCOUNTS & PROMOS: Look for ANY discounts, promos, coupons, or deals.
    - Labels: "Discount", "Promo", "Coupon", "BOGO", "Buy One Get One", "10% Off", "Rewards", "Member Discount", "Membership Savings"
