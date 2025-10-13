@@ -86,8 +86,7 @@ export async function getFoodIconsBatch(
   const { data: icons, error } = await supabase
     .rpc('get_food_icons_batch', {
       p_food_names: normalized,
-    })
-    .returns<Array<{ food_name: string; icon_url: string }>>();
+    });
 
   if (error) {
     console.error('[foodIconsService] Batch lookup error:', error);
@@ -96,8 +95,12 @@ export async function getFoodIconsBatch(
 
   // Build map of food_name -> icon_url
   const iconMap = new Map<string, string>();
-  for (const icon of icons || []) {
-    iconMap.set(icon.food_name, icon.icon_url);
+  if (icons && Array.isArray(icons)) {
+    for (const icon of icons) {
+      if (icon && typeof icon === 'object' && 'food_name' in icon && 'icon_url' in icon) {
+        iconMap.set(icon.food_name as string, icon.icon_url as string);
+      }
+    }
   }
 
   console.log(`[foodIconsService] Found ${iconMap.size}/${foodNames.length} icons in cache`);
