@@ -120,6 +120,7 @@ export function getFoodIcon(itemName: string): LucideIcon {
 interface FoodIconProps {
   itemName: string;
   emoji?: string | null; // AI-generated emoji from API
+  iconUrl?: string | null; // DALL-E generated icon URL
   size?: number;
   className?: string;
   color?: string;
@@ -128,11 +129,34 @@ interface FoodIconProps {
 export const FoodIcon: React.FC<FoodIconProps> = ({
   itemName,
   emoji,
+  iconUrl,
   size = 20,
   className = '',
   color = 'currentColor'
 }) => {
-  // If AI-generated emoji is available, use it
+  // Priority 1: AI-generated beautiful flat design icon
+  if (iconUrl) {
+    return (
+      <img
+        src={iconUrl}
+        alt={itemName}
+        className={className}
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          objectFit: 'cover',
+          borderRadius: '4px',
+          display: 'inline-block',
+        }}
+        onError={(e) => {
+          // On load error, hide the image and it will fall through to emoji
+          (e.target as HTMLImageElement).style.display = 'none';
+        }}
+      />
+    );
+  }
+
+  // Priority 2: AI-generated emoji
   if (emoji) {
     return (
       <span
@@ -150,7 +174,7 @@ export const FoodIcon: React.FC<FoodIconProps> = ({
     );
   }
 
-  // Otherwise fall back to Lucide icon
+  // Priority 3: Fall back to Lucide icon
   const Icon = getFoodIcon(itemName);
   return <Icon size={size} className={className} color={color} />;
 };

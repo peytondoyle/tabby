@@ -7,6 +7,7 @@ import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessR
 import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit.js'
 import { FILE_LIMITS } from '../_utils/schemas.js'
 import { processWithFallback, processWithMultipleProviders } from './ocr-providers.js'
+import { generateAndCacheFoodIcons } from '../_utils/foodIconsService.js'
 
 // Server-side Supabase client using secret key
 const _supabaseAdmin = process.env.SUPABASE_SECRET_KEY
@@ -47,6 +48,7 @@ interface ScanReceiptResponse {
     label: string
     price: number
     emoji?: string | null
+    iconUrl?: string | null
   }>
 }
 
@@ -218,6 +220,23 @@ export default async function handler(
 
         // Process with OCR providers (parallel processing for speed)
         const ocrResult = await processWithMultipleProviders(imageBuffer, file.mimetype, 8000)
+        console.log(`[scan_api] OCR processing completed - ${ocrResult.items.length} items extracted in ${ocrResult.processingTime}ms`)
+
+        // Check cache for existing icons (fast lookup, ~50ms)
+        // This way repeated items get icons immediately!
+        console.log('[scan_api] Checking icon cache...')
+        const foodNames = ocrResult.items.map(item => item.label)
+        const iconResults = await generateAndCacheFoodIcons(foodNames)
+
+        // Map icon URLs back to items
+        const itemsWithIcons = ocrResult.items.map((item, index) => ({
+          ...item,
+          iconUrl: iconResults[index]?.iconUrl || null
+        }))
+
+        const cachedCount = iconResults.filter(r => r.iconUrl).length
+        console.log(`[scan_api] Icon lookup completed - ${cachedCount}/${itemsWithIcons.length} icons available (${cachedCount} cached, ${itemsWithIcons.length - cachedCount} newly generated)`)
+
         result = {
           place: ocrResult.place,
           date: ocrResult.date,
@@ -227,9 +246,8 @@ export default async function handler(
           discount: ocrResult.discount,
           total: ocrResult.total,
           rawText: ocrResult.rawText,
-          items: ocrResult.items
+          items: itemsWithIcons
         }
-        console.log(`[scan_api] OCR processing completed - ${result.items.length} items extracted in ${ocrResult.processingTime}ms`)
       } catch (ocrError: any) {
         console.error('[scan_api] OCR processing failed:', {
           message: ocrError?.message,
