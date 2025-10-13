@@ -1180,7 +1180,86 @@ export const TabbySimple: React.FC = () => {
       {/* Header */}
       <div className="header">
         <div>
-          <h1>{restaurantName}</h1>
+          {isEditingRestaurantName ? (
+            <input
+              type="text"
+              value={editableRestaurantName}
+              onChange={(e) => setEditableRestaurantName(e.target.value)}
+              onKeyPress={async (e) => {
+                if (e.key === 'Enter' && editableRestaurantName.trim()) {
+                  setRestaurantName(editableRestaurantName.trim());
+                  setIsEditingRestaurantName(false);
+
+                  // Persist to database
+                  if (billToken) {
+                    try {
+                      await updateReceiptMetadata(billToken, {
+                        place: editableRestaurantName.trim()
+                      });
+                      console.log('[TabbySimple] Restaurant name updated successfully');
+                    } catch (error) {
+                      console.error('[TabbySimple] Failed to update restaurant name:', error);
+                    }
+                  }
+                }
+              }}
+              onBlur={async () => {
+                if (editableRestaurantName.trim()) {
+                  setRestaurantName(editableRestaurantName.trim());
+                  setIsEditingRestaurantName(false);
+
+                  // Persist to database
+                  if (billToken) {
+                    try {
+                      await updateReceiptMetadata(billToken, {
+                        place: editableRestaurantName.trim()
+                      });
+                      console.log('[TabbySimple] Restaurant name updated successfully');
+                    } catch (error) {
+                      console.error('[TabbySimple] Failed to update restaurant name:', error);
+                    }
+                  }
+                } else {
+                  setIsEditingRestaurantName(false);
+                  setEditableRestaurantName(restaurantName);
+                }
+              }}
+              autoFocus
+              style={{
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '2px solid rgba(255,255,255,0.3)',
+                color: '#fff',
+                fontSize: '28px',
+                fontWeight: '700',
+                padding: '0 0 4px 0',
+                outline: 'none',
+                width: '100%',
+                fontFamily: 'inherit'
+              }}
+            />
+          ) : (
+            <h1
+              onClick={() => {
+                setEditableRestaurantName(restaurantName);
+                setIsEditingRestaurantName(true);
+              }}
+              style={{
+                cursor: 'pointer',
+                display: 'inline-block',
+                position: 'relative'
+              }}
+              title="Click to edit"
+            >
+              {restaurantName}
+              <span style={{
+                marginLeft: '8px',
+                fontSize: '14px',
+                color: 'rgba(255,255,255,0.4)',
+                fontWeight: '400'
+              }}>✏️</span>
+            </h1>
+          )}
           <p className="date">{new Date().toLocaleDateString()}</p>
         </div>
         <div className="header-buttons">
