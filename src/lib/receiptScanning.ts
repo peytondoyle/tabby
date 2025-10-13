@@ -677,13 +677,17 @@ export async function parseReceipt(
     console.info(`[scan_ok] Receipt parsed successfully in ${totalDuration}ms - items: ${result.items.length}, place: ${!!result.place}, total: $${result.total || 0}`)
 
     // Save to cache for instant future loads
-    if (cacheKey) {
+    // Only cache real OCR results, not demo/fallback data
+    const isDemoData = result.place === 'Demo Restaurant' && result.items.some(item => item.label === 'Margherita Pizza')
+    if (cacheKey && !isDemoData) {
       try {
         localStorage.setItem(cacheKey, JSON.stringify(result))
         console.info(`[scan_cache] Cached result for future use (${cacheKey.substring(11, 19)}...)`)
       } catch (cacheError) {
         console.warn('[scan_cache] Failed to cache result:', cacheError)
       }
+    } else if (isDemoData) {
+      console.warn('[scan_cache] Skipping cache - demo/fallback data should not be cached')
     }
 
     performanceMonitor.end(true)
@@ -693,20 +697,21 @@ export async function parseReceipt(
     const duration = Date.now() - startTime
     console.error(`[scan_exception] Receipt parsing failed after ${duration}ms:`, error)
     logServer('error', 'Receipt parsing failed', { error, duration, context: 'parseReceipt' })
-    
+
     performanceMonitor.end(false)
-    
+
     // Don't use dev fallback if we're in production-like mode
     const allowDevFallback = import.meta.env.VITE_ALLOW_DEV_FALLBACK !== '0'
-    
+
     if (!allowDevFallback) {
       // Re-throw the error for proper error handling
       throw error
     }
-    
+
     // Return deterministic fallback on network/parsing error
+    // NOTE: This will NOT be cached (see caching logic above)
     const fallbackResult = getDEVFallback()
-    console.info(`[scan_ok] Using dev fallback due to network error - ${fallbackResult.items.length} items`)
+    console.info(`[scan_ok] Using dev fallback due to network error - ${fallbackResult.items.length} items (NOT cached)`)
     return fallbackResult
   }
 }
