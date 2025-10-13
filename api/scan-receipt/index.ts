@@ -222,27 +222,20 @@ export default async function handler(
         const ocrResult = await processWithMultipleProviders(imageBuffer, file.mimetype, 8000)
         console.log(`[scan_api] OCR processing completed - ${ocrResult.items.length} items extracted in ${ocrResult.processingTime}ms`)
 
-        // TODO: Re-enable icon generation after database migration is applied
         // Check cache for existing icons (fast lookup, ~50ms)
         // This way repeated items get icons immediately!
-        // console.log('[scan_api] Checking icon cache...')
-        // const foodNames = ocrResult.items.map(item => item.label)
-        // const iconResults = await generateAndCacheFoodIcons(foodNames)
-        //
-        // // Map icon URLs back to items
-        // const itemsWithIcons = ocrResult.items.map((item, index) => ({
-        //   ...item,
-        //   iconUrl: iconResults[index]?.iconUrl || null
-        // }))
-        //
-        // const cachedCount = iconResults.filter(r => r.iconUrl).length
-        // console.log(`[scan_api] Icon lookup completed - ${cachedCount}/${itemsWithIcons.length} icons available (${cachedCount} cached, ${itemsWithIcons.length - cachedCount} newly generated)`)
+        console.log('[scan_api] Checking icon cache...')
+        const foodNames = ocrResult.items.map(item => item.label)
+        const iconResults = await generateAndCacheFoodIcons(foodNames)
 
-        // Temporarily return without icons until migration is applied
-        const itemsWithIcons = ocrResult.items.map(item => ({
+        // Map icon URLs back to items
+        const itemsWithIcons = ocrResult.items.map((item, index) => ({
           ...item,
-          iconUrl: null
+          iconUrl: iconResults[index]?.iconUrl || null
         }))
+
+        const cachedCount = iconResults.filter(r => r.iconUrl).length
+        console.log(`[scan_api] Icon lookup completed - ${cachedCount}/${itemsWithIcons.length} icons available (${cachedCount} cached, ${itemsWithIcons.length - cachedCount} newly generated)`)
 
         result = {
           place: ocrResult.place,
