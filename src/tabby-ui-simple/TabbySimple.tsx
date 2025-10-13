@@ -311,7 +311,8 @@ export const TabbySimple: React.FC = () => {
   }, [user, step]);
 
   const handleFileSelect = async (file: File) => {
-    setStep('scanning');
+    // Set step to people immediately, show scan progress there
+    setStep('people');
     setScanProgress('Scanning receipt...');
 
     try {
@@ -396,7 +397,7 @@ export const TabbySimple: React.FC = () => {
         placeLower === 'store name' ||
         placeLower === 'store';
 
-      // Determine next step based on whether people were added during scan
+      // Navigate to appropriate next step
       console.log('Scan complete:', {
         place: result.place,
         needsNameEdit,
@@ -406,18 +407,20 @@ export const TabbySimple: React.FC = () => {
 
       if (needsNameEdit) {
         setStep('editName');
-      } else if (people.length > 0) {
-        // If people were added during scanning, skip people step and go to assign
-        console.log('[TabbySimple] People added during scan, navigating to assign:', token);
-        navigate(`/receipt/${token}/edit`);
+        setScanProgress('');
       } else {
-        // Navigate to people step with token
-        console.log('[TabbySimple] Navigating to people step:', token);
-        navigate(`/receipt/${token}/people`);
+        // Update URL to include token if we're on people step
+        // This ensures the URL is shareable and refreshable
+        console.log('[TabbySimple] Scan complete, updating URL with token:', token);
+        navigate(`/receipt/${token}/people`, { replace: true });
+
+        // Clear scan progress after navigating
+        setScanProgress('');
       }
     } catch (error) {
       console.error('Scan failed:', error);
       setStep('upload');
+      setScanProgress('');
     }
   };
 
@@ -985,6 +988,7 @@ export const TabbySimple: React.FC = () => {
   if (step === 'people') {
     const quickAddSuggestions = getQuickAddSuggestions(people.map(p => p.name));
     const myName = getUserIdentity();
+    const isScanning = !!scanProgress;
 
     return (
       <div className="tabby-simple">
@@ -995,6 +999,23 @@ export const TabbySimple: React.FC = () => {
             <p className="date">{new Date().toLocaleDateString()}</p>
           </div>
         </div>
+
+        {/* Scan Progress Indicator */}
+        {isScanning && (
+          <div style={{
+            padding: '12px 20px',
+            background: 'rgba(0, 122, 255, 0.15)',
+            border: '1px solid rgba(0, 122, 255, 0.3)',
+            borderRadius: '12px',
+            margin: '0 20px 20px 20px',
+            textAlign: 'center',
+            color: '#007AFF',
+            fontSize: '14px',
+            fontWeight: '500'
+          }}>
+            📸 {scanProgress}
+          </div>
+        )}
 
         <div className="people-step-container">
           <div className="people-circles">
