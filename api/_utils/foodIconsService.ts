@@ -1,5 +1,5 @@
-import { getSupabaseServiceClient } from './supabase';
-import { generateFoodIcon, type GeneratedIcon } from './iconGenerator';
+import { getSupabaseServiceClient } from './supabase.js';
+import { generateFoodIcon, type GeneratedIcon } from './iconGenerator.js';
 
 export interface FoodIconCacheEntry {
   id: string;
