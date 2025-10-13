@@ -1230,7 +1230,7 @@ export const TabbySimple: React.FC = () => {
                 border: 'none',
                 borderBottom: '2px solid rgba(255,255,255,0.3)',
                 color: '#fff',
-                fontSize: '28px',
+                fontSize: '20px',
                 fontWeight: '700',
                 padding: '0 0 4px 0',
                 outline: 'none',
