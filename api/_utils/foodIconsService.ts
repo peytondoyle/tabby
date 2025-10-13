@@ -13,9 +13,7 @@ export interface FoodIconCacheEntry {
  * This is the main entry point for getting food icons
  */
 export async function getFoodIcon(foodName: string): Promise<string> {
-  const normalized = normaliz
-
-eFoodName(foodName);
+  const normalized = normalizeFoodName(foodName);
   console.log(`[foodIconsService] Getting icon for: ${foodName} (normalized: ${normalized})`);
 
   const supabase = getSupabaseServiceClient();
