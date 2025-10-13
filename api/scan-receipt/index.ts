@@ -226,7 +226,21 @@ export default async function handler(
         // This way repeated items get icons immediately!
         console.log('[scan_api] Checking icon cache...')
         const foodNames = ocrResult.items.map(item => item.label)
-        const iconResults = await generateAndCacheFoodIcons(foodNames)
+        console.log('[scan_api] Food names for icon generation:', foodNames)
+
+        let iconResults: Array<{ foodName: string; iconUrl: string }> = []
+        try {
+          iconResults = await generateAndCacheFoodIcons(foodNames)
+          console.log('[scan_api] Icon generation succeeded, results:', iconResults.length)
+        } catch (iconError: any) {
+          console.error('[scan_api] Icon generation failed:', {
+            message: iconError?.message,
+            name: iconError?.name,
+            code: iconError?.code,
+            stack: iconError?.stack?.split('\n').slice(0, 3)
+          })
+          // Continue without icons if generation fails
+        }
 
         // Map icon URLs back to items
         const itemsWithIcons = ocrResult.items.map((item, index) => ({
@@ -234,8 +248,8 @@ export default async function handler(
           iconUrl: iconResults[index]?.iconUrl || null
         }))
 
-        const cachedCount = iconResults.filter(r => r.iconUrl).length
-        console.log(`[scan_api] Icon lookup completed - ${cachedCount}/${itemsWithIcons.length} icons available (${cachedCount} cached, ${itemsWithIcons.length - cachedCount} newly generated)`)
+        const cachedCount = iconResults.filter(r => r.iconUrl && r.iconUrl.length > 0).length
+        console.log(`[scan_api] Icon lookup completed - ${cachedCount}/${itemsWithIcons.length} icons available`)
 
         result = {
           place: ocrResult.place,

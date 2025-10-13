@@ -114,18 +114,26 @@ export async function getFoodIconsBatch(
 export async function generateAndCacheFoodIcons(
   foodNames: string[]
 ): Promise<Array<{ foodName: string; iconUrl: string }>> {
+  console.log(`[foodIconsService] generateAndCacheFoodIcons called with ${foodNames.length} items`);
   const results: Array<{ foodName: string; iconUrl: string }> = [];
 
   for (const foodName of foodNames) {
     try {
+      console.log(`[foodIconsService] Processing: ${foodName}`);
       const iconUrl = await getFoodIcon(foodName);
+      console.log(`[foodIconsService] Got icon for ${foodName}: ${iconUrl ? 'success' : 'empty'}`);
       results.push({ foodName, iconUrl });
-    } catch (error) {
-      console.error(`[foodIconsService] Failed for ${foodName}:`, error);
+    } catch (error: any) {
+      console.error(`[foodIconsService] Failed for ${foodName}:`, {
+        message: error?.message,
+        name: error?.name,
+        code: error?.code
+      });
       results.push({ foodName, iconUrl: '' });
     }
   }
 
+  console.log(`[foodIconsService] Completed. Returning ${results.length} results`);
   return results;
 }
 
