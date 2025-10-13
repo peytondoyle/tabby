@@ -156,17 +156,17 @@
   box-sizing: border-box;
 }
 
-/* Modern Person Card - Compact & Cutesy */
+/* Modern Person Card - Ultra Compact Like Chick-fil-A */
 .modern-person-card {
   background: #ffffff;
-  border-radius: 12px;
-  padding: 12px 10px;
-  width: 200px;
-  min-width: 200px;
-  max-width: 200px;
-  min-height: 200px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  font-family: 'Courier New', 'Courier', 'Monaco', 'Menlo', monospace;
+  border-radius: 10px;
+  padding: 10px 8px;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  min-height: 180px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -174,73 +174,73 @@
 
 .modern-person-header {
   text-align: center;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #e5e5e5;
 }
 
 .modern-person-avatar-large {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: #fff;
-  margin: 0 auto 6px;
-  line-height: 36px;
+  margin: 0 auto 4px;
+  line-height: 30px;
   text-align: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .modern-person-title {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   margin: 0 0 2px 0;
   color: #1a1a1a;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.1px;
 }
 
 .modern-person-subtitle {
-  font-size: 10px;
+  font-size: 8px;
   color: #666;
   margin: 0 0 1px 0;
   font-weight: 500;
 }
 
 .modern-person-date {
-  font-size: 9px;
+  font-size: 7px;
   color: #999;
   margin: 0;
   font-weight: 400;
 }
 
 .modern-items-section {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .modern-section-label {
-  font-size: 8px;
-  font-weight: 600;
+  font-size: 7px;
+  font-weight: 700;
   color: #999;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 6px 0;
+  letter-spacing: 0.3px;
+  margin: 0 0 4px 0;
 }
 
 .modern-items-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0px;
 }
 
 .modern-item-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
+  padding: 2px 0;
   border-bottom: 1px solid #f5f5f5;
 }
 
@@ -251,22 +251,22 @@
 .modern-item-info {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex: 1;
   min-width: 0;
 }
 
 .modern-item-emoji {
   flex-shrink: 0;
-  width: 12px;
+  width: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .modern-item-name {
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 400;
   color: #1a1a1a;
   flex: 1;
@@ -276,17 +276,17 @@
 }
 
 .modern-item-price {
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 600;
   color: #1a1a1a;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-left: 4px;
+  margin-left: 3px;
 }
 
 .modern-breakdown-section {
-  margin-bottom: 8px;
-  padding: 6px 0;
+  margin-bottom: 6px;
+  padding: 4px 0;
   border-top: 1px solid #e5e5e5;
   border-bottom: 1px solid #e5e5e5;
 }
@@ -295,8 +295,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 3px 0;
-  font-size: 9px;
+  padding: 2px 0;
+  font-size: 7px;
   color: #666;
 }
 
@@ -313,33 +313,33 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  margin-bottom: 8px;
+  padding: 6px 0;
+  margin-bottom: 6px;
 }
 
 .modern-person-total-section .modern-total-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
-.modern-person-total-section .modern-total-amount {
-  font-size: 18px;
+  font-size: 9px;
   font-weight: 700;
   color: #1a1a1a;
 }
 
-/* Modern Summary Card - Compact & Cutesy */
+.modern-person-total-section .modern-total-amount {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+/* Modern Summary Card - Ultra Compact */
 .modern-summary-card {
   background: #ffffff;
-  border-radius: 12px;
-  padding: 12px 10px;
-  width: 200px;
-  min-width: 200px;
-  max-width: 200px;
-  min-height: 200px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  font-family: 'Courier New', 'Courier', 'Monaco', 'Menlo', monospace;
+  border-radius: 10px;
+  padding: 10px 8px;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  min-height: 180px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -347,35 +347,35 @@
 
 .modern-header {
   text-align: center;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #e5e5e5;
 }
 
 .modern-restaurant-name {
-  font-size: 15px;
+  font-size: 11px;
   font-weight: 700;
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
   color: #1a1a1a;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
 }
 
 .modern-subtitle {
-  font-size: 10px;
+  font-size: 7px;
   color: #666;
   margin: 0;
   font-weight: 400;
 }
 
 .modern-people-list {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .modern-person-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: 4px 0;
   border-bottom: 1px solid #f0f0f0;
 }
 
@@ -386,30 +386,30 @@
 .modern-person-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .modern-avatar {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 600;
   color: #fff;
   flex-shrink: 0;
 }
 
 .modern-person-name {
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 500;
   color: #1a1a1a;
 }
 
 .modern-person-total {
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 600;
   color: #1a1a1a;
 }
@@ -418,39 +418,39 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  margin-top: 8px;
+  padding: 6px 0;
+  margin-top: 6px;
   border-top: 2px solid #1a1a1a;
 }
 
 .modern-total-label {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 9px;
+  font-weight: 700;
   color: #1a1a1a;
 }
 
 .modern-total-amount {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: #1a1a1a;
 }
 
 .modern-footer {
   text-align: center;
-  padding-top: 10px;
-  margin-top: 10px;
+  padding-top: 6px;
+  margin-top: 6px;
   border-top: 1px solid #e5e5e5;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  font-size: 9px;
+  gap: 3px;
+  font-size: 7px;
   color: #999;
   font-weight: 500;
 }
 
 .modern-footer-icon {
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .modern-footer-text {
