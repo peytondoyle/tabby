@@ -8,20 +8,15 @@ import { testIds } from '@/lib/testIds'
 interface PeopleStepProps {
   onNext: () => void
   onPrev: () => void
+  isAnalyzing?: boolean
+  analysisComplete?: boolean
 }
 
-export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
+export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev, isAnalyzing = false, analysisComplete = false }) => {
   const { people, addPerson, removePerson } = useFlowStore()
   const [showAddModal, setShowAddModal] = useState(false)
-  const [addMode, setAddMode] = useState<'contacts' | 'manual' | null>(null)
   const [newPersonName, setNewPersonName] = useState('')
   const [newPersonVenmo, setNewPersonVenmo] = useState('')
-
-  const handleAddFromContacts = () => {
-    // TODO: Implement contacts integration
-    alert('Contacts integration coming soon! For now, please add people manually.')
-    setAddMode('manual')
-  }
 
   const handleAddPerson = () => {
     if (newPersonName.trim()) {
@@ -30,11 +25,10 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
         name: newPersonName.trim(),
         venmo_handle: newPersonVenmo.trim() || undefined
       }
-      
+
       addPerson(newPerson)
       setNewPersonName('')
       setNewPersonVenmo('')
-      setAddMode(null)
       setShowAddModal(false)
     }
   }
@@ -47,17 +41,54 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
 
   const handleCloseModal = () => {
     setShowAddModal(false)
-    setAddMode(null)
     setNewPersonName('')
     setNewPersonVenmo('')
   }
 
-  const canProceed = people.length >= 1
+  const canProceed = people.length >= 1 && analysisComplete
 
   return (
     <div className="w-full" data-testid={testIds.stepPeopleRoot}>
+      {/* Analysis Progress Banner */}
+      {isAnalyzing && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
+          <Card className="bg-[var(--ui-primary-muted)] border-[var(--ui-primary)] p-4">
+            <div className="flex items-center gap-4">
+              <div className="animate-spin w-8 h-8 border-4 border-[var(--ui-primary)] border-t-transparent rounded-full"></div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-[var(--ui-text)]">Analyzing receipt...</h3>
+                <p className="text-sm text-[var(--ui-text-dim)]">Processing items and creating emojis</p>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Analysis Complete Banner */}
+      {!isAnalyzing && analysisComplete && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mb-6"
+        >
+          <Card className="bg-green-500/10 border-green-500/50 p-4">
+            <div className="flex items-center gap-4">
+              <div className="text-3xl">✅</div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-green-600 dark:text-green-400">Receipt analyzed!</h3>
+                <p className="text-sm text-[var(--ui-text-dim)]">Ready to assign items</p>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Header */}
-      <motion.div 
+      <motion.div
         className="text-center mb-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -148,94 +179,52 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
       <Modal
         open={showAddModal}
         onClose={handleCloseModal}
-        title="Add People"
+        title="Add Person"
         size="sm"
         footer={
-          addMode === 'manual' ? (
-            <>
-              <Button variant="secondary" onClick={handleCloseModal}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAddPerson}
-                disabled={!newPersonName.trim()}
-              >
-                Add Person
-              </Button>
-            </>
-          ) : null
+          <>
+            <Button variant="secondary" onClick={handleCloseModal}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddPerson}
+              disabled={!newPersonName.trim()}
+            >
+              Add Person
+            </Button>
+          </>
         }
       >
-        {!addMode ? (
-          <div className="space-y-4">
-            <p className="text-[var(--ui-text-dim)] mb-6">
-              How would you like to add people?
-            </p>
-            
-            <div className="space-y-4">
-              <Button
-                variant="primary"
-                full
-                onClick={handleAddFromContacts}
-                leftIcon={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                  </svg>
-                }
-              >
-                Add from Contacts
-              </Button>
-              
-              <Button
-                variant="secondary"
-                full
-                onClick={() => setAddMode('manual')}
-                leftIcon={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                }
-              >
-                Enter Manually
-              </Button>
-            </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[var(--ui-text)] mb-2">
+              Name *
+            </label>
+            <input
+              type="text"
+              value={newPersonName}
+              onChange={(e) => setNewPersonName(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Enter name"
+              className="w-full p-3 bg-[var(--ui-panel-2)] border border-[var(--ui-border)] rounded-[var(--r-md)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-dim)] focus:ring-2 focus:ring-[var(--ui-primary)] focus:border-[var(--ui-primary)] transition-all"
+              autoFocus
+            />
           </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-[var(--ui-text)] mb-2">
-                Name *
-              </label>
-              <input
-                type="text"
-                value={newPersonName}
-                onChange={(e) => setNewPersonName(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Enter name"
-                className="w-full p-3 bg-[var(--ui-panel-2)] border border-[var(--ui-border)] rounded-[var(--r-md)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-dim)] focus:ring-2 focus:ring-[var(--ui-primary)] focus:border-[var(--ui-primary)] transition-all"
-                autoFocus
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-[var(--ui-text)] mb-2">
-                Venmo Handle (Optional)
-              </label>
-              <input
-                type="text"
-                value={newPersonVenmo}
-                onChange={(e) => setNewPersonVenmo(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="username"
-                className="w-full p-3 bg-[var(--ui-panel-2)] border border-[var(--ui-border)] rounded-[var(--r-md)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-dim)] focus:ring-2 focus:ring-[var(--ui-primary)] focus:border-[var(--ui-primary)] transition-all"
-              />
-            </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--ui-text)] mb-2">
+              Venmo Handle (Optional)
+            </label>
+            <input
+              type="text"
+              value={newPersonVenmo}
+              onChange={(e) => setNewPersonVenmo(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="username"
+              className="w-full p-3 bg-[var(--ui-panel-2)] border border-[var(--ui-border)] rounded-[var(--r-md)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-dim)] focus:ring-2 focus:ring-[var(--ui-primary)] focus:border-[var(--ui-primary)] transition-all"
+            />
           </div>
-        )}
+        </div>
       </Modal>
 
       {/* Navigation */}
@@ -251,18 +240,31 @@ export const PeopleStep: React.FC<PeopleStepProps> = ({ onNext, onPrev }) => {
         >
           Back
         </Button>
-        
+
         <Button
           onClick={onNext}
-          disabled={!canProceed}
+          disabled={!canProceed || isAnalyzing}
           full
           rightIcon={
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 18l6-6-6-6"/>
-            </svg>
+            !isAnalyzing && (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            )
           }
         >
-          {people.length === 0 ? 'Add at least 1 person' : `Continue with ${people.length} ${people.length === 1 ? 'person' : 'people'}`}
+          {isAnalyzing ? (
+            <span className="flex items-center gap-2">
+              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+              Analyzing...
+            </span>
+          ) : !analysisComplete ? (
+            'Waiting for analysis...'
+          ) : people.length === 0 ? (
+            'Add at least 1 person'
+          ) : (
+            'Assign Items'
+          )}
         </Button>
       </div>
     </div>

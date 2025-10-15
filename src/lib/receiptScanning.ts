@@ -6,6 +6,7 @@ import { API_BASE } from './apiBase'
 import { logServer } from './errorLogger'
 import { normalizeFile } from './imageNormalizer'
 import { createReceipt, buildCreatePayload } from './receipts'
+import { getSmartEmoji } from './emojiUtils'
 
 // Note: Image normalization is now handled by Web Worker in imageNormalizer.ts
 // Old functions removed - see imageNormalizer.ts for Web Worker implementation
@@ -230,114 +231,6 @@ export interface ReceiptScanResult {
   total: number
 }
 
-// Common food emojis for matching
-const FOOD_EMOJIS: { [key: string]: string } = {
-  // Fast food
-  'burger': '🍔',
-  'hamburger': '🍔',
-  'cheeseburger': '🍔',
-  'sandwich': '🥪',
-  'chicken sandwich': '🥪',
-  'fries': '🍟',
-  'waffle fries': '🍟',
-  'french fries': '🍟',
-  'nuggets': '🍗',
-  'chicken nuggets': '🍗',
-  'wings': '🍗',
-  'chicken wings': '🍗',
-
-  // Drinks
-  'coffee': '☕',
-  'tea': '🍵',
-  'soda': '🥤',
-  'drink': '🥤',
-  'lemonade': '🥤',
-  'shake': '🥤',
-  'milkshake': '🥤',
-  'juice': '🧃',
-  'beer': '🍺',
-  'wine': '🍷',
-  'cocktail': '🍹',
-  'water': '💧',
-
-  // Chinese food
-  'rice': '🍚',
-  'fried rice': '🍚',
-  'tofu': '🥡',
-  'mapo tofu': '🥡',
-  'spring roll': '🥟',
-  'dumpling': '🥟',
-  'wonton': '🥟',
-  'noodles': '🍜',
-  'ramen': '🍜',
-  'lo mein': '🍜',
-  'chow mein': '🍜',
-  'soup': '🍜',
-  'cashew': '🥜',
-  'broccoli': '🥦',
-  'dim sum': '🥟',
-
-  // Pizza & Italian
-  'salad': '🥗',
-  'pizza': '🍕',
-  'pasta': '🍝',
-  'spaghetti': '🍝',
-  'lasagna': '🍝',
-
-  // Mexican
-  'taco': '🌮',
-  'burrito': '🌯',
-  'quesadilla': '🫓',
-  'nachos': '🧀',
-  'guacamole': '🥑',
-
-  // Desserts
-  'pie': '🥧',
-  'cake': '🍰',
-  'cheesecake': '🍰',
-  'ice cream': '🍨',
-  'cookie': '🍪',
-  'donut': '🍩',
-  'tiramisu': '🍰',
-
-  // Breakfast
-  'eggs': '🍳',
-  'bacon': '🥓',
-  'toast': '🍞',
-  'pancake': '🥞',
-  'waffle': '🧇',
-  'omelette': '🍳',
-
-  // Seafood
-  'sushi': '🍣',
-  'fish': '🐟',
-  'shrimp': '🍤',
-  'salmon': '🐟',
-
-  // Other
-  'steak': '🥩',
-  'pork': '🥩',
-  'lamb': '🥩',
-
-  // Default
-  'meal': '🍽️',
-  'food': '🍽️'
-}
-
-function getEmojiForItem(itemName: string): string {
-  const name = itemName.toLowerCase()
-  
-  // Try exact matches first
-  for (const [key, emoji] of Object.entries(FOOD_EMOJIS)) {
-    if (name.includes(key)) {
-      return emoji
-    }
-  }
-  
-  // Default emoji
-  return '🍽️'
-}
-
 // Generate unique ID
 export function generateId(): string {
   return `item-${nanoid()}`
@@ -388,8 +281,8 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
       const label = String(item.label || '').trim()
       const price = normalizeNumber(item.price)
 
-      // Use AI-generated emoji if available, otherwise fall back to static map
-      const emoji = item.emoji || getEmojiForItem(label)
+      // Use smart emoji matching
+      const emoji = getSmartEmoji(label)
 
       return {
         id: generateId(),

@@ -6,6 +6,7 @@ import { logServer } from './errorLogger'
 import { ReceiptCreateSchema, type ReceiptCreatePayload, type ReceiptItemPayload } from '@/lib/schemas'
 import { toMoney } from './types'
 import { trackReceiptAccess } from './receiptHistory'
+import { getSmartEmoji } from './emojiUtils'
 
 export interface ReceiptListItem {
   id: string
@@ -152,16 +153,27 @@ export function buildCreatePayload(scan: {
   tax?: number | string | null;
   tip?: number | string | null;
 }): ReceiptCreatePayload {
-  const items: ReceiptItemPayload[] = (scan.items || []).map((i, idx) => ({
-    id: String(i.id ?? `it_${idx}`),
-    name: String(i.label ?? i.name ?? i.title ?? "Item"),
-    price: toMoney(i.price ?? i.cost ?? 0),
-    icon: i.icon ?? (i.emoji || undefined),
-  }));
+  const items: ReceiptItemPayload[] = (scan.items || []).map((i, idx) => {
+    const itemName = String(i.label ?? i.name ?? i.title ?? "Item");
+
+    // Use provided emoji/icon, or generate smart emoji based on item name
+    let icon = i.icon ?? i.emoji;
+    if (!icon || icon === '🍽️') {
+      icon = getSmartEmoji(itemName);
+      console.log(`[emoji] Generated emoji for "${itemName}": ${icon}`);
+    }
+
+    return {
+      id: String(i.id ?? `it_${idx}`),
+      name: itemName,
+      price: toMoney(i.price ?? i.cost ?? 0),
+      icon: icon || '🍽️',
+    };
+  });
   const total = scan.total == null ? null : toMoney(scan.total);
   const tax = scan.tax == null ? 0 : toMoney(scan.tax);
   const tip = scan.tip == null ? 0 : toMoney(scan.tip);
-  
+
   const payload = {
     place: scan.place ?? null,
     total,
@@ -485,21 +497,46 @@ export async function updateReceiptPeople(token: string, people: Array<{ id?: st
 }
 
 /**
- * Update item assignments (shares) for a receipt
+ * Update item assignments (shares) for a receipt with retry logic
+ * Implements exponential backoff to handle transient errors and race conditions
  */
 export async function updateReceiptShares(token: string, shares: Array<{ item_id: string; person_id: string; weight?: number }>): Promise<any> {
-  try {
-    console.log('[updateReceiptShares] Updating shares for receipt:', token, shares)
-    const response = await apiFetch<{ shares: any[]; count: number }>(`/api/receipts/${token}/shares`, {
-      method: "POST",
-      body: { shares: shares.map(s => ({ ...s, weight: s.weight || 1 })) },
-    })
-    console.log('[updateReceiptShares] Successfully updated shares:', response)
-    return response
-  } catch (error) {
-    console.error('[updateReceiptShares] Failed to update shares:', error)
-    throw error
+  const maxRetries = 3
+  const baseDelay = 100 // milliseconds
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[updateReceiptShares] Attempt ${attempt}/${maxRetries} - Updating shares for receipt:`, token)
+
+      const response = await apiFetch<{ shares: any[]; count: number }>(`/api/receipts/${token}/shares`, {
+        method: "POST",
+        body: { shares: shares.map(s => ({ ...s, weight: s.weight || 1 })) },
+      })
+
+      console.log('[updateReceiptShares] Successfully updated shares:', response)
+      return response
+
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries
+      console.error(`[updateReceiptShares] Attempt ${attempt}/${maxRetries} failed:`, error)
+
+      if (isLastAttempt) {
+        // All retries exhausted, throw the error
+        console.error('[updateReceiptShares] All retry attempts failed')
+        throw error
+      }
+
+      // Calculate exponential backoff delay: 100ms, 200ms, 400ms
+      const delay = baseDelay * Math.pow(2, attempt - 1)
+      console.log(`[updateReceiptShares] Retrying in ${delay}ms...`)
+
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
   }
+
+  // This should never be reached, but TypeScript needs it
+  throw new Error('[updateReceiptShares] Unexpected: retry loop completed without returning')
 }
 
 /**

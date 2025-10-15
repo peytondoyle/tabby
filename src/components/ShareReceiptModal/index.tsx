@@ -81,7 +81,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
 
       // Generate high-quality image
       const canvas = await html2canvas(cardRef.current, {
-        scale: 3, // High DPI for sharper images
+        scale: 4, // Even higher DPI for sharper images
         backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,

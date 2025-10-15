@@ -6,7 +6,9 @@ import type { ParseResult } from '@/lib/receiptScanning'
 import { SimpleTabbyScreen } from '@/components/flow/SimpleTabbyScreen'
 import { KeyboardFlow } from '@/components/flow/KeyboardFlow'
 import { ShareStep } from '@/components/flow/ShareStep'
+import { PeopleStep } from '@/components/flow/PeopleStep'
 import { AddPeopleModal } from '@/components/AddPeopleModal'
+import { RestaurantNameModal } from '@/components/RestaurantNameModal'
 import { PeopleDock } from '@/components/PeopleDock'
 import { HomeButton } from '@/components/HomeButton'
 // Removed PageContainer import - using full-width layout
@@ -31,9 +33,12 @@ export const Flow: React.FC = () => {
   const [scannerError, setScannerError] = useState<string>()
   const [addPeopleOpen, setAddPeopleOpen] = useState(false)
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false)
+  const [isAnalyzingReceipt, setIsAnalyzingReceipt] = useState(false)
+  const [analysisComplete, setAnalysisComplete] = useState(false)
   const [isLoadingBill, setIsLoadingBill] = useState(false)
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [useKeyboardNavigation, setUseKeyboardNavigation] = useState(false)
+  const [showRestaurantModal, setShowRestaurantModal] = useState(false)
 
   // Device capability detection for performance optimization
   const device = deviceDetector.detect()
@@ -220,15 +225,33 @@ export const Flow: React.FC = () => {
   }
 
   const handleParsed = async (result: ParseResult) => {
-    console.info('[flow] Receipt parsed, creating bill...')
-    setIsProcessingReceipt(true)
-    
+    console.info('[flow] Receipt parsed, starting analysis...')
+
     try {
+      // Close scanner immediately
+      setScannerOpen(false)
+
+      // Navigate to people step and show analysis progress
+      setStep('people')
+      setIsAnalyzingReceipt(true)
+      setAnalysisComplete(false)
+
+      // Ensure at least one person exists
+      if (people.length === 0) {
+        addPerson({
+          id: 'you',
+          name: 'You'
+        })
+      }
+
+      // Start async processing in background
+      setIsProcessingReceipt(true)
+
       // Create bill via server API using new schema-aligned functions
       const payload = buildCreatePayload(result)
       const { id: billId } = await createReceipt(payload)
       console.info(`[flow] Bill created with ID: ${billId}`)
-      
+
       // Replace store items and set meta using helpers
       const flowItems = result.items.map(item => ({
         id: item.id,
@@ -237,7 +260,7 @@ export const Flow: React.FC = () => {
         emoji: item.emoji || '🍽️'
       }))
       replaceItems(flowItems)
-      
+
       // Set bill metadata using helper
       setBillMeta({
         token: billId,
@@ -249,33 +272,18 @@ export const Flow: React.FC = () => {
         tip: result.tip || undefined,
         total: result.total || undefined
       })
-      
-      // Ensure at least one person for assignment
-      if (people.length === 0) {
-        addPerson({
-          id: 'you',
-          name: 'You'
-        })
-      }
-      
-      // Close scanner and navigate to assignment screen
-      setScannerOpen(false)
+
+      // Mark analysis as complete
       setIsProcessingReceipt(false)
+      setIsAnalyzingReceipt(false)
+      setAnalysisComplete(true)
 
-      // Simply set the step, no URL navigation yet
-      setStep('assign')
+      console.log('[flow] Receipt analysis complete, ready to assign')
 
-      // DISABLED - Save the state
-      // if (!billId.startsWith('local-')) {
-      //   setTimeout(() => {
-      //     saveState(billId)
-      //     // Navigate after saving
-      //     navigate(`/bill/${billId}/assign`)
-      //   }, 100)
-      // }
-      
     } catch (error) {
       setIsProcessingReceipt(false)
+      setIsAnalyzingReceipt(false)
+      setAnalysisComplete(false)
       const msg = error instanceof Error ? error.message : 'Request validation failed'
       logServer('warn', 'bill_create_failed', { msg })
       setScannerError(`Bill creation failed: ${msg}`)
@@ -319,7 +327,8 @@ export const Flow: React.FC = () => {
     if (currentStep === 'start') {
       setStep('people')
     } else if (currentStep === 'people') {
-      setStep('review')
+      // Show restaurant name modal before going to assign
+      setShowRestaurantModal(true)
     } else if (currentStep === 'review') {
       setStep('assign')
     } else if (currentStep === 'assign') {
@@ -330,6 +339,21 @@ export const Flow: React.FC = () => {
     // if (token) {
     //   setTimeout(() => saveState(token), 100)
     // }
+  }
+
+  const handleRestaurantNameSubmit = (name: string) => {
+    // Update bill with restaurant name
+    setBillMeta({
+      place: name,
+      title: name
+    })
+    setShowRestaurantModal(false)
+    setStep('assign')
+  }
+
+  const handleRestaurantNameSkip = () => {
+    setShowRestaurantModal(false)
+    setStep('assign')
   }
 
   const handlePrev = () => {
@@ -438,26 +462,13 @@ export const Flow: React.FC = () => {
         )
       case 'people':
         return (
-          <div className="w-full py-8">
-            <div className="text-center space-y-8">
-              <h1 className="text-3xl font-bold text-text-primary">Add People</h1>
-              <Button onClick={() => setAddPeopleOpen(true)}>
-                Add People
-              </Button>
-            
-              {people.length > 0 && (
-                <div className="w-full">
-                  <PeopleDock billToken={bill?.token} />
-                </div>
-              )}
-            
-              <Button 
-                onClick={handleNext}
-                disabled={people.length === 0}
-              >
-                Continue
-              </Button>
-            </div>
+          <div className="w-full max-w-2xl mx-auto py-8 px-4">
+            <PeopleStep
+              onNext={handleNext}
+              onPrev={handlePrev}
+              isAnalyzing={isAnalyzingReceipt}
+              analysisComplete={analysisComplete}
+            />
           </div>
         )
       case 'review':
@@ -594,6 +605,15 @@ export const Flow: React.FC = () => {
         onClose={() => setAddPeopleOpen(false)}
         onAddPeople={handleAddPeople}
         existingPeople={people.map(p => ({...p, color: 'bg-blue-500'}))}
+      />
+
+      {/* Restaurant Name Modal */}
+      <RestaurantNameModal
+        open={showRestaurantModal}
+        onClose={() => setShowRestaurantModal(false)}
+        onSubmit={handleRestaurantNameSubmit}
+        onSkip={handleRestaurantNameSkip}
+        currentName={bill?.place}
       />
     </main>
   )

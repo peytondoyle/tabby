@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { parseReceipt, createReceiptFromReceipt, type ParseResult } from '../lib/receiptScanning';
 import { LazyShareReceiptModal as ShareReceiptModal } from '../components/ShareReceiptModal/LazyShareReceiptModal';
@@ -9,6 +9,7 @@ import { AuthModal } from '../components/AuthModal';
 import { HomeButton } from '../components/HomeButton';
 import { fetchReceiptByToken, updateReceiptPeople, updateReceiptShares, updateReceiptMetadata } from '../lib/receipts';
 import { trackPersonName, getQuickAddSuggestions, getUserIdentity, setUserIdentity } from '../lib/peopleHistory';
+import { UnifiedEditModal } from '../components/UnifiedEditModal';
 import './TabbySimple.css';
 
 interface Item {
@@ -112,14 +113,7 @@ export const TabbySimple: React.FC = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [showSplitItem, setShowSplitItem] = useState(false);
-  const [showManagePeople, setShowManagePeople] = useState(false);
-  const [showBillOverview, setShowBillOverview] = useState(false);
-  const [isEditingBill, setIsEditingBill] = useState(false);
-  const [isEditingReceipt, setIsEditingReceipt] = useState(false);
-  const [editableSubtotal, setEditableSubtotal] = useState('');
-  const [editableTax, setEditableTax] = useState('');
-  const [editableTip, setEditableTip] = useState('');
-  const [editableItems, setEditableItems] = useState<Item[]>([]);
+  const [showUnifiedEdit, setShowUnifiedEdit] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [splitPeople, setSplitPeople] = useState<string[]>([]);
   const [newPersonName, setNewPersonName] = useState('');
@@ -135,10 +129,48 @@ export const TabbySimple: React.FC = () => {
   const [scanProgress, setScanProgress] = useState('');
   const [showShareReceipt, setShowShareReceipt] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoadingBill, setIsLoadingBill] = useState(false);
   const [isEditingRestaurantName, setIsEditingRestaurantName] = useState(false);
   const [editableRestaurantName, setEditableRestaurantName] = useState('');
-  const [isLoadingBill, setIsLoadingBill] = useState(false);
+  const [showManagePeople, setShowManagePeople] = useState(false);
+  const [showBillOverview, setShowBillOverview] = useState(false);
+  const [isEditingReceipt, setIsEditingReceipt] = useState(false);
+  const [isEditingBill, setIsEditingBill] = useState(false);
+  const [editableItems, setEditableItems] = useState<Item[]>([]);
+  const [editableSubtotal, setEditableSubtotal] = useState('0');
+  const [editableTax, setEditableTax] = useState('0');
+  const [editableTip, setEditableTip] = useState('0');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce timer for database persistence (prevents race conditions)
+  const persistTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced version of persistPeopleAndShares to prevent rapid concurrent API calls
+  const debouncedPersist = useCallback((
+    token: string | null,
+    people: Person[],
+    items: Item[]
+  ) => {
+    // Clear any pending persist operation
+    if (persistTimeoutRef.current) {
+      clearTimeout(persistTimeoutRef.current);
+    }
+
+    // Schedule new persist operation after 300ms of inactivity
+    persistTimeoutRef.current = setTimeout(async () => {
+      const updatedPeople = await persistPeopleAndShares(token, people, items);
+      setPeople(updatedPeople);
+    }, 300);
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (persistTimeoutRef.current) {
+        clearTimeout(persistTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Determine step from URL
   useEffect(() => {
@@ -439,16 +471,53 @@ export const TabbySimple: React.FC = () => {
       setNewPersonName('');
       setShowAddPerson(false);
 
-      // Persist to database and get Supabase UUIDs
-      const peopleWithSupabaseIds = await persistPeopleAndShares(billToken, updatedPeople, items);
-      setPeople(peopleWithSupabaseIds);
+      // Persist to database (debounced to prevent race conditions)
+      debouncedPersist(billToken, updatedPeople, items);
     }
   };
 
-  const handleSaveBillEdits = async () => {
-    const newSubtotal = parseFloat(editableSubtotal) || 0;
-    const newTax = parseFloat(editableTax) || 0;
-    const newTip = parseFloat(editableTip) || 0;
+  // Unified Edit Modal Handlers
+  const handleUnifiedRestaurantSave = async (name: string) => {
+    setRestaurantName(name);
+    if (billToken) {
+      try {
+        await updateReceiptMetadata(billToken, { place: name });
+        console.log('[TabbySimple] Restaurant name updated successfully');
+      } catch (error) {
+        console.error('[TabbySimple] Failed to update restaurant name:', error);
+        throw error;
+      }
+    }
+  };
+
+  const handleUnifiedItemsSave = (newItems: Item[]) => {
+    setItems(newItems);
+
+    // Recalculate subtotal based on new item prices
+    const newSubtotal = newItems.reduce((sum, item) => sum + item.price, 0);
+    setSubtotal(newSubtotal);
+
+    // Recalculate total
+    const newTotal = newSubtotal + tax + tip;
+    setTotal(newTotal);
+
+    // Recalculate all person totals
+    setPeople(people.map(person => {
+      const personItems = newItems.filter(item => person.items.includes(item.id));
+      const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
+      const proportion = newSubtotal > 0 ? itemsSubtotal / newSubtotal : 0;
+      const personTax = tax * proportion;
+      const personTip = tip * proportion;
+      const total = itemsSubtotal + personTax + personTip;
+      return {
+        ...person,
+        total
+      };
+    }));
+  };
+
+  const handleUnifiedBillTotalsSave = async (data: { subtotal: number; tax: number; tip: number }) => {
+    const { subtotal: newSubtotal, tax: newTax, tip: newTip } = data;
     const newTotal = newSubtotal + newTax + newTip;
 
     setSubtotal(newSubtotal);
@@ -467,6 +536,7 @@ export const TabbySimple: React.FC = () => {
         console.log('[TabbySimple] Bill totals updated successfully');
       } catch (error) {
         console.error('[TabbySimple] Failed to update bill totals:', error);
+        throw error;
       }
     }
 
@@ -483,38 +553,73 @@ export const TabbySimple: React.FC = () => {
         total
       };
     }));
+  };
 
-    setIsEditingBill(false);
+  const handleUnifiedPersonRemove = async (personId: string) => {
+    // Remove person and unassign their items
+    const updatedPeople = people.filter(p => p.id !== personId);
+    const updatedItems = items.map(item =>
+      item.assignedTo === personId ? { ...item, assignedTo: undefined } : item
+    );
+    setPeople(updatedPeople);
+    setItems(updatedItems);
+
+    // Persist to database (debounced to prevent race conditions)
+    debouncedPersist(billToken, updatedPeople, updatedItems);
   };
 
   const handleSaveReceiptEdits = () => {
-    // Update items with edited values
     setItems(editableItems);
+    setIsEditingReceipt(false);
 
-    // Recalculate subtotal based on new item prices
+    // Recalculate subtotal
     const newSubtotal = editableItems.reduce((sum, item) => sum + item.price, 0);
     setSubtotal(newSubtotal);
-    setEditableSubtotal(newSubtotal.toFixed(2));
 
     // Recalculate total
     const newTotal = newSubtotal + tax + tip;
     setTotal(newTotal);
+  };
+
+  const handleSaveBillEdits = async () => {
+    const newSubtotal = parseFloat(editableSubtotal) || 0;
+    const newTax = parseFloat(editableTax) || 0;
+    const newTip = parseFloat(editableTip) || 0;
+    const newTotal = newSubtotal + newTax + newTip;
+
+    setSubtotal(newSubtotal);
+    setTax(newTax);
+    setTip(newTip);
+    setTotal(newTotal);
+    setIsEditingBill(false);
+
+    // Persist to database
+    if (billToken) {
+      try {
+        await updateReceiptMetadata(billToken, {
+          subtotal: newSubtotal,
+          sales_tax: newTax,
+          tip: newTip
+        });
+        console.log('[TabbySimple] Bill totals updated successfully');
+      } catch (error) {
+        console.error('[TabbySimple] Failed to update bill totals:', error);
+      }
+    }
 
     // Recalculate all person totals
     setPeople(people.map(person => {
-      const personItems = editableItems.filter(item => person.items.includes(item.id));
+      const personItems = items.filter(item => person.items.includes(item.id));
       const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
       const proportion = newSubtotal > 0 ? itemsSubtotal / newSubtotal : 0;
-      const personTax = tax * proportion;
-      const personTip = tip * proportion;
+      const personTax = newTax * proportion;
+      const personTip = newTip * proportion;
       const total = itemsSubtotal + personTax + personTip;
       return {
         ...person,
         total
       };
     }));
-
-    setIsEditingReceipt(false);
   };
 
   const handleDragStart = (itemId: string) => {
@@ -588,9 +693,8 @@ export const TabbySimple: React.FC = () => {
     });
     setPeople(updatedPeople);
 
-    // Persist to database and get Supabase UUIDs
-    const peopleWithSupabaseIds = await persistPeopleAndShares(billToken, updatedPeople, updatedItems);
-    setPeople(peopleWithSupabaseIds);
+    // Persist to database (debounced to prevent race conditions)
+    debouncedPersist(billToken, updatedPeople, updatedItems);
   };
 
   const unassignedItems = items.filter(item => !item.assignedTo);
@@ -993,12 +1097,14 @@ export const TabbySimple: React.FC = () => {
     return (
       <div className="tabby-simple">
         <HomeButton />
-        <div className="header">
-          <div>
-            <h1>{restaurantName}</h1>
-            <p className="date">{new Date().toLocaleDateString()}</p>
+        {restaurantName && (
+          <div className="header">
+            <div>
+              <h1>{restaurantName}</h1>
+              <p className="date">{new Date().toLocaleDateString()}</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Scan Progress Indicator */}
         {isScanning && (
@@ -1007,7 +1113,7 @@ export const TabbySimple: React.FC = () => {
             background: 'rgba(0, 122, 255, 0.15)',
             border: '1px solid rgba(0, 122, 255, 0.3)',
             borderRadius: '12px',
-            margin: '0 20px 20px 20px',
+            margin: restaurantName ? '0 20px 20px 20px' : '20px 20px 20px 20px',
             textAlign: 'center',
             color: '#007AFF',
             fontSize: '14px',
@@ -1075,8 +1181,8 @@ export const TabbySimple: React.FC = () => {
                       const updatedPeople = people.filter(p => p.id !== person.id);
                       setPeople(updatedPeople);
 
-                      // Persist to database
-                      persistPeopleAndShares(billToken, updatedPeople, items);
+                      // Persist to database (debounced to prevent race conditions)
+                      debouncedPersist(billToken, updatedPeople, items);
                     }}
                   >
                     Remove
@@ -1140,7 +1246,7 @@ export const TabbySimple: React.FC = () => {
                 setStep('assign');
               }
             }}
-            disabled={people.length === 0}
+            disabled={people.length === 0 || isScanning}
           >
             Continue to Assign Items
           </button>
@@ -1263,30 +1369,10 @@ export const TabbySimple: React.FC = () => {
           <p className="date">{new Date().toLocaleDateString()}</p>
         </div>
         <div className="header-buttons">
-          <button className="receipt-btn" onClick={() => {
-            setShowBillOverview(true);
-            setIsEditingBill(false);
-            setIsEditingReceipt(false);
-            setIsEditingRestaurantName(false);
-            setEditableSubtotal(subtotal.toFixed(2));
-            setEditableTax(tax.toFixed(2));
-            setEditableTip(tip.toFixed(2));
-            setEditableItems([...items]);
-            setEditableRestaurantName(restaurantName);
-          }}>
+          <button className="menu-btn" onClick={() => setShowUnifiedEdit(true)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="9" y1="13" x2="15" y2="13"/>
-              <line x1="9" y1="17" x2="15" y2="17"/>
-            </svg>
-          </button>
-          <button className="menu-btn" onClick={() => setShowManagePeople(true)}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m6.36 6.36l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m6.36-6.36l4.24-4.24"/>
             </svg>
           </button>
         </div>
@@ -1462,8 +1548,8 @@ export const TabbySimple: React.FC = () => {
                               });
                               setPeople(updatedPeople);
 
-                              // Persist to database
-                              persistPeopleAndShares(billToken, updatedPeople, updatedItems);
+                              // Persist to database (debounced to prevent race conditions)
+                              debouncedPersist(billToken, updatedPeople, updatedItems);
                             }}
                           >
                             <span className="item-emoji-small">
@@ -1695,8 +1781,8 @@ export const TabbySimple: React.FC = () => {
                     });
                     setPeople(updatedPeople);
 
-                    // Persist to database
-                    persistPeopleAndShares(billToken, updatedPeople, updatedItems);
+                    // Persist to database (debounced to prevent race conditions)
+                    debouncedPersist(billToken, updatedPeople, updatedItems);
 
                     setShowSplitItem(false);
                     setSelectedItem(null);
@@ -1735,8 +1821,8 @@ export const TabbySimple: React.FC = () => {
                       setPeople(updatedPeople);
                       setItems(updatedItems);
 
-                      // Persist to database
-                      persistPeopleAndShares(billToken, updatedPeople, updatedItems);
+                      // Persist to database (debounced to prevent race conditions)
+                      debouncedPersist(billToken, updatedPeople, updatedItems);
                     }}
                   >
                     Remove
@@ -2281,6 +2367,27 @@ export const TabbySimple: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Unified Edit Modal */}
+      <UnifiedEditModal
+        isOpen={showUnifiedEdit}
+        onClose={() => setShowUnifiedEdit(false)}
+        restaurantName={restaurantName}
+        onRestaurantNameSave={handleUnifiedRestaurantSave}
+        items={items}
+        onItemsSave={handleUnifiedItemsSave}
+        people={people}
+        onPeopleUpdate={setPeople}
+        onPersonAdd={handleAddPerson}
+        onPersonRemove={handleUnifiedPersonRemove}
+        subtotal={subtotal}
+        tax={tax}
+        tip={tip}
+        total={total}
+        onBillTotalsSave={handleUnifiedBillTotalsSave}
+        billToken={billToken}
+        getPersonColor={getPersonColor}
+      />
 
       {/* Share Receipt Modal */}
       <ShareReceiptModal

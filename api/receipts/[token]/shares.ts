@@ -113,48 +113,73 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    // Delete existing shares for this receipt's items
-    const { error: deleteError } = await supabaseAdmin
+    // Get existing shares to determine what to delete
+    const { data: existingShares } = await supabaseAdmin
       .from('item_shares')
-      .delete()
+      .select('item_id, person_id')
       .in('item_id', Array.from(itemIds));
 
-    if (deleteError) {
-      console.error('[receipts_shares] Error deleting old shares:', deleteError);
-      // Continue anyway - may not have had shares before
+    const existingKeys = new Set(
+      existingShares?.map(s => `${s.item_id}:${s.person_id}`) || []
+    );
+
+    const newKeys = new Set(
+      shares.map(s => `${s.item_id}:${s.person_id}`)
+    );
+
+    // Delete shares that no longer exist (user unassigned items)
+    const keysToDelete = [...existingKeys].filter(k => !newKeys.has(k));
+    if (keysToDelete.length > 0) {
+      console.log('[receipts_shares] Deleting', keysToDelete.length, 'removed shares');
+
+      for (const key of keysToDelete) {
+        const [item_id, person_id] = key.split(':');
+        const { error: deleteError } = await supabaseAdmin
+          .from('item_shares')
+          .delete()
+          .eq('item_id', item_id)
+          .eq('person_id', person_id);
+
+        if (deleteError) {
+          console.error('[receipts_shares] Error deleting share:', deleteError);
+        }
+      }
     }
 
-    // Insert new shares (if any)
+    // UPSERT new/updated shares (atomic operation, no race conditions!)
     if (shares.length > 0) {
-      const sharesToInsert = shares.map(share => ({
+      const sharesToUpsert = shares.map(share => ({
         item_id: share.item_id,
         person_id: share.person_id,
         weight: share.weight,
       }));
 
-      const { data: insertedShares, error: insertError } = await supabaseAdmin
+      const { data: upsertedShares, error: upsertError } = await supabaseAdmin
         .from('item_shares')
-        .insert(sharesToInsert)
+        .upsert(sharesToUpsert, {
+          onConflict: 'item_id,person_id',
+          ignoreDuplicates: false
+        })
         .select();
 
-      if (insertError) {
-        console.error('[receipts_shares] Error inserting shares:', insertError);
-        const error = { error: "Failed to save assignments", code: "DB_INSERT_FAILED" };
+      if (upsertError) {
+        console.error('[receipts_shares] Error upserting shares:', upsertError);
+        const error = { error: "Failed to save assignments", code: "DB_UPSERT_FAILED" };
         sendErrorResponse(res as any, error, 500, ctx);
         return;
       }
 
-      console.log('[receipts_shares] Successfully saved shares:', insertedShares?.length);
+      console.log('[receipts_shares] Successfully upserted shares:', upsertedShares?.length);
 
       // Send success response
       const responseData = {
-        shares: insertedShares,
-        count: insertedShares?.length || 0,
+        shares: upsertedShares,
+        count: upsertedShares?.length || 0,
       };
 
       sendSuccessResponse(res as any, responseData, 200, ctx);
     } else {
-      // No shares to insert, just return success
+      // No shares to upsert, just return success
       sendSuccessResponse(res as any, { shares: [], count: 0 }, 200, ctx);
     }
 
