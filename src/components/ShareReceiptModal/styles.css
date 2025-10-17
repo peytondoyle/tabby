@@ -324,13 +324,16 @@
 
 .modern-person-total-section {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
+  gap: 4px;
   padding: 14px 12px;
   margin-bottom: 12px;
   background: #E3F2FD;
   border-radius: 12px;
   border: 2px solid #90CAF9;
+  text-align: center;
 }
 
 .modern-person-total-section .modern-total-label {
@@ -445,13 +448,16 @@
 
 .modern-bill-total {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
+  gap: 4px;
   padding: 14px 12px;
   margin-top: 12px;
   background: #E3F2FD;
   border-radius: 12px;
   border: 2px solid #90CAF9;
+  text-align: center;
 }
 
 .modern-total-label {
