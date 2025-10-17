@@ -324,6 +324,8 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
                 person,
                 items: personItems,
                 subtotal: personTotal.subtotal,
+                discountShare: personTotal.discountShare,
+                serviceFeeShare: personTotal.serviceFeeShare,
                 taxShare: personTotal.taxShare,
                 tipShare: personTotal.tipShare,
                 total: personTotal.total
@@ -350,6 +352,8 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
                 name={person.name}
                 items={personItems}
                 subtotal={personTotal.subtotal}
+                discountShare={personTotal.discountShare}
+                serviceFeeShare={personTotal.serviceFeeShare}
                 taxShare={personTotal.taxShare}
                 tipShare={personTotal.tipShare}
                 total={personTotal.total}

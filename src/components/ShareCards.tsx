@@ -5,6 +5,8 @@ interface PersonCardProps {
   name: string
   items: FlowItem[]
   subtotal: number
+  discountShare: number
+  serviceFeeShare: number
   taxShare: number
   tipShare: number
   total: number
@@ -18,6 +20,8 @@ interface GroupCardProps {
     person: FlowPerson
     items: FlowItem[]
     subtotal: number
+    discountShare: number
+    serviceFeeShare: number
     taxShare: number
     tipShare: number
     total: number
@@ -39,6 +43,8 @@ export const PersonCard: React.FC<PersonCardProps> = ({
   name,
   items,
   subtotal,
+  discountShare,
+  serviceFeeShare,
   taxShare,
   tipShare,
   total,
@@ -93,15 +99,27 @@ export const PersonCard: React.FC<PersonCardProps> = ({
             <span>Subtotal:</span>
             <span>{formatPrice(subtotal)}</span>
           </div>
+          {discountShare !== 0 && (
+            <div className="flex justify-between text-gray-600">
+              <span>Discount:</span>
+              <span>{formatPrice(discountShare)}</span>
+            </div>
+          )}
+          {serviceFeeShare > 0 && (
+            <div className="flex justify-between text-gray-600">
+              <span>Service fee:</span>
+              <span>{formatPrice(serviceFeeShare)}</span>
+            </div>
+          )}
           {taxShare > 0 && (
             <div className="flex justify-between text-gray-600">
-              <span>Tax share:</span>
+              <span>Tax:</span>
               <span>{formatPrice(taxShare)}</span>
             </div>
           )}
           {tipShare > 0 && (
             <div className="flex justify-between text-gray-600">
-              <span>Tip share:</span>
+              <span>Tip:</span>
               <span>{formatPrice(tipShare)}</span>
             </div>
           )}
