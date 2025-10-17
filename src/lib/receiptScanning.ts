@@ -206,6 +206,7 @@ export type ParseResult = {
   subtotal?: number | null
   tax?: number | null
   tip?: number | null
+  service_fee?: number | null
   discount?: number | null
   total?: number | null
   rawText?: string | null
@@ -236,16 +237,28 @@ export function generateId(): string {
   return `item-${nanoid()}`
 }
 
-// Configuration for service charge mapping
+// Configuration for service charge/fee detection
 const SERVICE_CHARGE_CONFIG = {
-  mapToTip: true, // Set to false to keep as line item
-  keywords: ['service charge', 'service fee', 'gratuity', 'tip']
+  keywords: ['service charge', 'service fee', 'delivery fee', 'processing fee', 'convenience fee']
 } as const
 
-// Check if an item is a service charge
+// Configuration for tip detection
+const TIP_CONFIG = {
+  keywords: ['tip', 'gratuity', 'tips']
+} as const
+
+// Check if an item is a service charge/fee
 function isServiceCharge(label: string): boolean {
   const lowerLabel = label.toLowerCase().trim()
-  return SERVICE_CHARGE_CONFIG.keywords.some(keyword => 
+  return SERVICE_CHARGE_CONFIG.keywords.some(keyword =>
+    lowerLabel.includes(keyword)
+  )
+}
+
+// Check if an item is a tip
+function isTip(label: string): boolean {
+  const lowerLabel = label.toLowerCase().trim()
+  return TIP_CONFIG.keywords.some(keyword =>
     lowerLabel.includes(keyword)
   )
 }
@@ -325,10 +338,9 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
   }> = []
   
   for (const item of normalizedItems) {
-    // Check if this item is a service charge that should be mapped to tip
-    if (isServiceCharge(item.label) && SERVICE_CHARGE_CONFIG.mapToTip) {
-      console.log(`[process_items] Service charge mapped to tip: ${item.label} - $${item.price}`)
-      // We'll handle this in the main processing logic
+    // Skip service charges and tips - they'll be handled separately
+    if (isServiceCharge(item.label) || isTip(item.label)) {
+      console.log(`[process_items] Skipping fee/tip item: ${item.label} - $${item.price}`)
       continue
     }
     
@@ -542,28 +554,27 @@ export async function parseReceipt(
 
     // Process items with filtering, coalescing, and special handling
     const processedItems = processItems(rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null }))
-    
-    // Calculate service charges that were mapped to tip
-    let serviceChargeTotal = 0
-    const itemsWithServiceCharges = rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null })
-    for (const item of itemsWithServiceCharges) {
+
+    // Calculate service fees and tips separately
+    let serviceFeeTotal = 0
+    let additionalTipTotal = 0
+    const allItems = rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null })
+    for (const item of allItems) {
       const label = String(item.label || '').trim()
       const price = normalizeNumber(item.price)
-      if (isServiceCharge(label) && SERVICE_CHARGE_CONFIG.mapToTip) {
-        serviceChargeTotal += price
+      if (isServiceCharge(label)) {
+        serviceFeeTotal += price
+      } else if (isTip(label)) {
+        additionalTipTotal += price
       }
     }
-    
+
     // Calculate totals
-    // const _itemTotal = processedItems.reduce((sum, item) => sum + item.price, 0)
     const originalSubtotal = normalizeNumber(responseData.subtotal)
     const originalTax = normalizeNumber(responseData.tax)
-    const originalTip = normalizeNumber(responseData.tip)
+    const originalTip = normalizeNumber(responseData.tip) || additionalTipTotal
     const originalDiscount = normalizeNumber(responseData.discount)
     const originalTotal = normalizeNumber(responseData.total)
-
-    // Adjust tip to include service charges
-    const adjustedTip = originalTip + serviceChargeTotal
 
     const result: ParseResult = {
       place: responseData.place || null,
@@ -571,15 +582,19 @@ export async function parseReceipt(
       items: processedItems,
       subtotal: originalSubtotal,
       tax: originalTax,
-      tip: adjustedTip,
+      tip: originalTip,
+      service_fee: serviceFeeTotal,
       discount: originalDiscount,
       total: originalTotal,
       rawText: responseData.rawText || null
     }
-    
-    // Log service charge mapping if any
-    if (serviceChargeTotal > 0) {
-      console.log(`[scan_ok] Mapped $${serviceChargeTotal} in service charges to tip bucket`)
+
+    // Log service fee and tip detection if any
+    if (serviceFeeTotal > 0) {
+      console.log(`[scan_ok] Detected $${serviceFeeTotal} in service fees`)
+    }
+    if (additionalTipTotal > 0) {
+      console.log(`[scan_ok] Detected $${additionalTipTotal} in tips from line items`)
     }
 
     const totalDuration = Date.now() - startTime

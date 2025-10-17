@@ -36,6 +36,8 @@ export type PersonTotal = {
   person_id: string
   name: string
   subtotal: number
+  discount_share: number
+  service_fee_share: number
   tax_share: number
   tip_share: number
   total: number
@@ -52,6 +54,8 @@ export type PersonTotal = {
 
 export interface BillTotals {
   subtotal: number
+  discount: number
+  service_fee: number
   tax: number
   tip: number
   grand_total: number
@@ -143,12 +147,14 @@ export function validateAllItemWeights(shares: ItemShare[]): void {
 
 /**
  * Compute totals for a bill with tax/tip split options and penny reconciliation
- * 
+ *
  * @param items - Array of items on the bill
  * @param shares - Array of item shares (who gets what portion of each item)
  * @param people - Array of people splitting the bill
  * @param tax - Tax amount
  * @param tip - Tip amount
+ * @param discount - Discount amount (negative number)
+ * @param service_fee - Service fee amount
  * @param taxMode - How to split tax: 'proportional' (by item totals) or 'even' (equal split)
  * @param tipMode - How to split tip: 'proportional' (by item totals) or 'even' (equal split)
  * @param includeZeroPeople - Whether to include people with no items in even splits
@@ -160,13 +166,15 @@ export function computeTotals(
   people: Person[],
   tax: number,
   tip: number,
+  discount: number = 0,
+  service_fee: number = 0,
   taxMode: TaxMode = 'proportional',
   tipMode: TipMode = 'proportional',
   includeZeroPeople: boolean = true
 ): BillTotals {
   // 1. Calculate subtotal from items
   const subtotal = items.reduce((sum, item) => sum + item.price, 0)
-  const grand_total = subtotal + tax + tip
+  const grand_total = subtotal + discount + service_fee + tax + tip
 
   // 2. Build lookup maps for quick access
   const itemMap = new Map(items.map(item => [item.id, item]))
@@ -176,6 +184,8 @@ export function computeTotals(
     person_id: person.id,
     name: person.name,
     subtotal: 0,
+    discount_share: 0,
+    service_fee_share: 0,
     tax_share: 0,
     tip_share: 0,
     total: 0,
@@ -217,7 +227,23 @@ export function computeTotals(
     })
   }
   
-  // 6. Calculate tax shares
+  // 6. Calculate discount shares (proportional to subtotal)
+  // Discounts are always applied proportionally
+  for (const personTotal of personTotals) {
+    if (subtotal > 0) {
+      personTotal.discount_share = (personTotal.subtotal / subtotal) * discount
+    }
+  }
+
+  // 7. Calculate service fee shares (proportional to subtotal)
+  // Service fees are always applied proportionally
+  for (const personTotal of personTotals) {
+    if (subtotal > 0) {
+      personTotal.service_fee_share = (personTotal.subtotal / subtotal) * service_fee
+    }
+  }
+
+  // 8. Calculate tax shares
   if (taxMode === 'proportional') {
     // Split tax proportionally based on each person's subtotal
     for (const personTotal of personTotals) {
@@ -227,10 +253,10 @@ export function computeTotals(
     }
   } else {
     // Split tax evenly among relevant people
-    const relevantPeople = includeZeroPeople 
-      ? personTotals 
+    const relevantPeople = includeZeroPeople
+      ? personTotals
       : personTotals.filter(p => p.subtotal > 0)
-    
+
     if (relevantPeople.length > 0) {
       const taxPerPerson = tax / relevantPeople.length
       for (const personTotal of relevantPeople) {
@@ -239,7 +265,7 @@ export function computeTotals(
     }
   }
   
-  // 7. Calculate tip shares
+  // 9. Calculate tip shares
   if (tipMode === 'proportional') {
     // Split tip proportionally based on each person's subtotal
     for (const personTotal of personTotals) {
@@ -249,10 +275,10 @@ export function computeTotals(
     }
   } else {
     // Split tip evenly among relevant people
-    const relevantPeople = includeZeroPeople 
-      ? personTotals 
+    const relevantPeople = includeZeroPeople
+      ? personTotals
       : personTotals.filter(p => p.subtotal > 0)
-    
+
     if (relevantPeople.length > 0) {
       const tipPerPerson = tip / relevantPeople.length
       for (const personTotal of relevantPeople) {
@@ -260,21 +286,23 @@ export function computeTotals(
       }
     }
   }
-  
-  // 8. Calculate raw totals for each person
+
+  // 10. Calculate raw totals for each person
   for (const personTotal of personTotals) {
-    personTotal.total = personTotal.subtotal + personTotal.tax_share + personTotal.tip_share
+    personTotal.total = personTotal.subtotal + personTotal.discount_share + personTotal.service_fee_share + personTotal.tax_share + personTotal.tip_share
   }
   
-  // 9. Round totals to cents and reconcile pennies
+  // 11. Round totals to cents and reconcile pennies
   const reconciledTotals = reconcilePennies(personTotals, grand_total)
-  
-  // 10. Calculate how much was distributed in reconciliation
+
+  // 12. Calculate how much was distributed in reconciliation
   const beforeTotal = personTotals.reduce((sum, p) => sum + Math.round(p.total * 100) / 100, 0)
   const distributed = grand_total - beforeTotal
-  
+
   return {
     subtotal,
+    discount,
+    service_fee,
     tax,
     tip,
     grand_total,
@@ -298,6 +326,8 @@ export function reconcilePennies(
   const roundedTotals = personTotals.map(person => ({
     ...person,
     subtotal: Math.round(person.subtotal * 100) / 100,
+    discount_share: Math.round(person.discount_share * 100) / 100,
+    service_fee_share: Math.round(person.service_fee_share * 100) / 100,
     tax_share: Math.round(person.tax_share * 100) / 100,
     tip_share: Math.round(person.tip_share * 100) / 100,
     total: Math.round(person.total * 100) / 100,

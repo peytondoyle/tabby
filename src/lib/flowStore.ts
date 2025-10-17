@@ -13,6 +13,8 @@ export interface FlowBill {
   place?: string
   date?: string
   subtotal?: number
+  discount?: number
+  service_fee?: number
   tax?: number
   tip?: number
   total?: number
@@ -78,12 +80,14 @@ interface FlowState {
   getItemAssignments: (itemId: ItemId) => PersonId[]
   getPersonItems: (personId: PersonId) => ItemId[]
   getTotalForPerson: (personId: PersonId) => number
-  computeBillTotals: () => { 
-    personTotals: Array<{ personId: PersonId; subtotal: number; taxShare: number; tipShare: number; total: number }>
+  computeBillTotals: () => {
+    personTotals: Array<{ personId: PersonId; subtotal: number; discountShare: number; serviceFeeShare: number; taxShare: number; tipShare: number; total: number }>
     billTotal: number
   }
   computeTotals: () => {
     subtotal: number
+    discount: number
+    serviceFee: number
     tax: number
     tip: number
     total: number
@@ -273,7 +277,7 @@ export const useFlowStore = create<FlowState>()(
       getTotalForPerson: (personId) => {
         const { items, assignments, bill } = get()
         let subtotal = 0
-        
+
         assignments.forEach((assignments, itemId) => {
           const personAssignment = assignments.find(a => a.personId === personId)
           if (personAssignment) {
@@ -286,62 +290,88 @@ export const useFlowStore = create<FlowState>()(
             }
           }
         })
-        
-        // Add proportional tax and tip
+
+        // Add proportional discounts, fees, tax and tip
         const totalSubtotal = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
+        const discount = bill?.discount || 0
+        const serviceFee = bill?.service_fee || 0
         const tax = bill?.tax || 0
         const tip = bill?.tip || 0
-        
+
+        const discountShare = totalSubtotal > 0 ? (subtotal / totalSubtotal) * discount : 0
+        const serviceFeeShare = totalSubtotal > 0 ? (subtotal / totalSubtotal) * serviceFee : 0
         const taxShare = totalSubtotal > 0 ? (subtotal / totalSubtotal) * tax : 0
         const tipShare = totalSubtotal > 0 ? (subtotal / totalSubtotal) * tip : 0
-        
-        return subtotal + taxShare + tipShare
+
+        return subtotal + discountShare + serviceFeeShare + taxShare + tipShare
       },
 
       computeBillTotals: () => {
-        const { people, items, bill, assignments: _assignments } = get()
+        const { people, items, bill, assignments } = get()
         const subtotal = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
+        const discount = bill?.discount || 0
+        const serviceFee = bill?.service_fee || 0
         const tax = bill?.tax || 0
         const tip = bill?.tip || 0
-        const billTotal = subtotal + tax + tip
-        
+        const billTotal = subtotal + discount + serviceFee + tax + tip
+
         const personTotals = people.map(person => {
-          const personSubtotal = get().getTotalForPerson(person.id)
-          
-          // Calculate proportional tax and tip shares
+          // Get person's item subtotal
+          let personSubtotal = 0
+          assignments.forEach((itemAssignments, itemId) => {
+            const personAssignment = itemAssignments.find(a => a.personId === person.id)
+            if (personAssignment) {
+              const item = items.find(i => i.id === itemId)
+              if (item) {
+                const totalWeight = itemAssignments.reduce((sum, a) => sum + a.weight, 0)
+                const personShare = (personAssignment.weight / totalWeight) * item.price
+                personSubtotal += personShare
+              }
+            }
+          })
+
+          // Calculate proportional discount, service fee, tax and tip shares
+          const discountShare = subtotal > 0 ? (personSubtotal / subtotal) * discount : 0
+          const serviceFeeShare = subtotal > 0 ? (personSubtotal / subtotal) * serviceFee : 0
           const taxShare = subtotal > 0 ? (personSubtotal / subtotal) * tax : 0
           const tipShare = subtotal > 0 ? (personSubtotal / subtotal) * tip : 0
-          const total = personSubtotal + taxShare + tipShare
-          
+          const total = personSubtotal + discountShare + serviceFeeShare + taxShare + tipShare
+
           return {
             personId: person.id,
             subtotal: personSubtotal,
+            discountShare,
+            serviceFeeShare,
             taxShare,
             tipShare,
             total
           }
         })
-        
+
         return { personTotals, billTotal }
       },
 
       computeTotals: () => {
         const { people, items, bill } = get()
         const subtotal = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
+        const discount = bill?.discount || 0
+        const serviceFee = bill?.service_fee || 0
         const tax = bill?.tax || 0
         const tip = bill?.tip || 0
-        const total = subtotal + tax + tip
-        
+        const total = subtotal + discount + serviceFee + tax + tip
+
         const personTotals: Record<string, number> = {}
         people.forEach(person => {
           personTotals[person.id] = get().getTotalForPerson(person.id)
         })
-        
+
         const personTotalsSum = Object.values(personTotals).reduce((sum, total) => sum + total, 0)
         const distributed = total - personTotalsSum
-        
+
         return {
           subtotal,
+          discount,
+          serviceFee,
           tax,
           tip,
           total,

@@ -268,6 +268,8 @@ export const Flow: React.FC = () => {
         place: result.place || undefined,
         date: result.date || undefined,
         subtotal: result.subtotal || undefined,
+        discount: result.discount || undefined,
+        service_fee: result.service_fee || undefined,
         tax: result.tax || undefined,
         tip: result.tip || undefined,
         total: result.total || undefined
