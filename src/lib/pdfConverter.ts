@@ -32,9 +32,9 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
     // Get first page
     const page = await pdf.getPage(1)
 
-    // Calculate scale to get reasonable image size (1024px width)
+    // Calculate scale to get reasonable image size (768px width, matching image compression)
     const viewport = page.getViewport({ scale: 1.0 })
-    const scale = 1024 / viewport.width
+    const scale = 768 / viewport.width
     const scaledViewport = page.getViewport({ scale })
 
     // Create canvas
@@ -72,7 +72,7 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
           }
         },
         'image/jpeg',
-        0.92
+        0.70 // Matching image compression quality
       )
     })
 
