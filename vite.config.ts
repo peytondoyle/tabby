@@ -145,5 +145,9 @@ export default defineConfig(({ mode }) => ({
       // Keep function names for better profiling
       keepNames: true,
     }),
+    // Remove console.logs in production
+    ...(mode === 'production' && {
+      drop: ['console', 'debugger'],
+    }),
   },
 }))

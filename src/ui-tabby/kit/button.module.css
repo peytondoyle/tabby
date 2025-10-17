@@ -1,6 +1,0 @@
-.root { 
-  composes: t-btn from '../styles.css'; 
-}
-.primary { 
-  composes: t-btn--primary from '../styles.css'; 
-}

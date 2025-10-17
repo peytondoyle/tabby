@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { LazyMotion, domAnimation } from 'framer-motion'
 import './App.css'
 import './styles/theme.css'
 import App from './App.tsx'
@@ -70,7 +71,9 @@ console.log('  tabbyDebug.clearAllLocalStorage() - Clear everything (use with ca
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <LazyMotion features={domAnimation} strict>
+        <App />
+      </LazyMotion>
     </ErrorBoundary>
   </StrictMode>,
 )
