@@ -8,6 +8,38 @@ import { toMoney } from './types'
 import { trackReceiptAccess } from './receiptHistory'
 import { getSmartEmoji } from './emojiUtils'
 
+/**
+ * Retry a function with exponential backoff
+ * @param fn Function to retry
+ * @param maxRetries Maximum number of retry attempts (default: 3)
+ * @param baseDelay Base delay in milliseconds (default: 100ms)
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 100
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries
+
+      if (isLastAttempt) {
+        throw error
+      }
+
+      // Exponential backoff: 100ms, 200ms, 400ms
+      const delay = baseDelay * Math.pow(2, attempt - 1)
+      console.log(`[retry] Attempt ${attempt}/${maxRetries} failed, retrying in ${delay}ms...`)
+
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+
+  throw new Error('[retry] Unexpected: retry loop completed without returning')
+}
+
 export interface ReceiptListItem {
   id: string
   token: string
@@ -541,6 +573,7 @@ export async function updateReceiptShares(token: string, shares: Array<{ item_id
 
 /**
  * Update receipt metadata (place, title, date, subtotal, tax, tip)
+ * Includes retry logic for resilience
  */
 export async function updateReceiptMetadata(
   token: string,
@@ -553,7 +586,7 @@ export async function updateReceiptMetadata(
     tip?: number | null;
   }
 ): Promise<any> {
-  try {
+  return retryWithBackoff(async () => {
     console.log('[updateReceiptMetadata] Updating metadata for receipt:', token, updates)
     const response = await apiFetch<{ receipt: any }>(`/api/receipts/${token}/update`, {
       method: "PUT",
@@ -561,22 +594,20 @@ export async function updateReceiptMetadata(
     })
     console.log('[updateReceiptMetadata] Successfully updated metadata:', response)
     return response
-  } catch (error) {
-    console.error('[updateReceiptMetadata] Failed to update metadata:', error)
-    throw error
-  }
+  }, 3, 100)
 }
 
 /**
  * Combined update for people AND shares in a single API call
  * This is 2x faster than separate updateReceiptPeople + updateReceiptShares calls
+ * Includes retry logic with exponential backoff for resilience
  */
 export async function updateReceiptAssignments(
   token: string,
   people: Array<{ id?: string; name: string; avatar_url?: string | null; venmo_handle?: string | null }>,
   shares: Array<{ item_id: string; person_id: string; weight?: number }>
 ): Promise<{ people: any[]; shares: any[] }> {
-  try {
+  return retryWithBackoff(async () => {
     console.log('[updateReceiptAssignments] Updating people and shares for receipt:', token)
     const response = await apiFetch<{ people: any[]; peopleCount: number; shares: any[]; sharesCount: number }>(`/api/receipts/${token}/assign`, {
       method: "POST",
@@ -590,8 +621,5 @@ export async function updateReceiptAssignments(
       people: response.people,
       shares: response.shares
     }
-  } catch (error) {
-    console.error('[updateReceiptAssignments] Failed to update assignments:', error)
-    throw error
-  }
+  }, 3, 100)
 }
