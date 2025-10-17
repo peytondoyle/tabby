@@ -54,12 +54,15 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     console.log('[scan_start]', { file_name: file.name, file_size: file.size })
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setErrorMessage('Please select an image file')
+    // Validate file type (images and PDFs)
+    const isImage = file.type.startsWith('image/')
+    const isPDF = file.type === 'application/pdf'
+
+    if (!isImage && !isPDF) {
+      setErrorMessage('Please select an image or PDF file')
       setState('error')
       return
     }
@@ -195,6 +198,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                       <h3 className="text-2xl font-bold mb-2">Analyzing Receipt</h3>
                       <p className="text-text-primary-dim mb-8">
                         {currentStep === 'Selecting…' && 'Checking file...'}
+                        {currentStep === 'Converting PDF…' && 'Converting PDF to image...'}
                         {currentStep === 'Normalizing…' && 'Optimizing image for AI...'}
                         {currentStep === 'Analyzing…' && 'AI reading receipt...'}
                         {currentStep === 'Mapping…' && 'Extracting items and prices...'}
@@ -285,7 +289,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   </div>
                   
                   <div className="text-sm text-text-primary-dim space-y-1">
-                    <p>Supports: JPG, PNG, WebP, HEIC, HEIF</p>
+                    <p>Supports: JPG, PNG, WebP, HEIC, HEIF, PDF</p>
                     <p>Max size: 10MB (auto-optimized)</p>
                   </div>
                 </div>
@@ -325,7 +329,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,.heic,.heif"
+              accept="image/*,.heic,.heif,.pdf,application/pdf"
               onChange={handleFileSelect}
               className="hidden"
             />

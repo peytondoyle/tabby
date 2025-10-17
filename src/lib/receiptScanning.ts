@@ -433,18 +433,19 @@ export async function ensureApiHealthy({ tries = 3, delayMs = 1000 }: { tries?: 
 
 // New normalized parseReceipt function with file normalization
 export async function parseReceipt(
-  file: File, 
+  file: File,
   onProgress?: (step: string) => void,
   signal?: AbortSignal
 ): Promise<ParseResult> {
   const { performanceMonitor } = await import('./performanceMonitor')
-  
+
   performanceMonitor.start()
   const startTime = Date.now()
-  const fileSize = file.size
-  const fileType = file.type
-  const fileName = file.name
-  
+  let fileSize = file.size
+  let fileType = file.type
+  let fileName = file.name
+  let processedFile = file
+
   console.info(`[scan_start] Starting receipt parse - file: ${fileName} (${fileSize} bytes, ${fileType})`)
 
   // Track cache key for saving later
@@ -455,12 +456,27 @@ export async function parseReceipt(
     onProgress?.('Selecting…')
     console.info('[scan_step] File selected for processing...')
 
-    // Step 1.5: Check cache (only if explicitly enabled)
+    // Step 1.5: Convert PDF to image if needed
+    if (fileType === 'application/pdf') {
+      onProgress?.('Converting PDF…')
+      console.info('[scan_step] Converting PDF to image...')
+
+      const { convertPdfToImage } = await import('./pdfConverter')
+      processedFile = await convertPdfToImage(file)
+
+      fileSize = processedFile.size
+      fileType = processedFile.type
+      fileName = processedFile.name
+
+      console.info(`[scan_step] PDF converted - new file: ${fileName} (${fileSize} bytes, ${fileType})`)
+    }
+
+    // Step 2: Check cache (only if explicitly enabled)
     const useScanCache = localStorage.getItem('use-scan-cache') !== '0'
 
     if (useScanCache) {
       try {
-        const arrayBuffer = await file.arrayBuffer()
+        const arrayBuffer = await processedFile.arrayBuffer()
         const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
         const hashArray = Array.from(new Uint8Array(hashBuffer))
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
@@ -481,12 +497,12 @@ export async function parseReceipt(
       console.info('[scan_cache] Scan cache disabled by user')
     }
 
-    // Step 2: Normalize file
+    // Step 3: Normalize file
     onProgress?.('Normalizing…')
     console.info('[scan_step] Normalizing file in Web Worker...')
 
     performanceMonitor.startImageProcessing()
-    const normalizedFile = await normalizeFile(file)
+    const normalizedFile = await normalizeFile(processedFile)
     performanceMonitor.endImageProcessing(normalizedFile.originalSize, normalizedFile.normalizedSize)
 
     console.info(`[scan_step] File normalized - original: ${normalizedFile.originalSize} bytes, normalized: ${normalizedFile.normalizedSize} bytes`)
