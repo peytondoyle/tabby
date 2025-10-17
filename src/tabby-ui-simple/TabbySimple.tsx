@@ -69,9 +69,9 @@ async function persistPeopleAndShares(
       venmo_handle: null
     })));
 
-    // Update people with Supabase UUIDs
-    const updatedPeople: Person[] = peopleResponse.people.map((apiPerson: any, index: number) => {
-      const originalPerson = people[index];
+    // Update people with Supabase UUIDs - match by name to preserve items
+    const updatedPeople: Person[] = peopleResponse.people.map((apiPerson: any) => {
+      const originalPerson = people.find(p => p.name === apiPerson.name);
       return {
         id: apiPerson.id, // Supabase UUID
         name: apiPerson.name,
@@ -140,10 +140,13 @@ export const TabbySimple: React.FC = () => {
   const [editableSubtotal, setEditableSubtotal] = useState('0');
   const [editableTax, setEditableTax] = useState('0');
   const [editableTip, setEditableTip] = useState('0');
+  const [showDragTooltip, setShowDragTooltip] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Debounce timer for database persistence (prevents race conditions)
   const persistTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isPersistingRef = useRef<boolean>(false);
+  const pendingPersistRef = useRef<{ token: string | null, people: Person[], items: Item[] } | null>(null);
 
   // Debounced version of persistPeopleAndShares to prevent rapid concurrent API calls
   const debouncedPersist = useCallback((
@@ -156,10 +159,37 @@ export const TabbySimple: React.FC = () => {
       clearTimeout(persistTimeoutRef.current);
     }
 
+    // Store the latest data in case we're already persisting
+    pendingPersistRef.current = { token, people, items };
+
     // Schedule new persist operation after 300ms of inactivity
     persistTimeoutRef.current = setTimeout(async () => {
-      const updatedPeople = await persistPeopleAndShares(token, people, items);
-      setPeople(updatedPeople);
+      // If already persisting, wait for it to complete
+      if (isPersistingRef.current) {
+        console.log('[debouncedPersist] Already persisting, will retry after completion');
+        return;
+      }
+
+      isPersistingRef.current = true;
+      const currentData = pendingPersistRef.current;
+      pendingPersistRef.current = null;
+
+      if (currentData) {
+        try {
+          const updatedPeople = await persistPeopleAndShares(currentData.token, currentData.people, currentData.items);
+          setPeople(updatedPeople);
+        } finally {
+          isPersistingRef.current = false;
+
+          // If there's pending data, schedule another persist
+          if (pendingPersistRef.current) {
+            console.log('[debouncedPersist] Found pending data, scheduling another persist');
+            debouncedPersist(pendingPersistRef.current.token, pendingPersistRef.current.people, pendingPersistRef.current.items);
+          }
+        }
+      } else {
+        isPersistingRef.current = false;
+      }
     }, 300);
   }, []);
 
@@ -210,6 +240,22 @@ export const TabbySimple: React.FC = () => {
       }
     }
   }, [step]);
+
+  // Show drag tooltip for first-time users after 3 seconds of inactivity
+  useEffect(() => {
+    if (step === 'assign' && items.length > 0 && people.length > 0) {
+      const hasSeenHint = localStorage.getItem('tabby-drag-hint-seen');
+      const unassignedItems = items.filter(item => !item.assignedTo);
+
+      if (!hasSeenHint && unassignedItems.length > 0) {
+        // Show tooltip after 3 seconds of inactivity
+        const timer = setTimeout(() => {
+          setShowDragTooltip(true);
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [step, items, people]);
 
   // Load bill from URL params if on edit route
   useEffect(() => {
@@ -457,17 +503,18 @@ export const TabbySimple: React.FC = () => {
   };
 
   const handleAddPerson = async (name?: string) => {
-    const personName = name ? name.trim() : newPersonName.trim();
-    if (personName) {
+    // Ensure name is a string before calling trim()
+    const nameStr = typeof name === 'string' ? name.trim() : newPersonName.trim();
+    if (nameStr) {
       const newPerson: Person = {
         id: `person-${Date.now()}`,
-        name: personName,
+        name: nameStr,
         items: [],
         total: 0,
       };
       const updatedPeople = [...people, newPerson];
       setPeople(updatedPeople);
-      trackPersonName(personName); // Track for future suggestions
+      trackPersonName(nameStr); // Track for future suggestions
       setNewPersonName('');
       setShowAddPerson(false);
 
@@ -624,6 +671,11 @@ export const TabbySimple: React.FC = () => {
 
   const handleDragStart = (itemId: string) => {
     setDraggedItem(itemId);
+    // Hide tooltip after first drag
+    if (showDragTooltip) {
+      setShowDragTooltip(false);
+      localStorage.setItem('tabby-drag-hint-seen', 'true');
+    }
   };
 
   const handleDragEnd = () => {
@@ -662,13 +714,13 @@ export const TabbySimple: React.FC = () => {
 
   const assignItemToPerson = async (itemId: string, personId: string) => {
     const updatedItems = items.map(item =>
-      item.id === itemId ? { ...item, assignedTo: personId } : item
+      item.id === itemId ? { ...item, assignedTo: personId, splitBetween: undefined } : item
     );
     setItems(updatedItems);
 
     const updatedPeople = people.map(person => {
       if (person.id === personId) {
-        const assignedItems = items.filter(i =>
+        const assignedItems = updatedItems.filter(i =>
           i.id === itemId || person.items.includes(i.id)
         );
         const total = calculatePersonTotal(assignedItems);
@@ -681,7 +733,7 @@ export const TabbySimple: React.FC = () => {
       // Remove from other people
       if (person.items.includes(itemId)) {
         const remainingItems = person.items.filter(id => id !== itemId);
-        const remainingItemsData = items.filter(i => remainingItems.includes(i.id));
+        const remainingItemsData = updatedItems.filter(i => remainingItems.includes(i.id));
         const total = calculatePersonTotal(remainingItemsData);
         return {
           ...person,
@@ -1097,31 +1149,97 @@ export const TabbySimple: React.FC = () => {
     return (
       <div className="tabby-simple">
         <HomeButton />
-        {restaurantName && (
-          <div className="header">
-            <div>
-              <h1>{restaurantName}</h1>
+        {/* Always show header to prevent layout shift */}
+        <div className="header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+            <div style={{ flex: 1 }}>
+              {isEditingRestaurantName ? (
+                <input
+                  type="text"
+                  value={editableRestaurantName}
+                  onChange={(e) => setEditableRestaurantName(e.target.value)}
+                  onKeyPress={async (e) => {
+                    if (e.key === 'Enter' && editableRestaurantName.trim()) {
+                      setRestaurantName(editableRestaurantName.trim());
+                      setIsEditingRestaurantName(false);
+
+                      // Persist to database
+                      if (billToken) {
+                        try {
+                          await updateReceiptMetadata(billToken, {
+                            place: editableRestaurantName.trim()
+                          });
+                          console.log('[TabbySimple] Restaurant name updated successfully');
+                        } catch (error) {
+                          console.error('[TabbySimple] Failed to update restaurant name:', error);
+                        }
+                      }
+                    }
+                  }}
+                  onBlur={async () => {
+                    if (editableRestaurantName.trim()) {
+                      setRestaurantName(editableRestaurantName.trim());
+                      setIsEditingRestaurantName(false);
+
+                      // Persist to database
+                      if (billToken) {
+                        try {
+                          await updateReceiptMetadata(billToken, {
+                            place: editableRestaurantName.trim()
+                          });
+                          console.log('[TabbySimple] Restaurant name updated successfully');
+                        } catch (error) {
+                          console.error('[TabbySimple] Failed to update restaurant name:', error);
+                        }
+                      }
+                    } else {
+                      setIsEditingRestaurantName(false);
+                    }
+                  }}
+                  autoFocus
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: '2px solid rgba(255,255,255,0.3)',
+                    color: '#fff',
+                    fontSize: '20px',
+                    fontWeight: '700',
+                    padding: '0 0 4px 0',
+                    outline: 'none',
+                    width: '100%',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              ) : (
+                <h1
+                  onClick={() => {
+                    if (restaurantName) {
+                      setEditableRestaurantName(restaurantName);
+                      setIsEditingRestaurantName(true);
+                    }
+                  }}
+                  style={{
+                    opacity: restaurantName ? 1 : 0.4,
+                    transition: 'opacity 0.3s ease',
+                    cursor: restaurantName ? 'pointer' : 'default'
+                  }}
+                  title={restaurantName ? 'Click to edit' : ''}
+                >
+                  {restaurantName || 'Restaurant name...'}
+                  {restaurantName && (
+                    <span style={{
+                      marginLeft: '8px',
+                      fontSize: '14px',
+                      color: 'rgba(255,255,255,0.4)',
+                      fontWeight: '400'
+                    }}>✏️</span>
+                  )}
+                </h1>
+              )}
               <p className="date">{new Date().toLocaleDateString()}</p>
             </div>
           </div>
-        )}
-
-        {/* Scan Progress Indicator */}
-        {isScanning && (
-          <div style={{
-            padding: '12px 20px',
-            background: 'rgba(0, 122, 255, 0.15)',
-            border: '1px solid rgba(0, 122, 255, 0.3)',
-            borderRadius: '12px',
-            margin: restaurantName ? '0 20px 20px 20px' : '20px 20px 20px 20px',
-            textAlign: 'center',
-            color: '#007AFF',
-            fontSize: '14px',
-            fontWeight: '500'
-          }}>
-            📸 {scanProgress}
-          </div>
-        )}
+        </div>
 
         <div className="people-step-container">
           <div className="people-circles">
@@ -1216,7 +1334,7 @@ export const TabbySimple: React.FC = () => {
           </div>
         </div>
 
-        <div className="bottom-nav">
+        <div className="bottom-nav" style={{ flexDirection: 'column', alignItems: 'center' }}>
           <button
             className="continue-to-assign-btn"
             onClick={() => {
@@ -1248,7 +1366,7 @@ export const TabbySimple: React.FC = () => {
             }}
             disabled={people.length === 0 || isScanning}
           >
-            Continue to Assign Items
+            {isScanning ? `📸 ${scanProgress}` : 'Continue to Assign Items'}
           </button>
         </div>
 
@@ -1366,57 +1484,53 @@ export const TabbySimple: React.FC = () => {
           <p className="date">{new Date().toLocaleDateString()}</p>
         </div>
         <div className="header-buttons">
-          <button className="menu-btn" onClick={() => setShowUnifiedEdit(true)}>
+          <button
+            className="menu-btn"
+            onClick={() => setShowUnifiedEdit(true)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.15)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '10px',
+              padding: '10px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '15px',
+              fontWeight: '600',
+              color: '#fff',
+              minWidth: '80px'
+            }}
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/>
               <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m6.36 6.36l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m6.36-6.36l4.24-4.24"/>
             </svg>
+            <span>Edit</span>
           </button>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="main-content">
-        {/* People Section */}
-        <div className="people-section">
-          {people.map((person, index) => (
-            <div
-              key={person.id}
-              className={`person-circle ${dragOverPerson === person.id ? 'drag-over' : ''}`}
-              onDragOver={handleDragOver}
-              onDragEnter={() => handleDragEnter(person.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, person.id)}
-            >
-              <div className="person-avatar" style={{ background: getPersonColor(index) }}>
-                {person.name[0].toUpperCase()}
-              </div>
-              <span className="person-name">{person.name}</span>
-              {person.items.length > 0 && (
-                <span className="person-count">{person.items.length}</span>
-              )}
-            </div>
-          ))}
-
-          <button
-            className="add-person-btn"
-            onClick={() => setShowAddPerson(true)}
-          >
-            +
-          </button>
-        </div>
-
         {/* Combined Items and People View */}
         <div className="combined-view">
           {/* Unassigned Items Section */}
           {unassignedItems.length > 0 && (
             <div className="unassigned-section">
               <h3 className="section-title">Unassigned Items</h3>
+              <p style={{
+                fontSize: '13px',
+                color: 'rgba(255,255,255,0.5)',
+                margin: '-4px 4px 12px 4px',
+                fontWeight: '400'
+              }}>
+                Double-tap to split between multiple people
+              </p>
               <div className="items-grid">
-                {unassignedItems.map((item) => (
+                {unassignedItems.map((item, index) => (
                   <div
                     key={item.id}
-                    className={`item-card ${draggedItem === item.id ? 'dragging' : ''}`}
+                    className={`item-card ${draggedItem === item.id ? 'dragging' : ''} ${showDragTooltip && index === 0 ? 'spotlight-hint' : ''}`}
                     draggable
                     onDragStart={() => handleDragStart(item.id)}
                     onDragEnd={handleDragEnd}
@@ -1431,7 +1545,13 @@ export const TabbySimple: React.FC = () => {
                       setSplitPeople([]);
                       setShowSplitItem(true);
                     }}
+                    style={{ position: 'relative' }}
                   >
+                    {showDragTooltip && index === 0 && (
+                      <div className="drag-tooltip">
+                        👆 Drag me to a person
+                      </div>
+                    )}
                     <span className="item-emoji">
                       <FoodIcon itemName={item.name} emoji={item.emoji} size={24} />
                     </span>
@@ -1446,11 +1566,11 @@ export const TabbySimple: React.FC = () => {
           )}
 
           {/* People's Items Section */}
-          {people.length > 0 && people.some(p => p.items.length > 0) && (
+          {people.length > 0 && (
             <>
               <h3 className="section-title">Assigned Items</h3>
               <div className="people-items-section">
-                {people.filter(p => p.items.length > 0).map((person) => {
+                {people.map((person) => {
                 const personIndex = people.findIndex(p => p.id === person.id);
                 // Get all items for this person based on their items array
                 const personItems = items.filter(item => person.items.includes(item.id));
@@ -1471,13 +1591,32 @@ export const TabbySimple: React.FC = () => {
                 const personTip = tip * proportion;
 
                 return (
-                  <div key={person.id} className="person-section" style={{ background: `${getPersonColor(personIndex)}33` }}>
+                  <div
+                    key={person.id}
+                    className={`person-section ${dragOverPerson === person.id ? 'drag-over-section' : ''}`}
+                    style={{ background: `${getPersonColor(personIndex)}33` }}
+                    onDragOver={handleDragOver}
+                    onDragEnter={() => handleDragEnter(person.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, person.id)}
+                  >
                     <div className="person-header">
                       <span className="person-name-large">{person.name}</span>
                       <span className="person-total">${person.total.toFixed(2)}</span>
                     </div>
                     <div className="person-items">
-                      {personItems.map(item => {
+                      {personItems.length === 0 ? (
+                        <div style={{
+                          padding: '24px',
+                          textAlign: 'center',
+                          color: 'rgba(255, 255, 255, 0.4)',
+                          fontSize: '14px',
+                          fontStyle: 'italic'
+                        }}>
+                          Drag items here
+                        </div>
+                      ) : (
+                        personItems.map(item => {
                         const isSplit = item.splitBetween && item.splitBetween.length > 1;
                         const splitCount = isSplit ? item.splitBetween!.length : 1;
                         const displayPrice = item.price / splitCount;
@@ -1521,7 +1660,7 @@ export const TabbySimple: React.FC = () => {
                               const updatedPeople = people.map(p => {
                                 if (p.id === person.id) {
                                   const newItems = p.items.filter(id => id !== item.id);
-                                  const remainingItemsData = items.filter(i => newItems.includes(i.id));
+                                  const remainingItemsData = updatedItems.filter(i => newItems.includes(i.id));
 
                                   // Recalculate total
                                   let newSubtotal = 0;
@@ -1558,7 +1697,8 @@ export const TabbySimple: React.FC = () => {
                             <span className="item-price-small">${displayPrice.toFixed(2)}</span>
                           </div>
                         );
-                      })}
+                      })
+                      )}
                     </div>
                     <div className="person-breakdown">
                       <div className="breakdown-row">

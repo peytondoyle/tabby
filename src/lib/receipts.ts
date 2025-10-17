@@ -58,7 +58,7 @@ export async function fetchReceiptByToken(token: string): Promise<{ receipt: Rec
     if (response?.receipt) {
       trackReceiptAccess({
         token: response.receipt.editor_token || token,
-        title: response.receipt.title || 'Untitled Receipt',
+        title: response.receipt.place || response.receipt.title || 'Untitled Receipt',
         place: response.receipt.place,
         date: response.receipt.date,
         totalAmount: response.receipt.subtotal ? Number(response.receipt.subtotal) : undefined

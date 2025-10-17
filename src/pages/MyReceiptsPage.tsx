@@ -1,11 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getReceiptHistory, type ReceiptHistoryItem } from '../lib/receiptHistory';
+import { getReceiptHistory, removeReceiptFromHistory, type ReceiptHistoryItem } from '../lib/receiptHistory';
+import { deleteReceipt } from '../lib/receipts';
 import { HomeButton } from '@/components/HomeButton';
 
 export const MyReceiptsPage: React.FC = () => {
   const navigate = useNavigate();
-  const history = getReceiptHistory();
+  const [history, setHistory] = useState(getReceiptHistory());
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (token: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigation
+
+    if (!confirm('Delete this receipt? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeleting(token);
+    try {
+      await deleteReceipt(token);
+      removeReceiptFromHistory(token);
+      setHistory(getReceiptHistory());
+    } catch (error) {
+      console.error('Failed to delete receipt:', error);
+      alert('Failed to delete receipt. Please try again.');
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   const formatDate = (isoDate: string) => {
     return new Date(isoDate).toLocaleDateString('en-US', {
@@ -92,7 +114,7 @@ export const MyReceiptsPage: React.FC = () => {
             {history.map((bill: ReceiptHistoryItem) => (
               <div
                 key={bill.token}
-                onClick={() => navigate(`/receipt/${bill.token}`)}
+                onClick={() => navigate(`/receipt/${bill.token}/edit`)}
                 style={{
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
@@ -146,19 +168,42 @@ export const MyReceiptsPage: React.FC = () => {
                 </div>
                 <div style={{
                   display: 'flex',
-                  gap: '12px',
-                  fontSize: '13px',
-                  color: 'rgba(255,255,255,0.5)'
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
                 }}>
-                  <span>{formatDate(bill.date)}</span>
-                  <span>•</span>
-                  <span>{formatTimeAgo(bill.lastAccessed)}</span>
-                  {bill.isLocal && (
-                    <>
-                      <span>•</span>
-                      <span>Local</span>
-                    </>
-                  )}
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    fontSize: '13px',
+                    color: 'rgba(255,255,255,0.5)'
+                  }}>
+                    <span>{formatDate(bill.date)}</span>
+                    <span>•</span>
+                    <span>{formatTimeAgo(bill.lastAccessed)}</span>
+                    {bill.isLocal && (
+                      <>
+                        <span>•</span>
+                        <span>Local</span>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => handleDelete(bill.token, e)}
+                    disabled={deleting === bill.token}
+                    style={{
+                      padding: '6px 12px',
+                      background: 'rgba(255, 59, 48, 0.15)',
+                      border: '1px solid rgba(255, 59, 48, 0.3)',
+                      borderRadius: '6px',
+                      color: '#FF3B30',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      cursor: deleting === bill.token ? 'not-allowed' : 'pointer',
+                      opacity: deleting === bill.token ? 0.5 : 1
+                    }}
+                  >
+                    {deleting === bill.token ? 'Deleting...' : 'Delete'}
+                  </button>
                 </div>
               </div>
             ))}
