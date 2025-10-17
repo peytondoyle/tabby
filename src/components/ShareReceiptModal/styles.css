@@ -156,16 +156,16 @@
   box-sizing: border-box;
 }
 
-/* Modern Person Card - Clean Receipt Design (Billy Style) */
+/* Modern Person Card - Lightweight & Shareable (Billy Style) */
 .modern-person-card {
   background: #ffffff;
-  border-radius: 20px;
-  padding: 24px 20px;
-  width: 340px;
-  min-width: 340px;
-  max-width: 340px;
-  min-height: 400px;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  padding: 16px 14px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  min-height: auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
   box-sizing: border-box;
   display: flex;
@@ -175,48 +175,48 @@
 
 .modern-person-header {
   text-align: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #e5e5e5;
 }
 
 .modern-person-avatar-large {
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 600;
   color: #fff;
-  margin: 0 auto 12px;
-  line-height: 56px;
+  margin: 0 auto 8px;
+  line-height: 44px;
   text-align: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
 }
 
 .modern-person-title {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
-  margin: 0 0 6px 0;
+  margin: 0 0 4px 0;
   color: #000;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
 }
 
 .modern-person-subtitle {
-  font-size: 16px;
+  font-size: 13px;
   color: #666;
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
   font-weight: 400;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
 }
 
 .modern-person-date {
-  font-size: 14px;
+  font-size: 12px;
   color: #999;
   margin: 0;
   font-weight: 400;
@@ -224,17 +224,17 @@
 }
 
 .modern-items-section {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
   flex: 1;
 }
 
 .modern-section-label {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   color: #000;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
 }
 
@@ -243,15 +243,15 @@
   flex-direction: column;
   gap: 0px;
   background: #fafafa;
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 10px;
 }
 
 .modern-item-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 7px 0;
   border-bottom: 1px solid #e5e5e5;
 }
 
@@ -262,53 +262,53 @@
 .modern-item-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
 }
 
 .modern-item-emoji {
   flex-shrink: 0;
-  width: 20px;
+  width: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 14px;
 }
 
 .modern-item-name {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 400;
   color: #000;
   flex: 1;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .modern-item-price {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 400;
   color: #000;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-left: 12px;
+  margin-left: 8px;
   font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
 }
 
 .modern-breakdown-section {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
   padding: 0;
   border-top: 1px solid #e5e5e5;
-  padding-top: 12px;
+  padding-top: 10px;
 }
 
 .modern-breakdown-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  font-size: 15px;
+  padding: 6px 0;
+  font-size: 13px;
   color: #000;
 }
 
@@ -326,40 +326,40 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 16px;
-  margin-bottom: 16px;
+  padding: 14px 12px;
+  margin-bottom: 12px;
   background: #E3F2FD;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 2px solid #90CAF9;
 }
 
 .modern-person-total-section .modern-total-label {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   color: #000;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
 }
 
 .modern-person-total-section .modern-total-amount {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 700;
   color: #000;
-  letter-spacing: -1px;
+  letter-spacing: -0.5px;
   font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
 }
 
-/* Modern Summary Card - Clean Receipt Design (Billy Style) */
+/* Modern Summary Card - Lightweight & Shareable (Billy Style) */
 .modern-summary-card {
   background: #ffffff;
-  border-radius: 20px;
-  padding: 24px 20px;
-  width: 340px;
-  min-width: 340px;
-  max-width: 340px;
-  min-height: 400px;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  padding: 16px 14px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  min-height: auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
   box-sizing: border-box;
   display: flex;
@@ -369,22 +369,22 @@
 
 .modern-header {
   text-align: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #e5e5e5;
 }
 
 .modern-restaurant-name {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
-  margin: 0 0 6px 0;
+  margin: 0 0 4px 0;
   color: #000;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
 }
 
 .modern-subtitle {
-  font-size: 14px;
+  font-size: 12px;
   color: #999;
   margin: 0;
   font-weight: 400;
@@ -392,7 +392,7 @@
 }
 
 .modern-people-list {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
   flex: 1;
 }
 
@@ -400,7 +400,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
+  padding: 9px 0;
   border-bottom: 1px solid #e5e5e5;
 }
 
@@ -411,33 +411,33 @@
 .modern-person-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .modern-avatar {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
   color: #fff;
   flex-shrink: 0;
   background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.15);
 }
 
 .modern-person-name {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
   color: #000;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
 }
 
 .modern-person-total {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
   color: #000;
   font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
@@ -447,47 +447,47 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 16px;
-  margin-top: 16px;
+  padding: 14px 12px;
+  margin-top: 12px;
   background: #E3F2FD;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 2px solid #90CAF9;
 }
 
 .modern-total-label {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   color: #000;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
 }
 
 .modern-total-amount {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 700;
   color: #000;
-  letter-spacing: -1px;
+  letter-spacing: -0.5px;
   font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
 }
 
 .modern-footer {
   text-align: center;
-  padding-top: 16px;
+  padding-top: 12px;
   margin-top: auto;
   border-top: 1px solid #e5e5e5;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 11px;
   color: #999;
   font-weight: 400;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
 }
 
 .modern-footer-icon {
-  font-size: 16px;
+  font-size: 13px;
 }
 
 .modern-footer-text {
