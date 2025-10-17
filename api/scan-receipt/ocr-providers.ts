@@ -7,6 +7,7 @@ export interface OCRResult {
   tax?: number | null;
   tip?: number | null;
   discount?: number | null;
+  service_fee?: number | null;
   total?: number | null;
   rawText?: string | null;
   items: Array<{
@@ -68,6 +69,7 @@ class OpenAIProvider implements OCRProvider {
   "items": [{"label": "Item Name", "price": 12.00}],
   "subtotal": 0.00,
   "discount": 0.00,
+  "service_fee": 0.00,
   "tax": 0.00,
   "tip": 0.00,
   "total": 0.00
@@ -95,24 +97,26 @@ CRITICAL RULES:
    - Extract the EXACT dollar amount as POSITIVE number
    - If $0.00, return 0.00 (not null)
 
-5. TIP: LOOK CAREFULLY for tip. Common labels:
-   - "Tip", "Gratuity", "Service Charge", "Service Fee"
+5. TIP: LOOK CAREFULLY for tip/gratuity ONLY. Common labels:
+   - "Tip", "Gratuity", "Tips"
    - Extract the EXACT dollar amount as POSITIVE number
    - If $0.00, return 0.00 (not null)
+   - DO NOT include service fees, delivery fees, or platform fees here
 
-6. FEES: Look for delivery/platform fees:
-   - "Delivery Fee", "Platform Fee", "Service Fee", "Small Order Fee", "Convenience Fee", "Regulatory Fee"
-   - ADD ALL FEES TO THE TIP FIELD
-   - Example: If Tip=$8.31, Service Fee=$2.00, Delivery Fee=$3.00 → return tip: 13.31
+6. SERVICE FEES: These are NOT tips! Keep them separate:
+   - "Service Fee", "Service Charge", "Delivery Fee", "Platform Fee", "Small Order Fee", "Convenience Fee", "Regulatory Fee"
+   - These fees go in a "service_fee" field (NOT in the tip field)
+   - DO NOT add these to the tip amount
 
-7. TOTAL: Final charged amount at the bottom (should equal subtotal + tax + tip).
+7. TOTAL: Final charged amount at the bottom (should equal subtotal - discount + service_fee + tax + tip).
 
-8. Use 0.00 for discount if no discounts found (not null).
+8. Use 0.00 for any field if not found (not null).
 
 9. IMPORTANT: For delivery apps (DoorDash/UberEats/GrubHub):
-   - All fees (Delivery, Service, Platform, etc.) go into the "tip" field
+   - Service/Delivery/Platform fees go in "service_fee" field (NOT in tip!)
+   - Tip/Gratuity goes in "tip" field (keep separate from fees!)
    - Discounts go in the "discount" field as a POSITIVE number
-   - Make sure you don't miss tax and tip fields!
+   - Make sure you extract all fields accurately!
 
 Extract ACTUAL VALUES from the receipt image, not the example values shown above.`
             },
@@ -150,6 +154,7 @@ Extract ACTUAL VALUES from the receipt image, not the example values shown above
       tax: parsed.tax || null,
       tip: parsed.tip || null,
       discount: parsed.discount || null,
+      service_fee: parsed.service_fee || null,
       total: parsed.total || null,
       rawText: parsed.rawText || content,
       items: parsed.items || [],

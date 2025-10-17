@@ -555,25 +555,33 @@ export async function parseReceipt(
     // Process items with filtering, coalescing, and special handling
     const processedItems = processItems(rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null }))
 
-    // Calculate service fees and tips separately
-    let serviceFeeTotal = 0
+    // Get service_fee from API response first (if available)
+    const apiServiceFee = normalizeNumber((responseData as any).service_fee)
+
+    // Only calculate from line items if API didn't provide service_fee
+    let serviceFeeTotal = apiServiceFee
     let additionalTipTotal = 0
-    const allItems = rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null })
-    for (const item of allItems) {
-      const label = String(item.label || '').trim()
-      const price = normalizeNumber(item.price)
-      if (isServiceCharge(label)) {
-        serviceFeeTotal += price
-      } else if (isTip(label)) {
-        additionalTipTotal += price
+
+    // If API didn't provide service_fee, calculate from line items
+    if (!apiServiceFee || apiServiceFee === 0) {
+      const allItems = rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null })
+      for (const item of allItems) {
+        const label = String(item.label || '').trim()
+        const price = normalizeNumber(item.price)
+        if (isServiceCharge(label)) {
+          serviceFeeTotal += price
+        } else if (isTip(label)) {
+          additionalTipTotal += price
+        }
       }
     }
 
-    // Calculate totals
+    // Calculate totals - use API values when available, fallback to calculated values
     const originalSubtotal = normalizeNumber(responseData.subtotal)
     const originalTax = normalizeNumber(responseData.tax)
     const originalTip = normalizeNumber(responseData.tip) || additionalTipTotal
     const originalDiscount = normalizeNumber(responseData.discount)
+    const originalServiceFee = apiServiceFee || serviceFeeTotal
     const originalTotal = normalizeNumber(responseData.total)
 
     const result: ParseResult = {
@@ -583,18 +591,18 @@ export async function parseReceipt(
       subtotal: originalSubtotal,
       tax: originalTax,
       tip: originalTip,
-      service_fee: serviceFeeTotal,
+      service_fee: originalServiceFee,
       discount: originalDiscount,
       total: originalTotal,
       rawText: responseData.rawText || null
     }
 
     // Log service fee and tip detection if any
-    if (serviceFeeTotal > 0) {
-      console.log(`[scan_ok] Detected $${serviceFeeTotal} in service fees`)
+    if (originalServiceFee > 0) {
+      console.log(`[scan_ok] Service fees: $${originalServiceFee.toFixed(2)} ${apiServiceFee ? '(from API)' : '(from line items)'}`)
     }
-    if (additionalTipTotal > 0) {
-      console.log(`[scan_ok] Detected $${additionalTipTotal} in tips from line items`)
+    if (originalTip > 0) {
+      console.log(`[scan_ok] Tip: $${originalTip.toFixed(2)}`)
     }
 
     const totalDuration = Date.now() - startTime
