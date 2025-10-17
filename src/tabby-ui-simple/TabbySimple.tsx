@@ -7,7 +7,7 @@ import { getReceiptHistory } from '../lib/receiptHistory';
 import { useAuth } from '../lib/authContext';
 import { AuthModal } from '../components/AuthModal';
 import { HomeButton } from '../components/HomeButton';
-import { fetchReceiptByToken, updateReceiptPeople, updateReceiptShares, updateReceiptMetadata, updateReceiptAssignments } from '../lib/receipts';
+import { fetchReceiptByToken, updateReceiptMetadata, updateReceiptAssignments } from '../lib/receipts';
 import { trackPersonName, getQuickAddSuggestions, getUserIdentity, setUserIdentity } from '../lib/peopleHistory';
 import { UnifiedEditModal } from '../components/UnifiedEditModal';
 import './TabbySimple.css';
