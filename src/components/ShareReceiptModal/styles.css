@@ -156,156 +156,177 @@
   box-sizing: border-box;
 }
 
-/* Modern Person Card - Ultra Compact Like Chick-fil-A */
+/* Modern Person Card - Premium Receipt Design */
 .modern-person-card {
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 10px 8px;
-  width: 180px;
-  min-width: 180px;
-  max-width: 180px;
-  min-height: 180px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+  border-radius: 16px;
+  padding: 20px 16px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  min-height: 320px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .modern-person-header {
   text-align: center;
-  margin-bottom: 6px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e8e8e8;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.03) 0%, rgba(88, 86, 214, 0.03) 100%);
+  padding-top: 8px;
+  border-radius: 8px;
+  margin-top: -8px;
+  margin-left: -8px;
+  margin-right: -8px;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 .modern-person-avatar-large {
-  width: 30px;
-  height: 30px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 20px;
   font-weight: 600;
   color: #fff;
-  margin: 0 auto 4px;
-  line-height: 30px;
+  margin: 0 auto 10px;
+  line-height: 48px;
   text-align: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  box-shadow: 0 2px 12px rgba(0, 122, 255, 0.3);
 }
 
 .modern-person-title {
-  font-size: 11px;
-  font-weight: 600;
-  margin: 0 0 2px 0;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
   color: #1a1a1a;
-  letter-spacing: -0.1px;
+  letter-spacing: -0.4px;
 }
 
 .modern-person-subtitle {
-  font-size: 8px;
+  font-size: 13px;
   color: #666;
-  margin: 0 0 1px 0;
-  font-weight: 500;
+  margin: 0 0 2px 0;
+  font-weight: 600;
 }
 
 .modern-person-date {
-  font-size: 7px;
+  font-size: 11px;
   color: #999;
   margin: 0;
   font-weight: 400;
 }
 
 .modern-items-section {
-  margin-bottom: 6px;
+  margin-bottom: 14px;
+  flex: 1;
 }
 
 .modern-section-label {
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 700;
   color: #999;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin: 0 0 4px 0;
+  letter-spacing: 0.8px;
+  margin: 0 0 10px 0;
 }
 
 .modern-items-list {
   display: flex;
   flex-direction: column;
   gap: 0px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  padding: 8px;
 }
 
 .modern-item-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 0;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  transition: background-color 0.2s;
 }
 
 .modern-item-row:last-child {
   border-bottom: none;
 }
 
+.modern-item-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+}
+
 .modern-item-info {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
 }
 
 .modern-item-emoji {
   flex-shrink: 0;
-  width: 7px;
+  width: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 6px;
+  font-size: 16px;
 }
 
 .modern-item-name {
-  font-size: 7px;
-  font-weight: 400;
+  font-size: 13px;
+  font-weight: 500;
   color: #1a1a1a;
   flex: 1;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .modern-item-price {
-  font-size: 7px;
+  font-size: 14px;
   font-weight: 600;
   color: #1a1a1a;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-left: 3px;
+  margin-left: 8px;
 }
 
 .modern-breakdown-section {
-  margin-bottom: 6px;
-  padding: 4px 0;
-  border-top: 1px solid #e5e5e5;
-  border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 16px;
+  padding: 12px 0;
+  border-top: 2px solid #e8e8e8;
+  border-bottom: 2px solid #e8e8e8;
 }
 
 .modern-breakdown-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 0;
-  font-size: 7px;
+  padding: 5px 0;
+  font-size: 13px;
   color: #666;
 }
 
 .modern-breakdown-row span:first-child {
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .modern-breakdown-row span:last-child {
-  font-weight: 500;
+  font-weight: 600;
   color: #1a1a1a;
 }
 
@@ -313,143 +334,170 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  margin-bottom: 6px;
+  padding: 16px 12px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.08) 0%, rgba(88, 86, 214, 0.08) 100%);
+  border-radius: 12px;
+  border: 2px solid rgba(0, 122, 255, 0.2);
 }
 
 .modern-person-total-section .modern-total-label {
-  font-size: 9px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.modern-person-total-section .modern-total-amount {
   font-size: 14px;
   font-weight: 700;
   color: #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-/* Modern Summary Card - Ultra Compact */
+.modern-person-total-section .modern-total-amount {
+  font-size: 28px;
+  font-weight: 800;
+  color: #007AFF;
+  letter-spacing: -0.5px;
+}
+
+/* Modern Summary Card - Premium Design */
 .modern-summary-card {
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 10px 8px;
-  width: 180px;
-  min-width: 180px;
-  max-width: 180px;
-  min-height: 180px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+  border-radius: 16px;
+  padding: 20px 16px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  min-height: 320px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .modern-header {
   text-align: center;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e8e8e8;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.03) 0%, rgba(88, 86, 214, 0.03) 100%);
+  padding-top: 8px;
+  border-radius: 8px;
+  margin-top: -8px;
+  margin-left: -8px;
+  margin-right: -8px;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 .modern-restaurant-name {
-  font-size: 11px;
+  font-size: 18px;
   font-weight: 700;
-  margin: 0 0 2px 0;
+  margin: 0 0 4px 0;
   color: #1a1a1a;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.3px;
 }
 
 .modern-subtitle {
-  font-size: 7px;
+  font-size: 11px;
   color: #666;
   margin: 0;
   font-weight: 400;
 }
 
 .modern-people-list {
-  margin-bottom: 8px;
+  margin-bottom: 16px;
+  flex: 1;
 }
 
 .modern-person-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 12px 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.02);
+  margin-bottom: 6px;
+  border-radius: 6px;
 }
 
 .modern-person-row:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .modern-person-info {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
 .modern-avatar {
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 600;
   color: #fff;
   flex-shrink: 0;
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
 }
 
 .modern-person-name {
-  font-size: 9px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   color: #1a1a1a;
 }
 
 .modern-person-total {
-  font-size: 9px;
-  font-weight: 600;
-  color: #1a1a1a;
+  font-size: 16px;
+  font-weight: 700;
+  color: #007AFF;
 }
 
 .modern-bill-total {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  margin-top: 6px;
-  border-top: 2px solid #1a1a1a;
+  padding: 16px 12px;
+  margin-top: 12px;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.08) 0%, rgba(88, 86, 214, 0.08) 100%);
+  border-radius: 12px;
+  border: 2px solid rgba(0, 122, 255, 0.2);
 }
 
 .modern-total-label {
-  font-size: 9px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.modern-total-amount {
   font-size: 14px;
   font-weight: 700;
   color: #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modern-total-amount {
+  font-size: 28px;
+  font-weight: 800;
+  color: #007AFF;
+  letter-spacing: -0.5px;
 }
 
 .modern-footer {
   text-align: center;
-  padding-top: 6px;
-  margin-top: 6px;
-  border-top: 1px solid #e5e5e5;
+  padding-top: 12px;
+  margin-top: auto;
+  border-top: 2px solid #e8e8e8;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  font-size: 7px;
+  gap: 6px;
+  font-size: 11px;
   color: #999;
   font-weight: 500;
 }
 
 .modern-footer-icon {
-  font-size: 8px;
+  font-size: 14px;
 }
 
 .modern-footer-text {

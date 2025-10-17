@@ -101,6 +101,7 @@ export const HealthResponseSchema = z.object({
 export const RATE_LIMITS = {
   scan_receipt: { maxRequests: 10, windowMs: 60000 }, // 10 requests per minute
   create_receipt: { maxRequests: 20, windowMs: 60000 },  // 20 requests per minute
+  update_receipt: { maxRequests: 50, windowMs: 60000 },  // 50 requests per minute
   default: { maxRequests: 100, windowMs: 60000 }      // 100 requests per minute
 } as const
 
