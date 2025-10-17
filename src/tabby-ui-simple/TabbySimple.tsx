@@ -457,7 +457,7 @@ export const TabbySimple: React.FC = () => {
   };
 
   const handleAddPerson = async (name?: string) => {
-    const personName = (name || newPersonName).trim();
+    const personName = name ? name.trim() : newPersonName.trim();
     if (personName) {
       const newPerson: Person = {
         id: `person-${Date.now()}`,
@@ -1268,9 +1268,6 @@ export const TabbySimple: React.FC = () => {
               <div className="modal-actions">
                 <button onClick={handleAddPerson} disabled={!newPersonName.trim()}>
                   Add Person
-                </button>
-                <button className="contacts-btn">
-                  👤 Add from Contacts
                 </button>
               </div>
             </div>
