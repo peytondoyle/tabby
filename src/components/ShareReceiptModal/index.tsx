@@ -90,7 +90,13 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         removeContainer: true,
         // Let html2canvas use natural element dimensions
         windowWidth: cardRef.current.scrollWidth,
-        windowHeight: cardRef.current.scrollHeight
+        windowHeight: cardRef.current.scrollHeight,
+        // Better rendering for backgrounds and borders
+        foreignObjectRendering: false,
+        // Ensure backgrounds are captured properly
+        ignoreElements: (element) => {
+          return false; // Don't ignore any elements
+        }
       });
 
       const dataUrl = canvas.toDataURL('image/png', 1.0);
