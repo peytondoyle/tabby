@@ -147,10 +147,12 @@ export const TabbySimple: React.FC = () => {
   const pendingPersistRef = useRef<{ token: string | null, people: Person[], items: Item[] } | null>(null);
 
   // Debounced version of persistPeopleAndShares to prevent rapid concurrent API calls
+  // Returns a promise for error handling
   const debouncedPersist = useCallback((
     token: string | null,
     people: Person[],
-    items: Item[]
+    items: Item[],
+    onError?: (error: unknown) => void
   ) => {
     // Clear any pending persist operation
     if (persistTimeoutRef.current) {
@@ -176,13 +178,16 @@ export const TabbySimple: React.FC = () => {
         try {
           const updatedPeople = await persistPeopleAndShares(currentData.token, currentData.people, currentData.items);
           setPeople(updatedPeople);
+        } catch (error) {
+          console.error('[debouncedPersist] Persist failed:', error);
+          onError?.(error);
         } finally {
           isPersistingRef.current = false;
 
           // If there's pending data, schedule another persist
           if (pendingPersistRef.current) {
             console.log('[debouncedPersist] Found pending data, scheduling another persist');
-            debouncedPersist(pendingPersistRef.current.token, pendingPersistRef.current.people, pendingPersistRef.current.items);
+            debouncedPersist(pendingPersistRef.current.token, pendingPersistRef.current.people, pendingPersistRef.current.items, onError);
           }
         }
       } else {
@@ -711,6 +716,10 @@ export const TabbySimple: React.FC = () => {
   };
 
   const assignItemToPerson = async (itemId: string, personId: string) => {
+    // 🚀 OPTIMISTIC UPDATE - Update UI immediately for instant feedback
+    const previousItems = items;
+    const previousPeople = people;
+
     const updatedItems = items.map(item =>
       item.id === itemId ? { ...item, assignedTo: personId, splitBetween: undefined } : item
     );
@@ -743,8 +752,15 @@ export const TabbySimple: React.FC = () => {
     });
     setPeople(updatedPeople);
 
-    // Persist to database (debounced to prevent race conditions)
-    debouncedPersist(billToken, updatedPeople, updatedItems);
+    // Persist to database in background (debounced)
+    // If it fails, rollback the optimistic update
+    debouncedPersist(billToken, updatedPeople, updatedItems, (error) => {
+      // Rollback on error
+      console.error('[assignItemToPerson] Failed to persist, rolling back:', error);
+      setItems(previousItems);
+      setPeople(previousPeople);
+      // TODO: Show user-friendly error toast
+    });
   };
 
   const unassignedItems = items.filter(item => !item.assignedTo);
