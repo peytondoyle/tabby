@@ -135,6 +135,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log('[receipts_assign] Successfully saved people:', insertedPeople?.length);
 
+    // ==================== MAP PERSON IDS ====================
+    // Create mapping from old client IDs to new Supabase UUIDs
+    // Client sends temp IDs like "temp_person_1", we need to map to Supabase UUIDs
+    const personIdMap = new Map<string, string>();
+    people.forEach((clientPerson, index) => {
+      const dbPerson = insertedPeople?.[index];
+      if (dbPerson && clientPerson.id) {
+        personIdMap.set(clientPerson.id, dbPerson.id);
+      }
+    });
+
+    console.log('[receipts_assign] Person ID mapping:', Object.fromEntries(personIdMap));
+
     // ==================== UPDATE SHARES ====================
     // Get all items for this receipt to validate shares
     const { data: items, error: itemsError } = await supabaseAdmin
@@ -151,8 +164,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const itemIds = new Set(items?.map(item => item.id) || []);
 
+    // Map person IDs in shares from client IDs to Supabase UUIDs
+    const mappedShares = shares.map(share => ({
+      ...share,
+      person_id: personIdMap.get(share.person_id) || share.person_id
+    }));
+
     // Validate that all item_ids in shares belong to this receipt
-    const invalidShares = shares.filter(share => !itemIds.has(share.item_id));
+    const invalidShares = mappedShares.filter(share => !itemIds.has(share.item_id));
     if (invalidShares.length > 0) {
       console.error('[receipts_assign] Invalid item IDs in shares:', invalidShares);
       const error = { error: "Some items do not belong to this receipt", code: "INVALID_ITEM_IDS" };
@@ -171,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     const newKeys = new Set(
-      shares.map(s => `${s.item_id}:${s.person_id}`)
+      mappedShares.map(s => `${s.item_id}:${s.person_id}`)
     );
 
     // Delete shares that no longer exist (user unassigned items)
@@ -193,10 +212,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // UPSERT new/updated shares
+    // UPSERT new/updated shares (with mapped person IDs)
     let upsertedShares = [];
-    if (shares.length > 0) {
-      const sharesToUpsert = shares.map(share => ({
+    if (mappedShares.length > 0) {
+      const sharesToUpsert = mappedShares.map(share => ({
         item_id: share.item_id,
         person_id: share.person_id,
         weight: share.weight,
