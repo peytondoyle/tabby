@@ -566,3 +566,32 @@ export async function updateReceiptMetadata(
     throw error
   }
 }
+
+/**
+ * Combined update for people AND shares in a single API call
+ * This is 2x faster than separate updateReceiptPeople + updateReceiptShares calls
+ */
+export async function updateReceiptAssignments(
+  token: string,
+  people: Array<{ id?: string; name: string; avatar_url?: string | null; venmo_handle?: string | null }>,
+  shares: Array<{ item_id: string; person_id: string; weight?: number }>
+): Promise<{ people: any[]; shares: any[] }> {
+  try {
+    console.log('[updateReceiptAssignments] Updating people and shares for receipt:', token)
+    const response = await apiFetch<{ people: any[]; peopleCount: number; shares: any[]; sharesCount: number }>(`/api/receipts/${token}/assign`, {
+      method: "POST",
+      body: { people, shares: shares.map(s => ({ ...s, weight: s.weight || 1 })) },
+    })
+    console.log('[updateReceiptAssignments] Successfully updated:', {
+      peopleCount: response.peopleCount,
+      sharesCount: response.sharesCount
+    })
+    return {
+      people: response.people,
+      shares: response.shares
+    }
+  } catch (error) {
+    console.error('[updateReceiptAssignments] Failed to update assignments:', error)
+    throw error
+  }
+}

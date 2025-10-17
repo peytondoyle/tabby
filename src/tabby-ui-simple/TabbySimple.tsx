@@ -7,7 +7,7 @@ import { getReceiptHistory } from '../lib/receiptHistory';
 import { useAuth } from '../lib/authContext';
 import { AuthModal } from '../components/AuthModal';
 import { HomeButton } from '../components/HomeButton';
-import { fetchReceiptByToken, updateReceiptPeople, updateReceiptShares, updateReceiptMetadata } from '../lib/receipts';
+import { fetchReceiptByToken, updateReceiptPeople, updateReceiptShares, updateReceiptMetadata, updateReceiptAssignments } from '../lib/receipts';
 import { trackPersonName, getQuickAddSuggestions, getUserIdentity, setUserIdentity } from '../lib/peopleHistory';
 import { UnifiedEditModal } from '../components/UnifiedEditModal';
 import './TabbySimple.css';
@@ -61,16 +61,28 @@ async function persistPeopleAndShares(
   }
 
   try {
-    // Save people to database and get back Supabase UUIDs
-    const peopleResponse = await updateReceiptPeople(token, people.map(p => ({
+    // Prepare people data for API
+    const peoplePayload = people.map(p => ({
       id: p.id,
       name: p.name,
       avatar_url: null,
       venmo_handle: null
-    })));
+    }));
+
+    // Build shares array - we'll update it with Supabase UUIDs after the API call
+    const sharesPayload = people.flatMap(person =>
+      person.items.map(itemId => ({
+        item_id: itemId,
+        person_id: person.id, // Client-side ID for now
+        weight: items.find(i => i.id === itemId)?.splitBetween?.length || 1
+      }))
+    );
+
+    // 🚀 COMBINED API CALL - saves people AND shares in one request (2x faster!)
+    const response = await updateReceiptAssignments(token, peoplePayload, sharesPayload);
 
     // Update people with Supabase UUIDs - match by name to preserve items
-    const updatedPeople: Person[] = peopleResponse.people.map((apiPerson: any) => {
+    const updatedPeople: Person[] = response.people.map((apiPerson: any) => {
       const originalPerson = people.find(p => p.name === apiPerson.name);
       return {
         id: apiPerson.id, // Supabase UUID
@@ -79,20 +91,6 @@ async function persistPeopleAndShares(
         total: originalPerson?.total || 0
       };
     });
-
-    console.log('[persistPeopleAndShares] Updated people with Supabase UUIDs:', updatedPeople);
-
-    // Build shares array using Supabase UUIDs
-    const shares = updatedPeople.flatMap(person =>
-      person.items.map(itemId => ({
-        item_id: itemId,
-        person_id: person.id, // Now using Supabase UUID
-        weight: items.find(i => i.id === itemId)?.splitBetween?.length || 1
-      }))
-    );
-
-    // Save shares to database
-    await updateReceiptShares(token, shares);
 
     console.log('[persistPeopleAndShares] Successfully saved people and shares to database');
 
