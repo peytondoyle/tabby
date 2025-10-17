@@ -324,11 +324,7 @@
 }
 
 .modern-person-total-section {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: baseline;
-  gap: 10px;
+  display: block;
   padding: 14px 12px;
   margin-bottom: 12px;
   background: #E3F2FD;
@@ -344,7 +340,8 @@
   text-transform: uppercase;
   letter-spacing: 0.8px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
-  line-height: 1;
+  display: inline;
+  margin-right: 10px;
 }
 
 .modern-person-total-section .modern-total-amount {
@@ -353,7 +350,7 @@
   color: #000;
   letter-spacing: -0.5px;
   font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
-  line-height: 1;
+  display: inline;
 }
 
 /* Modern Summary Card - Lightweight & Shareable (Billy Style) */
@@ -450,11 +447,7 @@
 }
 
 .modern-bill-total {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: baseline;
-  gap: 10px;
+  display: block;
   padding: 14px 12px;
   margin-top: 12px;
   background: #E3F2FD;
@@ -470,7 +463,8 @@
   text-transform: uppercase;
   letter-spacing: 0.8px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
-  line-height: 1;
+  display: inline;
+  margin-right: 10px;
 }
 
 .modern-total-amount {
@@ -479,7 +473,7 @@
   color: #000;
   letter-spacing: -0.5px;
   font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
-  line-height: 1;
+  display: inline;
 }
 
 .modern-footer {
