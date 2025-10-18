@@ -325,11 +325,10 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               )}
             </div>
 
-            {/* Hidden file input */}
+            {/* Hidden file input - accepting all files to ensure PDF works */}
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,application/pdf,image/*"
               onChange={handleFileSelect}
               className="hidden"
             />
