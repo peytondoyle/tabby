@@ -1,4 +1,4 @@
-import { VercelRequest, VercelResponse } from '@vercel/node'
+import { type VercelRequest, type VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 import { applyCors } from '../_utils/cors.js'
 

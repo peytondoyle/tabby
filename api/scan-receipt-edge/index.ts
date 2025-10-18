@@ -111,7 +111,7 @@ async function setCachedResult(imageHash: string, result: any): Promise<void> {
     const password = url.password
     
     // Simple Redis SETEX request
-    const response = await fetch(`https://${host}:${port}/setex/receipt:${imageHash}`, {
+    await fetch(`https://${host}:${port}/setex/receipt:${imageHash}`, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${btoa(`:${password}`)}`,

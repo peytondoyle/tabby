@@ -1,4 +1,4 @@
-import { VercelRequest, VercelResponse } from '@vercel/node'
+import { type VercelRequest, type VercelResponse } from '@vercel/node'
 import { IncomingForm } from 'formidable'
 import { promises as fs } from 'fs'
 import { createClient } from '@supabase/supabase-js'
@@ -6,11 +6,11 @@ import { applyCors } from '../_utils/cors.js'
 import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from '../_utils/request.js'
 import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit.js'
 import { FILE_LIMITS } from '../_utils/schemas.js'
-import { processWithFallback, processWithMultipleProviders } from './ocr-providers.js'
+import { processWithMultipleProviders } from './ocr-providers.js'
 import { generateAndCacheFoodIcons } from '../_utils/foodIconsService.js'
 
 // Server-side Supabase client using secret key
-const _supabaseAdmin = process.env.SUPABASE_SECRET_KEY
+const supabaseAdmin = process.env.SUPABASE_SECRET_KEY
   ? createClient(
       process.env.VITE_SUPABASE_URL || 'https://evraslbpgcafyvvtbqxy.supabase.co',
       process.env.SUPABASE_SECRET_KEY,
@@ -53,10 +53,6 @@ interface ScanReceiptResponse {
   }>
 }
 
-interface _HealthResponse {
-  ok: boolean
-  uptimeMs: number
-}
 
 // DEV fallback with 3 deterministic items
 function getDEVFallback(): ScanReceiptResponse {
@@ -99,9 +95,6 @@ async function parseFormData(req: VercelRequest): Promise<{ file: any } | null> 
   })
 }
 
-// This function is no longer used - we use processWithOpenAI directly
-
-const startTime = Date.now()
 
 function redactQuery(query: any): string {
   // Redact sensitive query parameters while keeping useful ones

@@ -1,6 +1,6 @@
 // api/_utils/rateLimit.ts
 import { IncomingMessage, ServerResponse } from 'http'
-import { RequestContext } from './request.js'
+import { type RequestContext } from './request.js'
 import { RATE_LIMITS } from './schemas.js'
 
 // Simple in-memory rate limiting store

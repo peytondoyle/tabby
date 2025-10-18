@@ -1,7 +1,7 @@
 // api/_utils/request.ts
 import { IncomingMessage, ServerResponse } from 'http'
 import { z } from 'zod'
-import { ErrorResponse } from './schemas.js'
+import { type ErrorResponse } from './schemas.js'
 
 // Generate unique request ID for tracing
 export function generateRequestId(): string {

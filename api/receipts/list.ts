@@ -1,4 +1,4 @@
-import { VercelRequest, VercelResponse } from '@vercel/node'
+import { type VercelRequest, type VercelResponse } from '@vercel/node'
 import { applyCors } from '../_utils/cors.js'
 import { listReceipts } from '../_utils/memoryDb.js'
 
@@ -11,7 +11,7 @@ interface ReceiptSummary {
   created_at: string    // ISO string
   item_count: number
   people_count: number
-  total_amount: number
+  total_amount: number | null
 }
 
 export default async function handler(
