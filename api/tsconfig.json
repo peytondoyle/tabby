@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.app.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": [
+    "**/*.ts",
+    "../src/types/**/*.d.ts",
+    "../src/vite-env.d.ts"
+  ]
+}

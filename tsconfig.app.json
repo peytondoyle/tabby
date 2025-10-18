@@ -29,6 +29,6 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "src/**/*.d.ts"],
   "exclude": ["src/deprecated/**/*"]
 }
