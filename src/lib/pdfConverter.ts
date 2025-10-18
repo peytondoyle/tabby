@@ -16,9 +16,11 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
     // Dynamically import pdf.js (only load when needed)
     const pdfjsLib = await import('pdfjs-dist')
 
-    // Set worker source
-    const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.mjs?url')
+    // Set worker source - use the minified version for better performance
+    const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
     pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker.default
+
+    console.log('[pdf_convert] PDF.js loaded, worker URL:', pdfjsLib.GlobalWorkerOptions.workerSrc)
 
     // Read PDF file as array buffer
     const arrayBuffer = await pdfFile.arrayBuffer()
@@ -93,7 +95,30 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
 
   } catch (error) {
     console.error('[pdf_convert] PDF conversion failed:', error)
-    logServer('error', 'PDF conversion failed', { error, context: 'convertPdfToImage' })
-    throw new Error('Failed to convert PDF. Please try a different file.')
+
+    // Provide more specific error messages
+    let errorMessage = 'Failed to convert PDF. Please try a different file.'
+
+    if (error instanceof Error) {
+      if (error.message.includes('Invalid PDF structure')) {
+        errorMessage = 'The PDF file appears to be corrupted. Please try a different file.'
+      } else if (error.message.includes('Password required')) {
+        errorMessage = 'This PDF is password protected. Please use an unprotected PDF.'
+      } else if (error.message.includes('worker')) {
+        errorMessage = 'PDF processing failed. Please refresh the page and try again.'
+      } else {
+        // Include the actual error for debugging
+        errorMessage = `PDF conversion error: ${error.message}`
+      }
+    }
+
+    logServer('error', 'PDF conversion failed', {
+      error: error instanceof Error ? error.message : String(error),
+      fileName: pdfFile.name,
+      fileSize: pdfFile.size,
+      context: 'convertPdfToImage'
+    })
+
+    throw new Error(errorMessage)
   }
 }
