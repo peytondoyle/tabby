@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { applyCors } from "../_utils/cors.js";
 import { createRequestContext, validateRequest, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from "../_utils/request.js";
 import { checkRateLimit, addRateLimitHeaders } from "../_utils/rateLimit.js";
-import { CreateReceiptRequestSchema, CreateReceiptRequest, FILE_LIMITS } from "../_utils/schemas.js";
+import { CreateReceiptRequestSchema, FILE_LIMITS, type CreateReceiptRequest } from "../_utils/schemas.js";
 import { createReceipt as saveReceipt } from "../_utils/memoryDb.js";
 import { nanoid } from 'nanoid';
 

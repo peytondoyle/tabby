@@ -27,7 +27,8 @@ export const CreateReceiptRequestSchema = z.object({
   date: z.string().optional(),
   people: z.array(z.object({
     id: z.string(),
-    name: z.string()
+    name: z.string(),
+    items: z.array(z.string()).default([]) // Array of item IDs assigned to this person
   })).default([]),
   tax: z.number().default(0),
   tip: z.number().default(0),

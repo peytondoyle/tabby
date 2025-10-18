@@ -10,7 +10,7 @@ interface Receipt {
   created_at: string
   item_count: number
   people_count: number
-  total_amount: number
+  total_amount: number | null
   user_id?: string | null
   items?: any[]
 }
