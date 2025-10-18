@@ -4,7 +4,6 @@ import { parseReceipt } from '@/lib/receiptScanning'
 import type { ParseResult } from '@/lib/receiptScanning'
 import { logServer } from '@/lib/errorLogger'
 import { testIds } from '@/lib/testIds'
-import { testPDFHandling } from './debugPDF'
 
 export type { ParseResult }
 
@@ -36,14 +35,6 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     }
   }, [externalError])
 
-  // Run PDF debug on mount if in development
-  React.useEffect(() => {
-    if (open && import.meta.env.DEV) {
-      testPDFHandling().then(result => {
-        console.log('[PDF Debug Result]', result)
-      })
-    }
-  }, [open])
 
   // Add paste handler for files
   React.useEffect(() => {
