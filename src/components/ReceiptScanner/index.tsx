@@ -4,6 +4,7 @@ import { parseReceipt } from '@/lib/receiptScanning'
 import type { ParseResult } from '@/lib/receiptScanning'
 import { logServer } from '@/lib/errorLogger'
 import { testIds } from '@/lib/testIds'
+import { testPDFHandling } from './debugPDF'
 
 export type { ParseResult }
 
@@ -23,6 +24,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
   const [state, setState] = useState<'idle' | 'analyzing' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
   const [currentStep, setCurrentStep] = useState<string>('')
+  const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
@@ -33,6 +35,39 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
       setState('error')
     }
   }, [externalError])
+
+  // Run PDF debug on mount if in development
+  React.useEffect(() => {
+    if (open && import.meta.env.DEV) {
+      testPDFHandling().then(result => {
+        console.log('[PDF Debug Result]', result)
+      })
+    }
+  }, [open])
+
+  // Add paste handler for files
+  React.useEffect(() => {
+    if (!open) return
+
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      for (const item of items) {
+        if (item.kind === 'file') {
+          const file = item.getAsFile()
+          if (file) {
+            console.log('[Paste] File pasted:', file.name, file.type)
+            await processFile(file)
+            break
+          }
+        }
+      }
+    }
+
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [open])
 
   // Cleanup AbortController when component unmounts or modal closes
   React.useEffect(() => {
@@ -51,15 +86,12 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     onOpenChange(false)
   }
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const processFile = async (file: File) => {
+    console.log('[scan_start]', { file_name: file.name, file_size: file.size, file_type: file.type })
 
-    console.log('[scan_start]', { file_name: file.name, file_size: file.size })
-
-    // Validate file type (images and PDFs)
-    const isImage = file.type.startsWith('image/')
-    const isPDF = file.type === 'application/pdf'
+    // Validate file type (images and PDFs) - be more lenient
+    const isImage = file.type.startsWith('image/') || file.name.match(/\.(jpg|jpeg|png|gif|webp|heic|heif)$/i)
+    const isPDF = file.type === 'application/pdf' || file.name.match(/\.pdf$/i)
 
     if (!isImage && !isPDF) {
       setErrorMessage('Please select an image or PDF file')
@@ -80,13 +112,13 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     try {
       // Create new AbortController for this scan
       abortControllerRef.current = new AbortController()
-      
+
       // Analyzing - parse the receipt with progress callback and AbortSignal
       setState('analyzing')
       const parseResult = await parseReceipt(file, (step) => {
         setCurrentStep(step)
       }, abortControllerRef.current.signal)
-      
+
       console.log('[scan_success]', { items_count: parseResult.items.length, total: parseResult.total })
       onParsed(parseResult)
       onClose()
@@ -96,10 +128,10 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
         console.log('[scan_aborted] Scan was cancelled by user')
         return
       }
-      
+
       // Check if it's a specific error message from the API
       const errorMessage = err instanceof Error ? err.message : 'Failed to scan receipt. Please try again.'
-      
+
       // Show specific error message for common issues
       if (errorMessage.includes('No items found') || errorMessage.includes('Invalid response format')) {
         setErrorMessage('Couldn\'t read that receipt—try a clearer photo or type it in')
@@ -114,11 +146,40 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
       } else {
         setErrorMessage(errorMessage)
       }
-      
+
       setState('error')
       console.error('[scan_api_error]', err)
       console.error('Receipt scanning error:', err)
       logServer('error', 'Receipt scanning failed', { error: err, context: 'ReceiptScanner' })
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await processFile(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length > 0) {
+      await processFile(files[0])
     }
   }
 
@@ -272,25 +333,52 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               {/* Upload State */}
               {state === 'idle' && (
                 <div className="text-center">
-                  <div className="border border-white/14 rounded-2xl p-12 mb-6 bg-white/6">
+                  <div
+                    className={`border-2 ${isDragging ? 'border-brand bg-brand/10 border-dashed' : 'border-white/14 bg-white/6'} rounded-2xl p-12 mb-6 transition-all duration-200`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
                     <div className="text-6xl mb-4">
-                      📷
+                      {isDragging ? '📥' : '📷'}
                     </div>
-                    <h3 className="text-xl font-bold mb-2">Take Photo</h3>
+                    <h3 className="text-xl font-bold mb-2">
+                      {isDragging ? 'Drop your file here!' : 'Upload Receipt'}
+                    </h3>
                     <p className="text-text-primary-dim mb-4">
-                      AI will automatically extract items and prices
+                      {isDragging ? 'Release to upload your receipt' : 'AI will automatically extract items and prices'}
                     </p>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="bg-brand hover:bg-brand/90 text-white px-8 py-3 rounded-xl font-bold transition-all duration-200"
-                    >
-                      📸 Choose Image
-                    </button>
+                    <div className="flex flex-col gap-3">
+                      {!isDragging && (
+                        <>
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="bg-brand hover:bg-brand/90 text-white px-8 py-3 rounded-xl font-bold transition-all duration-200"
+                          >
+                            📸 Choose Image or PDF
+                          </button>
+                          <div className="text-sm text-text-primary-dim">
+                            Or drag and drop a file here
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  
+
                   <div className="text-sm text-text-primary-dim space-y-1">
                     <p>Supports: JPG, PNG, WebP, HEIC, HEIF, PDF</p>
-                    <p>Max size: 10MB (auto-optimized)</p>
+                    <p>Max size: 10MB • Multi-page PDFs supported (up to 5 pages)</p>
+                    <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                      <p className="text-yellow-400 text-xs">
+                        <strong>PDF Selection Issue?</strong> If PDFs are greyed out in Mac Finder, try:
+                      </p>
+                      <ul className="text-yellow-400/80 text-xs mt-1 list-disc list-inside">
+                        <li>Drag and drop the PDF file directly onto this window</li>
+                        <li>Copy the PDF file (Cmd+C) then paste here (Cmd+V)</li>
+                        <li>Use Command+Shift+G in Finder to paste the file path</li>
+                        <li>Right-click PDF → Open With → Other → Enable "All Applications"</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               )}
