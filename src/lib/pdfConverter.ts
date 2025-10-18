@@ -7,7 +7,7 @@ import { logServer } from './errorLogger'
 
 /**
  * Convert PDF to image using pdf.js
- * Takes first page of PDF and renders to canvas, then converts to JPEG
+ * Handles multi-page PDFs by stitching all pages vertically into a single image
  */
 export async function convertPdfToImage(pdfFile: File): Promise<File> {
   try {
@@ -31,41 +31,90 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
 
     console.log('[pdf_convert] PDF loaded, pages:', pdf.numPages)
 
-    // Get first page
-    const page = await pdf.getPage(1)
+    // Process all pages (limit to 5 pages to avoid huge images)
+    const maxPages = Math.min(pdf.numPages, 5)
+    const pageCanvases: HTMLCanvasElement[] = []
+    let totalHeight = 0
+    let maxWidth = 0
 
-    // Calculate scale to get reasonable image size (768px width, matching image compression)
-    const viewport = page.getViewport({ scale: 1.0 })
-    const scale = 768 / viewport.width
-    const scaledViewport = page.getViewport({ scale })
+    // Render each page
+    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+      console.log(`[pdf_convert] Processing page ${pageNum}/${maxPages}`)
 
-    // Create canvas
-    const canvas = document.createElement('canvas')
-    const context = canvas.getContext('2d')
+      const page = await pdf.getPage(pageNum)
 
-    if (!context) {
-      throw new Error('Could not get canvas context')
+      // Calculate scale to get reasonable image size (768px width)
+      const viewport = page.getViewport({ scale: 1.0 })
+      const scale = 768 / viewport.width
+      const scaledViewport = page.getViewport({ scale })
+
+      // Create canvas for this page
+      const pageCanvas = document.createElement('canvas')
+      const pageContext = pageCanvas.getContext('2d')
+
+      if (!pageContext) {
+        throw new Error('Could not get canvas context')
+      }
+
+      pageCanvas.width = scaledViewport.width
+      pageCanvas.height = scaledViewport.height
+
+      // Render page to canvas
+      const renderContext = {
+        canvasContext: pageContext,
+        viewport: scaledViewport,
+      }
+
+      await page.render(renderContext).promise
+
+      pageCanvases.push(pageCanvas)
+      totalHeight += pageCanvas.height
+      maxWidth = Math.max(maxWidth, pageCanvas.width)
     }
 
-    canvas.width = scaledViewport.width
-    canvas.height = scaledViewport.height
+    // Create combined canvas for all pages
+    const combinedCanvas = document.createElement('canvas')
+    const combinedContext = combinedCanvas.getContext('2d')
 
-    // Render PDF page to canvas
-    const renderContext = {
-      canvasContext: context,
-      viewport: scaledViewport,
+    if (!combinedContext) {
+      throw new Error('Could not get combined canvas context')
     }
 
-    await page.render(renderContext).promise
+    // Add small gaps between pages (10px)
+    const pageGap = 10
+    combinedCanvas.width = maxWidth
+    combinedCanvas.height = totalHeight + (pageGap * (pageCanvases.length - 1))
 
-    console.log('[pdf_convert] PDF rendered to canvas:', {
-      width: canvas.width,
-      height: canvas.height
+    // Fill background with white
+    combinedContext.fillStyle = '#FFFFFF'
+    combinedContext.fillRect(0, 0, combinedCanvas.width, combinedCanvas.height)
+
+    // Draw all pages vertically
+    let currentY = 0
+    for (const pageCanvas of pageCanvases) {
+      combinedContext.drawImage(pageCanvas, 0, currentY)
+      currentY += pageCanvas.height + pageGap
+
+      // Add subtle separator line between pages
+      if (currentY < combinedCanvas.height) {
+        combinedContext.strokeStyle = '#E0E0E0'
+        combinedContext.lineWidth = 1
+        combinedContext.beginPath()
+        combinedContext.moveTo(0, currentY - pageGap / 2)
+        combinedContext.lineTo(combinedCanvas.width, currentY - pageGap / 2)
+        combinedContext.stroke()
+      }
+    }
+
+    console.log('[pdf_convert] All pages rendered to combined canvas:', {
+      width: combinedCanvas.width,
+      height: combinedCanvas.height,
+      pages: pageCanvases.length
     })
 
     // Convert canvas to blob
     const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
+      combinedCanvas.toBlob(
         (blob) => {
           if (blob) {
             resolve(blob)
@@ -88,8 +137,14 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
     console.log('[pdf_convert] PDF converted to image:', {
       originalSize: pdfFile.size,
       imageSize: imageFile.size,
-      filename: imageFile.name
+      filename: imageFile.name,
+      pagesProcessed: pageCanvases.length,
+      totalPages: pdf.numPages
     })
+
+    if (pdf.numPages > maxPages) {
+      console.warn(`[pdf_convert] Only first ${maxPages} pages were processed (PDF has ${pdf.numPages} pages)`)
+    }
 
     return imageFile
 
