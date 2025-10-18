@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Upload Test</title>
+</head>
+<body>
+    <h1>PDF Upload Test</h1>
+    <input type="file" id="fileInput" accept=".pdf,application/pdf">
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            console.log('File selected:', {
+                name: file.name,
+                type: file.type,
+                size: file.size
+            });
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <h2>File Details:</h2>
+                <p>Name: ${file.name}</p>
+                <p>Type: ${file.type}</p>
+                <p>Size: ${(file.size / 1024).toFixed(2)} KB</p>
+                <p>Is PDF: ${file.type === 'application/pdf' ? 'YES' : 'NO'}</p>
+            `;
+
+            // Test file reading
+            const reader = new FileReader();
+            reader.onload = () => {
+                resultDiv.innerHTML += '<p style="color: green;">✓ File can be read</p>';
+            };
+            reader.onerror = () => {
+                resultDiv.innerHTML += '<p style="color: red;">✗ Error reading file</p>';
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+</body>
+</html>

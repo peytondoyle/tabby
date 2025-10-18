@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test PDF Accept Attributes</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-case {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            width: 100%;
+            border: 2px dashed #007AFF;
+            border-radius: 4px;
+        }
+        h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Testing PDF File Accept Attributes on macOS</h1>
+    <p>Try each input below to see which one allows PDF selection in Mac Finder:</p>
+
+    <div class="test-case">
+        <h3>Test 1: Extension only</h3>
+        <code>accept=".pdf"</code>
+        <input type="file" accept=".pdf" onchange="alert('Test 1: File selected!')">
+    </div>
+
+    <div class="test-case">
+        <h3>Test 2: MIME type only</h3>
+        <code>accept="application/pdf"</code>
+        <input type="file" accept="application/pdf" onchange="alert('Test 2: File selected!')">
+    </div>
+
+    <div class="test-case">
+        <h3>Test 3: Both extension and MIME</h3>
+        <code>accept=".pdf,application/pdf"</code>
+        <input type="file" accept=".pdf,application/pdf" onchange="alert('Test 3: File selected!')">
+    </div>
+
+    <div class="test-case">
+        <h3>Test 4: Multiple extensions with cases</h3>
+        <code>accept=".pdf,.PDF"</code>
+        <input type="file" accept=".pdf,.PDF" onchange="alert('Test 4: File selected!')">
+    </div>
+
+    <div class="test-case">
+        <h3>Test 5: With wildcards</h3>
+        <code>accept="*.pdf"</code>
+        <input type="file" accept="*.pdf" onchange="alert('Test 5: File selected!')">
+    </div>
+
+    <div class="test-case">
+        <h3>Test 6: Combined with images</h3>
+        <code>accept=".pdf,application/pdf,image/*"</code>
+        <input type="file" accept=".pdf,application/pdf,image/*" onchange="alert('Test 6: File selected!')">
+    </div>
+
+    <div class="test-case">
+        <h3>Test 7: All files (control)</h3>
+        <code>accept="*"</code>
+        <input type="file" accept="*" onchange="alert('Test 7: File selected!')">
+    </div>
+
+    <div class="test-case">
+        <h3>Test 8: No accept attribute</h3>
+        <code>(no accept attribute)</code>
+        <input type="file" onchange="alert('Test 8: File selected!')">
+    </div>
+
+    <script>
+        console.log('Open this file locally in Safari or Chrome to test PDF selection in Mac Finder');
+        console.log('File path:', window.location.href);
+    </script>
+</body>
+</html>

@@ -215,7 +215,7 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
           <input
             type="file"
             multiple
-            accept=".pdf,.PDF,application/pdf,image/*"
+            accept=".pdf,application/pdf,image/*"
             onChange={handleFileInput}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             disabled={uploading}
