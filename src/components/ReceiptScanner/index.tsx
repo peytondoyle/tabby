@@ -351,12 +351,24 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                     <div className="flex flex-col gap-3">
                       {!isDragging && (
                         <>
+                          {/* Use label wrapper as primary method - works better with Safari */}
+                          <label className="bg-brand hover:bg-brand/90 text-white px-8 py-3 rounded-xl font-bold transition-all duration-200 cursor-pointer inline-block">
+                            📸 Choose Image or PDF
+                            <input
+                              type="file"
+                              onChange={handleFileSelect}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+
+                          {/* Fallback button for programmatic click */}
                           <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="bg-brand hover:bg-brand/90 text-white px-8 py-3 rounded-xl font-bold transition-all duration-200"
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm transition-all duration-200"
                           >
-                            📸 Choose Image or PDF
+                            Alternative: Click Here if Above Doesn't Work
                           </button>
+
                           <div className="text-sm text-text-primary-dim">
                             Or drag and drop a file here
                           </div>
@@ -370,14 +382,32 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                     <p>Max size: 10MB • Multi-page PDFs supported (up to 5 pages)</p>
                     <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                       <p className="text-yellow-400 text-xs">
-                        <strong>PDF Selection Issue?</strong> If PDFs are greyed out in Mac Finder, try:
+                        <strong>PDF Selection Issue?</strong> If PDFs are greyed out, try these methods:
                       </p>
                       <ul className="text-yellow-400/80 text-xs mt-1 list-disc list-inside">
                         <li>Drag and drop the PDF file directly onto this window</li>
                         <li>Copy the PDF file (Cmd+C) then paste here (Cmd+V)</li>
-                        <li>Use Command+Shift+G in Finder to paste the file path</li>
-                        <li>Right-click PDF → Open With → Other → Enable "All Applications"</li>
+                        <li>Use the visible file input below if buttons don't work</li>
                       </ul>
+
+                      {/* Last resort: completely visible file input */}
+                      <div className="mt-3 pt-3 border-t border-yellow-500/30">
+                        <p className="text-yellow-400 text-xs mb-2">Emergency fallback (if nothing else works):</p>
+                        <input
+                          type="file"
+                          onChange={handleFileSelect}
+                          className="text-xs"
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            padding: '4px',
+                            background: 'white',
+                            color: 'black',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -413,12 +443,17 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               )}
             </div>
 
-            {/* Hidden file input - accepting all files to ensure PDF works */}
+            {/* Hidden file input using position absolute instead of display none for better Safari compatibility */}
             <input
               ref={fileInputRef}
               type="file"
               onChange={handleFileSelect}
-              className="hidden"
+              style={{
+                position: 'absolute',
+                left: '-9999px',
+                opacity: 0.01,
+                pointerEvents: 'none'
+              }}
             />
           </motion.div>
         </motion.div>

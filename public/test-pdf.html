@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Upload Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 20px 0; padding: 20px; border: 2px solid #ccc; }
+        .result { margin-top: 10px; color: green; }
+        input[type="file"] { display: block; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>PDF Upload Test - Find What Works!</h1>
+
+    <div class="test">
+        <h3>Test 1: Visible Input (No Accept)</h3>
+        <input type="file" id="test1" onchange="handleFile(event, 'test1')">
+        <div id="result1" class="result"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 2: Using label wrapping</h3>
+        <label style="background: #007bff; color: white; padding: 10px; cursor: pointer; display: inline-block;">
+            Choose File (Label Method)
+            <input type="file" style="display: none;" id="test2" onchange="handleFile(event, 'test2')">
+        </label>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 3: Using opacity 0.01 (barely visible)</h3>
+        <div style="position: relative;">
+            <button style="pointer-events: none; position: relative; z-index: 1;">Choose File (Overlay Method)</button>
+            <input type="file" id="test3" style="opacity: 0.01; position: absolute; top: 0; left: 0; width: 200px; height: 40px; cursor: pointer;" onchange="handleFile(event, 'test3')">
+        </div>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 4: Off-screen positioning</h3>
+        <button onclick="document.getElementById('test4').click()">Choose File (Off-screen)</button>
+        <input type="file" id="test4" style="position: absolute; left: -9999px;" onchange="handleFile(event, 'test4')">
+        <div id="result4" class="result"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 5: visibility: hidden</h3>
+        <button onclick="document.getElementById('test5').click()">Choose File (Visibility Hidden)</button>
+        <input type="file" id="test5" style="visibility: hidden; position: absolute;" onchange="handleFile(event, 'test5')">
+        <div id="result5" class="result"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 6: React-style (className hidden)</h3>
+        <button onclick="document.getElementById('test6').click()">Choose File (Display None)</button>
+        <input type="file" id="test6" style="display: none;" onchange="handleFile(event, 'test6')">
+        <div id="result6" class="result"></div>
+    </div>
+
+    <script>
+        function handleFile(event, testId) {
+            const file = event.target.files?.[0];
+            if (file) {
+                document.getElementById('result' + testId.replace('test', '')).innerHTML =
+                    `✅ File selected: ${file.name} (${file.type || 'no type'})`;
+            }
+        }
+
+        // Log browser info
+        console.log('User Agent:', navigator.userAgent);
+        console.log('Platform:', navigator.platform);
+    </script>
+</body>
+</html>
