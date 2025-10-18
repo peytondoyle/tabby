@@ -329,7 +329,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,.pdf,.heic,.heif"
+              accept=".pdf,.PDF,application/pdf,image/*,.heic,.heif,.HEIC,.HEIF"
               onChange={handleFileSelect}
               className="hidden"
             />
