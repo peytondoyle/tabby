@@ -80,7 +80,9 @@ CRITICAL RULES:
 1. FOOD/DRINK ITEMS: Extract all food and drink items with their FULL prices (before discounts).
    - DO NOT include taxes, tips, fees, or discounts as items
    - Items should be the original menu prices
-   - Extract the exact item name as it appears on the receipt
+   - CRITICAL: Copy item names EXACTLY as written on the receipt - preserve spelling, capitalization, and special characters
+   - Do NOT auto-correct spellings or change wording (e.g., "Mu Shu" stays "Mu Shu", not "Moo Shu")
+   - Be precise with characters - "301. Mu Shu Pork" should be extracted as "301. Mu Shu Pork"
 
 2. DISCOUNTS & PROMOS: Look CAREFULLY for ALL discounts, promos, benefits, and savings.
    - Common labels: "Discount", "Delivery Discount", "Promo", "Coupon", "BOGO", "Buy One Get One", "10% Off", "Rewards", "Points", "Credits"
