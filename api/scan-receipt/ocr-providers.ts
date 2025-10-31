@@ -128,7 +128,20 @@ CRITICAL RULES:
      Then: service_fee = 14.03, discount = 8.46
    - Make sure you extract all fields accurately and don't miss any line items!
 
-Extract ACTUAL VALUES from the receipt image, not the example values shown above.`
+CRITICAL EXTRACTION STEPS:
+1. First, find and list ALL line items on the receipt (food, fees, taxes, tips, discounts)
+2. Categorize each line item:
+   - Food/drink → goes in "items" array
+   - Fees (delivery, service, platform) → add to "service_fee" total
+   - Discounts (delivery discount, membership benefit, promos) → add to "discount" total
+   - Tax lines → "tax" field
+   - Tip lines → "tip" field
+3. Double-check you didn't miss any negative amounts (these are usually discounts!)
+4. Sum up all discounts and all fees separately
+5. Return the final JSON
+
+Extract ACTUAL VALUES from the receipt image, not the example values shown above.
+PAY SPECIAL ATTENTION to lines with negative amounts - these are discounts that MUST be included!`
             },
             {
               type: "image_url",

@@ -181,13 +181,13 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
             <span>Subtotal</span>
             <span>${itemsSubtotal.toFixed(2)}</span>
           </div>
-          {personDiscount > 0 && (
+          {personDiscount > 0.01 && (
             <div className="modern-breakdown-row">
               <span>Discount</span>
               <span>-${personDiscount.toFixed(2)}</span>
             </div>
           )}
-          {personServiceFee > 0 && (
+          {personServiceFee > 0.01 && (
             <div className="modern-breakdown-row">
               <span>Service Fee</span>
               <span>${personServiceFee.toFixed(2)}</span>
