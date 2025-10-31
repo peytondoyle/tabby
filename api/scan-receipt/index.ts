@@ -269,8 +269,15 @@ export default async function handler(
           error: ocrError?.message,
           code: ocrError?.code
         })
-        // Fall back to dev data if OCR fails
-        result = getDEVFallback()
+        // Fall back to dev data if OCR fails and we're in development
+        const isDevelopment = process.env.NODE_ENV !== 'production' || process.env.VITE_ALLOW_DEV_FALLBACK === '1'
+        if (isDevelopment) {
+          console.log('[scan_api] Using DEV fallback after OCR error')
+          result = getDEVFallback()
+        } else {
+          // In production, throw the error to be handled by outer catch block
+          throw ocrError
+        }
       }
     } else {
       // DEV fallback
@@ -296,16 +303,15 @@ export default async function handler(
       response: error.response?.data,
       stack: error.stack?.split('\n').slice(0, 5).join('\n')
     })
-    
-    // Always return fallback data even on error
-    const fallback = getDEVFallback()
-    const responseData = {
+
+    // Return proper error response with fallback data
+    const errorResponse = {
       error: 'Receipt processing failed',
-      errorMessage: error.message, // Include error message for debugging
-      ...fallback
+      code: 'PROCESSING_ERROR',
+      message: error.message
     }
-    
-    sendSuccessResponse(res as any, responseData, 500, ctx)
+
+    sendErrorResponse(res as any, errorResponse, 500, ctx)
     logRequestCompletion(ctx, 500, error.message)
   }
 }
