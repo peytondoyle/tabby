@@ -713,11 +713,11 @@ export const TabbySimple: React.FC = () => {
     const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
     // Calculate proportional shares of all fees, taxes, and adjustments
     const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
-    const personDiscount = discount * proportion;  // Discounts are negative, so they reduce the total
+    const personDiscount = discount * proportion;  // Discount is stored as positive, so subtract it
     const personServiceFee = serviceFee * proportion;
     const personTax = tax * proportion;
     const personTip = tip * proportion;
-    return itemsSubtotal + personDiscount + personServiceFee + personTax + personTip;
+    return itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
   };
 
   const assignItemToPerson = async (itemId: string, personId: string) => {
