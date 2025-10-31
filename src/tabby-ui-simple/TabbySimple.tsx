@@ -123,6 +123,7 @@ export const TabbySimple: React.FC = () => {
   const [tax, setTax] = useState(0);
   const [tip, setTip] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [serviceFee, setServiceFee] = useState(0);
   const [billToken, setBillToken] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState('');
   const [showShareReceipt, setShowShareReceipt] = useState(false);
@@ -415,6 +416,7 @@ export const TabbySimple: React.FC = () => {
       setTax(result.tax || 0);
       setTip(result.tip || 0);
       setDiscount(result.discount || 0);
+      setServiceFee(result.service_fee || 0);
       setTotal(result.total || 0);
 
       // Log what was scanned for debugging
@@ -424,6 +426,7 @@ export const TabbySimple: React.FC = () => {
         tax: result.tax,
         tip: result.tip,
         discount: result.discount,
+        service_fee: result.service_fee,
         total: result.total,
         itemCount: result.items.length
       });
@@ -708,11 +711,13 @@ export const TabbySimple: React.FC = () => {
 
   const calculatePersonTotal = (personItems: Item[]) => {
     const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
-    // Calculate proportional tax and tip
+    // Calculate proportional shares of all fees, taxes, and adjustments
     const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
+    const personDiscount = discount * proportion;  // Discounts are negative, so they reduce the total
+    const personServiceFee = serviceFee * proportion;
     const personTax = tax * proportion;
     const personTip = tip * proportion;
-    return itemsSubtotal + personTax + personTip;
+    return itemsSubtotal + personDiscount + personServiceFee + personTax + personTip;
   };
 
   const assignItemToPerson = async (itemId: string, personId: string) => {
@@ -2557,6 +2562,7 @@ export const TabbySimple: React.FC = () => {
         tax={tax}
         tip={tip}
         discount={discount}
+        serviceFee={serviceFee}
         total={total}
       />
     </div>

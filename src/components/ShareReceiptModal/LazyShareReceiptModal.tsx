@@ -24,6 +24,8 @@ interface LazyShareReceiptModalProps {
   subtotal: number;
   tax: number;
   tip: number;
+  discount?: number;
+  serviceFee?: number;
   total: number;
 }
 
