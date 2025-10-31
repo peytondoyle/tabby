@@ -10,12 +10,17 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:5173",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "https://tabby-ashen.vercel.app",
+  "https://tabby.vercel.app",
   ...ENV_ORIGINS,
 ]);
 
 export function applyCors(req: IncomingMessage & { method?: string; headers: any }, res: ServerResponse) {
   const origin = (req.headers?.origin as string) || "";
-  const allowlisted = ALLOWED_ORIGINS.has(origin);
+
+  // Check if origin is in allowed list or matches Vercel deployment patterns
+  const isVercelDeployment = origin.includes('.vercel.app') || origin.includes('vercel.app');
+  const allowlisted = ALLOWED_ORIGINS.has(origin) || isVercelDeployment;
   const allowOrigin = allowlisted ? origin : origin || "*";
 
   res.setHeader("Access-Control-Allow-Origin", allowOrigin);
