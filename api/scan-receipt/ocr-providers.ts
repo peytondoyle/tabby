@@ -55,7 +55,7 @@ class OpenAIProvider implements OCRProvider {
     const imageUrl = `data:${mimeType};base64,${base64Image}`;
 
     const response = await this.client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "user",
