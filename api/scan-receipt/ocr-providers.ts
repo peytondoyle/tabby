@@ -82,11 +82,15 @@ CRITICAL RULES:
    - Items should be the original menu prices
    - Extract the exact item name as it appears on the receipt
 
-2. DISCOUNTS & PROMOS: Look for ANY discounts, promos, coupons, or deals.
-   - Labels: "Discount", "Promo", "Coupon", "BOGO", "Buy One Get One", "10% Off", "Rewards", "Member Discount", "Membership Savings"
-   - SUM UP all discount amounts and put in the "discount" field as a POSITIVE number
-   - Example: $3 reward + $2 promo = discount: 5.00
-   - DO NOT include discounts as items in the items array
+2. DISCOUNTS & PROMOS: Look CAREFULLY for ALL discounts, promos, benefits, and savings.
+   - Common labels: "Discount", "Delivery Discount", "Promo", "Coupon", "BOGO", "Buy One Get One", "10% Off", "Rewards", "Points", "Credits"
+   - Membership/subscription: "Member Discount", "Membership Savings", "Membership Benefit", "Member Benefit", "Subscription Savings", "Plus Benefit"
+   - App-specific: "Uber One Benefit", "DashPass Benefit", "Grubhub+ Benefit"
+   - IMPORTANT: SUM UP **ALL** discount line items (even if they have different labels)
+   - Put the TOTAL of all discounts in the "discount" field as a POSITIVE number
+   - Example: $1.49 delivery discount + $6.97 membership benefit = discount: 8.46
+   - DO NOT include discount line items in the items array
+   - DO NOT miss any discount just because it has an unusual label
 
 3. SUBTOTAL: The subtotal shown on the receipt (items AFTER discounts applied).
    - This is what the customer owes for food after discounts but before fees/taxes/tips
@@ -104,19 +108,25 @@ CRITICAL RULES:
    - DO NOT include service fees, delivery fees, or platform fees here
 
 6. SERVICE FEES: These are NOT tips! Keep them separate:
-   - "Service Fee", "Service Charge", "Delivery Fee", "Platform Fee", "Small Order Fee", "Convenience Fee", "Regulatory Fee"
+   - Common labels: "Service Fee", "Service Charge", "Delivery Fee", "Platform Fee", "Small Order Fee", "Convenience Fee", "Regulatory Fee", "Processing Fee", "Booking Fee"
+   - App-specific: "Uber Service Fee", "DoorDash Fee", "Grubhub Fee", "Postmates Fee"
+   - IMPORTANT: SUM UP all service-related fees (delivery + service + platform + etc)
+   - Example: $1.49 delivery fee + $12.54 service fee = service_fee: 14.03
    - These fees go in a "service_fee" field (NOT in the tip field)
    - DO NOT add these to the tip amount
+   - DO NOT confuse service fees with tips/gratuity
 
 7. TOTAL: Final charged amount at the bottom (should equal subtotal - discount + service_fee + tax + tip).
 
 8. Use 0.00 for any field if not found (not null).
 
 9. IMPORTANT: For delivery apps (DoorDash/UberEats/GrubHub):
-   - Service/Delivery/Platform fees go in "service_fee" field (NOT in tip!)
+   - Service/Delivery/Platform fees: SUM ALL FEES and put in "service_fee" field (NOT in tip!)
    - Tip/Gratuity goes in "tip" field (keep separate from fees!)
-   - Discounts go in the "discount" field as a POSITIVE number
-   - Make sure you extract all fields accurately!
+   - Discounts: SUM ALL DISCOUNTS including membership benefits and put in "discount" field as POSITIVE number
+   - Example Uber Eats: If you see "Delivery Fee $1.49" + "Service Fee $12.54" + "Delivery Discount -$1.49" + "Membership Benefit -$6.97"
+     Then: service_fee = 14.03, discount = 8.46
+   - Make sure you extract all fields accurately and don't miss any line items!
 
 Extract ACTUAL VALUES from the receipt image, not the example values shown above.`
             },
