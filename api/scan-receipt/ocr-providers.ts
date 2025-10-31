@@ -55,8 +55,13 @@ class OpenAIProvider implements OCRProvider {
     const imageUrl = `data:${mimeType};base64,${base64Image}`;
 
     const response = await this.client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
+      response_format: { type: "json_object" },
       messages: [
+        {
+          role: "system",
+          content: "You are an expert receipt parser. Extract ALL line items including discounts, fees, taxes, and tips. Return valid JSON only."
+        },
         {
           role: "user",
           content: [
