@@ -1,5 +1,11 @@
 {
   "rewrites": [
     { "source": "/((?!api).*)", "destination": "/" }
-  ]
+  ],
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "@vercel/node@latest",
+      "includeFiles": "node_modules/typescript/**"
+    }
+  }
 }
