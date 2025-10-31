@@ -830,7 +830,7 @@ export const TabbySimple: React.FC = () => {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.pdf,application/pdf"
               capture="environment"
               onChange={(e) => {
                 const file = e.target.files?.[0];
