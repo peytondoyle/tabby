@@ -28,7 +28,8 @@ interface ShareReceiptModalProps {
   subtotal: number;
   tax: number;
   tip: number;
-  discount: number;
+  discount?: number;
+  serviceFee?: number;
   total: number;
 }
 
@@ -42,7 +43,8 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
   subtotal,
   tax,
   tip,
-  discount,
+  discount = 0,
+  serviceFee = 0,
   total,
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -141,9 +143,10 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
     const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
     const personDiscount = discount * proportion;
+    const personServiceFee = serviceFee * proportion;
     const personTax = tax * proportion;
     const personTip = tip * proportion;
-    const personTotal = itemsSubtotal - personDiscount + personTax + personTip;
+    const personTotal = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
 
     return (
       <div ref={cardRef} className="receipt-card modern-person-card">
@@ -182,6 +185,12 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
             <div className="modern-breakdown-row">
               <span>Discount</span>
               <span>-${personDiscount.toFixed(2)}</span>
+            </div>
+          )}
+          {personServiceFee > 0 && (
+            <div className="modern-breakdown-row">
+              <span>Service Fee</span>
+              <span>${personServiceFee.toFixed(2)}</span>
             </div>
           )}
           <div className="modern-breakdown-row">
