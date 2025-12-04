@@ -33,6 +33,9 @@ const hasValidCredentials = SUPABASE_URL && SUPABASE_ANON_KEY
 // Only create client if we have valid credentials
 export const supabase = hasValidCredentials
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      db: {
+        schema: 'tabby'
+      },
       auth: {
         autoRefreshToken: true,
         persistSession: true,
