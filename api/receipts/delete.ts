@@ -68,7 +68,7 @@ export default async function handler(
 
     // Delete receipt by editor_token (which is returned as 'token' in the API)
     const { error } = await supabaseAdmin
-      .from('receipts')
+      .from('tabby_receipts')
       .delete()
       .eq('editor_token', token)
 

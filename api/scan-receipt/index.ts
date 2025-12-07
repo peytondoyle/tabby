@@ -7,7 +7,153 @@ import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessR
 import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit.js'
 import { FILE_LIMITS } from '../_utils/schemas.js'
 import { processWithMultipleProviders } from './ocr-providers.js'
-import { generateAndCacheFoodIcons } from '../_utils/foodIconsService.js'
+
+// Smart emoji mapping - fast and fun!
+const EMOJI_MAP: Record<string, string> = {
+  // Proteins
+  'chicken': '🍗', 'beef': '🥩', 'steak': '🥩', 'pork': '🥓', 'bacon': '🥓', 'ham': '🍖',
+  'fish': '🐟', 'salmon': '🍣', 'tuna': '🐟', 'shrimp': '🦐', 'crab': '🦀', 'lobster': '🦞',
+  'sushi': '🍣', 'sashimi': '🍣', 'wings': '🍗', 'ribs': '🍖', 'lamb': '🍖',
+
+  // Pizza & Italian
+  'pizza': '🍕', 'pasta': '🍝', 'spaghetti': '🍝', 'lasagna': '🍝', 'ravioli': '🍝',
+  'calzone': '🍕', 'margherita': '🍕', 'pepperoni': '🍕',
+
+  // Asian
+  'ramen': '🍜', 'pho': '🍜', 'noodle': '🍜', 'rice': '🍚', 'fried rice': '🍚',
+  'dumpling': '🥟', 'gyoza': '🥟', 'wonton': '🥟', 'spring roll': '🥟', 'egg roll': '🥟',
+  'teriyaki': '🍱', 'bento': '🍱', 'curry': '🍛', 'pad thai': '🍜', 'miso': '🍲',
+
+  // Mexican
+  'taco': '🌮', 'burrito': '🌯', 'quesadilla': '🧀', 'nachos': '🌮', 'enchilada': '🌮',
+  'guac': '🥑', 'guacamole': '🥑', 'salsa': '🍅', 'chips': '🌮',
+
+  // Burgers & Sandwiches
+  'burger': '🍔', 'hamburger': '🍔', 'cheeseburger': '🍔', 'sandwich': '🥪', 'sub': '🥪',
+  'wrap': '🌯', 'hot dog': '🌭', 'hotdog': '🌭', 'dog': '🌭', 'blt': '🥪', 'club': '🥪',
+
+  // Breakfast
+  'egg': '🍳', 'eggs': '🍳', 'omelet': '🍳', 'omelette': '🍳', 'pancake': '🥞', 'waffle': '🧇',
+  'toast': '🍞', 'bagel': '🥯', 'croissant': '🥐', 'muffin': '🧁', 'cereal': '🥣',
+  'french toast': '🍞', 'benedict': '🍳', 'breakfast': '🍳',
+
+  // Salads & Veggies
+  'salad': '🥗', 'caesar': '🥗', 'garden': '🥗', 'greek': '🥗', 'cobb': '🥗',
+  'vegetable': '🥦', 'veggie': '🥦', 'broccoli': '🥦', 'carrot': '🥕', 'corn': '🌽',
+  'potato': '🥔', 'fries': '🍟', 'french fries': '🍟', 'tots': '🍟', 'onion': '🧅',
+
+  // Soups
+  'soup': '🍲', 'chowder': '🍲', 'bisque': '🍲', 'stew': '🍲', 'chili': '🌶️',
+
+  // Desserts
+  'cake': '🍰', 'cheesecake': '🍰', 'pie': '🥧', 'ice cream': '🍨', 'gelato': '🍨',
+  'sundae': '🍨', 'brownie': '🍫', 'chocolate': '🍫', 'cookie': '🍪', 'donut': '🍩',
+  'doughnut': '🍩', 'cupcake': '🧁', 'tiramisu': '🍰', 'flan': '🍮', 'pudding': '🍮',
+
+  // Drinks - Coffee & Tea
+  'coffee': '☕', 'espresso': '☕', 'latte': '☕', 'cappuccino': '☕', 'mocha': '☕',
+  'americano': '☕', 'macchiato': '☕', 'tea': '🍵', 'chai': '🍵', 'matcha': '🍵',
+
+  // Drinks - Alcohol
+  'beer': '🍺', 'ale': '🍺', 'ipa': '🍺', 'lager': '🍺', 'stout': '🍺', 'pilsner': '🍺',
+  'wine': '🍷', 'red wine': '🍷', 'white wine': '🥂', 'champagne': '🍾', 'prosecco': '🍾',
+  'cocktail': '🍹', 'margarita': '🍹', 'martini': '🍸', 'mojito': '🍹', 'sangria': '🍷',
+  'whiskey': '🥃', 'bourbon': '🥃', 'scotch': '🥃', 'vodka': '🍸', 'rum': '🍹', 'gin': '🍸',
+  'shot': '🥃', 'punch': '🍹', 'mimosa': '🥂', 'bellini': '🥂',
+
+  // Drinks - Other
+  'soda': '🥤', 'cola': '🥤', 'coke': '🥤', 'pepsi': '🥤', 'sprite': '🥤',
+  'juice': '🧃', 'orange juice': '🍊', 'lemonade': '🍋', 'smoothie': '🥤',
+  'water': '💧', 'sparkling': '💧', 'milk': '🥛', 'shake': '🥤', 'milkshake': '🥤',
+
+  // Appetizers & Sides
+  'appetizer': '🍽️', 'starter': '🍽️', 'bread': '🍞', 'roll': '🍞', 'biscuit': '🍞',
+  'hummus': '🫘', 'dip': '🫕', 'fondue': '🫕', 'cheese': '🧀', 'mozzarella': '🧀',
+
+  // Seafood
+  'oyster': '🦪', 'clam': '🦪', 'mussel': '🦪', 'scallop': '🦪', 'calamari': '🦑', 'squid': '🦑',
+
+  // Misc
+  'special': '⭐', 'combo': '🍱', 'platter': '🍽️', 'bowl': '🥣', 'plate': '🍽️',
+}
+
+// Expand quantity items (e.g., "3 Cold Beverage $10.50" -> 3x "Cold Beverage $3.50")
+function expandQuantityItems(items: Array<{ label: string; price: number; emoji?: string | null }>): Array<{ label: string; price: number; emoji?: string | null }> {
+  const expanded: Array<{ label: string; price: number; emoji?: string | null }> = []
+
+  for (const item of items) {
+    // Pattern 1: starts with a number followed by space and item name
+    // Examples: "3 Cold Beverage", "2 Grey Goose", "4 Rudolph's Red-Nosed Punch"
+    const quantityMatch = item.label.match(/^(\d+)\s+(.+)$/)
+
+    if (quantityMatch) {
+      const quantity = parseInt(quantityMatch[1], 10)
+      const itemName = quantityMatch[2]
+
+      // Only expand if quantity > 1 and <= 20 (sanity check)
+      if (quantity > 1 && quantity <= 20) {
+        const unitPrice = Math.round((item.price / quantity) * 100) / 100 // Round to 2 decimal places
+        console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
+
+        // Create individual items
+        for (let i = 0; i < quantity; i++) {
+          expanded.push({
+            label: itemName,
+            price: unitPrice,
+            emoji: item.emoji
+          })
+        }
+        continue
+      }
+    }
+
+    // Pattern 2: Check for "x" notation like "Cold Beverage x2" or "Cold Beverage (2)"
+    const xMatch = item.label.match(/^(.+?)\s*[x×]\s*(\d+)$/i) || item.label.match(/^(.+?)\s*\((\d+)\)$/)
+    if (xMatch) {
+      const itemName = xMatch[1].trim()
+      const quantity = parseInt(xMatch[2], 10)
+
+      if (quantity > 1 && quantity <= 20) {
+        const unitPrice = Math.round((item.price / quantity) * 100) / 100
+        console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
+
+        for (let i = 0; i < quantity; i++) {
+          expanded.push({
+            label: itemName,
+            price: unitPrice,
+            emoji: item.emoji
+          })
+        }
+        continue
+      }
+    }
+
+    // No quantity prefix or quantity is 1, keep as-is
+    expanded.push(item)
+  }
+
+  return expanded
+}
+
+function getSmartEmoji(label: string): string {
+  const lower = label.toLowerCase()
+
+  // Check for exact or partial matches
+  for (const [keyword, emoji] of Object.entries(EMOJI_MAP)) {
+    if (lower.includes(keyword)) {
+      return emoji
+    }
+  }
+
+  // Fallback based on common patterns
+  if (lower.includes('drink') || lower.includes('beverage')) return '🥤'
+  if (lower.includes('side')) return '🍽️'
+  if (lower.includes('sauce') || lower.includes('dressing')) return '🫗'
+  if (lower.includes('extra') || lower.includes('add')) return '➕'
+
+  // Default food emoji
+  return '🍽️'
+}
 
 // Server-side Supabase client using secret key
 const supabaseAdmin = process.env.SUPABASE_SECRET_KEY
@@ -51,6 +197,32 @@ interface ScanReceiptResponse {
     emoji?: string | null
     iconUrl?: string | null
   }>
+  // Enhanced analysis fields
+  validation?: {
+    itemsMatchSubtotal: boolean
+    totalsMatch: boolean
+    calculatedSubtotal: number
+    calculatedTotal: number
+    discrepancy?: number
+    warnings: string[]
+  }
+  fieldConfidence?: {
+    place: 'high' | 'medium' | 'low'
+    date: 'high' | 'medium' | 'low'
+    subtotal: 'high' | 'medium' | 'low'
+    tax: 'high' | 'medium' | 'low'
+    tip: 'high' | 'medium' | 'low'
+    total: 'high' | 'medium' | 'low'
+    items: 'high' | 'medium' | 'low'
+  }
+  handwrittenFields?: string[]
+  suggestedCorrections?: Array<{
+    field: string
+    currentValue: number | string | null
+    suggestedValue: number | string
+    reason: string
+  }>
+  confidence?: number
 }
 
 
@@ -213,37 +385,32 @@ export default async function handler(
         console.log(`[scan_api] File read successfully, size: ${imageBuffer.length} bytes`)
 
         // Process with OCR providers (parallel processing for speed)
-        const ocrResult = await processWithMultipleProviders(imageBuffer, file.mimetype, 8000)
+        const ocrResult = await processWithMultipleProviders(imageBuffer, file.mimetype, 30000)
         console.log(`[scan_api] OCR processing completed - ${ocrResult.items.length} items extracted in ${ocrResult.processingTime}ms`)
 
-        // Check cache for existing icons (fast lookup, ~50ms)
-        // This way repeated items get icons immediately!
-        console.log('[scan_api] Checking icon cache...')
-        const foodNames = ocrResult.items.map(item => item.label)
-        console.log('[scan_api] Food names for icon generation:', foodNames)
+        // First, expand quantity items (e.g., "3 Cold Beverage" -> 3 separate items)
+        console.log('[scan_api] Expanding quantity items...')
+        const expandedItems = expandQuantityItems(ocrResult.items)
+        console.log(`[scan_api] Expanded ${ocrResult.items.length} items to ${expandedItems.length} items`)
 
-        let iconResults: Array<{ foodName: string; iconUrl: string }> = []
-        try {
-          iconResults = await generateAndCacheFoodIcons(foodNames)
-          console.log('[scan_api] Icon generation succeeded, results:', iconResults.length)
-        } catch (iconError: any) {
-          console.error('[scan_api] Icon generation failed:', {
-            message: iconError?.message,
-            name: iconError?.name,
-            code: iconError?.code,
-            stack: iconError?.stack?.split('\n').slice(0, 3)
-          })
-          // Continue without icons if generation fails
-        }
-
-        // Map icon URLs back to items
-        const itemsWithIcons = ocrResult.items.map((item, index) => ({
+        // Smart emoji mapping instead of slow DALL-E icon generation
+        console.log('[scan_api] Applying smart emoji mapping...')
+        const itemsWithEmojis = expandedItems.map(item => ({
           ...item,
-          iconUrl: iconResults[index]?.iconUrl || null
+          emoji: item.emoji || getSmartEmoji(item.label)
         }))
+        console.log(`[scan_api] Emoji mapping completed for ${itemsWithEmojis.length} items`)
 
-        const cachedCount = iconResults.filter(r => r.iconUrl && r.iconUrl.length > 0).length
-        console.log(`[scan_api] Icon lookup completed - ${cachedCount}/${itemsWithIcons.length} icons available`)
+        // Log any warnings or suggestions
+        if (ocrResult.validation?.warnings?.length) {
+          console.log(`[scan_api] OCR Warnings: ${ocrResult.validation.warnings.join('; ')}`)
+        }
+        if (ocrResult.suggestedCorrections?.length) {
+          console.log(`[scan_api] Suggested corrections: ${JSON.stringify(ocrResult.suggestedCorrections)}`)
+        }
+        if (ocrResult.handwrittenFields?.length) {
+          console.log(`[scan_api] Handwritten fields detected: ${ocrResult.handwrittenFields.join(', ')}`)
+        }
 
         result = {
           place: ocrResult.place,
@@ -255,7 +422,13 @@ export default async function handler(
           service_fee: ocrResult.service_fee,
           total: ocrResult.total,
           rawText: ocrResult.rawText,
-          items: itemsWithIcons
+          items: itemsWithEmojis,
+          // Enhanced analysis fields
+          validation: ocrResult.validation,
+          fieldConfidence: ocrResult.fieldConfidence,
+          handwrittenFields: ocrResult.handwrittenFields,
+          suggestedCorrections: ocrResult.suggestedCorrections,
+          confidence: ocrResult.confidence
         }
       } catch (ocrError: any) {
         console.error('[scan_api] OCR processing failed:', {

@@ -138,7 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log('[receipt_create] Insert data:', insertData);
 
         const { data: receiptData, error: receiptError } = await supabaseAdmin
-          .from('receipts')
+          .from('tabby_receipts')
           .insert(insertData)
           .select('id, editor_token, viewer_token')
           .single();
@@ -167,7 +167,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }));
 
           const { data: insertedItems, error: itemsError } = await supabaseAdmin
-            .from('items')
+            .from('tabby_items')
             .insert(itemsToInsert)
             .select('id');
 
@@ -198,7 +198,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }));
 
           const { data: insertedPeople, error: peopleError } = await supabaseAdmin
-            .from('people')
+            .from('tabby_people')
             .insert(peopleToInsert)
             .select('id');
 
@@ -228,7 +228,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (itemShares.length > 0) {
               const { error: sharesError } = await supabaseAdmin
-                .from('item_shares')
+                .from('tabby_item_shares')
                 .insert(itemShares);
 
               if (sharesError) {

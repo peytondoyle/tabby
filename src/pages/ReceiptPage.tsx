@@ -11,10 +11,17 @@ interface Item {
   emoji?: string;
 }
 
+interface ItemShare {
+  itemId: string;
+  weight: number;
+  shareAmount: number;
+}
+
 interface Person {
   id: string;
   name: string;
   items: string[];
+  itemShares?: ItemShare[];  // Includes weight and calculated share amount
   total: number;
 }
 
@@ -91,14 +98,37 @@ export const ReceiptPage: React.FC = () => {
 
         // If no people from localStorage, try to construct from API data
         if (people.length === 0 && billData.people && billData.people.length > 0) {
-          // Map people from API and calculate their items/totals from shares
+          // First, calculate total weight for each item (for shared items)
+          const itemWeightTotals = new Map<string, number>();
+          (billData.shares || []).forEach((share: any) => {
+            const current = itemWeightTotals.get(share.item_id) || 0;
+            itemWeightTotals.set(share.item_id, current + (share.weight || 1));
+          });
+
+          // Map people from API and calculate their items/totals from shares with proper weights
           people = (billData.people || []).map((person: any) => {
             const personShares = (billData.shares || []).filter(
               (share: any) => share.person_id === person.id
             );
             const personItemIds = personShares.map((share: any) => share.item_id);
-            const personItems = items.filter(item => personItemIds.includes(item.id));
-            const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
+
+            // Calculate share amounts based on weights
+            const itemShares: ItemShare[] = personShares.map((share: any) => {
+              const item = items.find(i => i.id === share.item_id);
+              const itemPrice = item?.price || 0;
+              const totalWeight = itemWeightTotals.get(share.item_id) || 1;
+              const weight = share.weight || 1;
+              const shareAmount = (weight / totalWeight) * itemPrice;
+
+              return {
+                itemId: share.item_id,
+                weight: weight / totalWeight,  // Normalized weight (0-1)
+                shareAmount
+              };
+            });
+
+            // Calculate person's subtotal from their share amounts
+            const itemsSubtotal = itemShares.reduce((sum, share) => sum + share.shareAmount, 0);
             const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
             const personTax = tax * proportion;
             const personTip = tip * proportion;
@@ -108,6 +138,7 @@ export const ReceiptPage: React.FC = () => {
               id: person.id,
               name: person.name,
               items: personItemIds,
+              itemShares,  // Include calculated share amounts
               total: personTotal
             };
           });

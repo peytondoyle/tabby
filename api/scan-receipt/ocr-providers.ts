@@ -18,6 +18,31 @@ export interface OCRResult {
   provider: string;
   confidence?: number;
   processingTime: number;
+  // NEW: Enhanced analysis fields
+  validation?: {
+    itemsMatchSubtotal: boolean;
+    totalsMatch: boolean;
+    calculatedSubtotal: number;
+    calculatedTotal: number;
+    discrepancy?: number;
+    warnings: string[];
+  };
+  fieldConfidence?: {
+    place: 'high' | 'medium' | 'low';
+    date: 'high' | 'medium' | 'low';
+    subtotal: 'high' | 'medium' | 'low';
+    tax: 'high' | 'medium' | 'low';
+    tip: 'high' | 'medium' | 'low';
+    total: 'high' | 'medium' | 'low';
+    items: 'high' | 'medium' | 'low';
+  };
+  handwrittenFields?: string[];  // Fields that appear to be handwritten
+  suggestedCorrections?: Array<{
+    field: string;
+    currentValue: number | string | null;
+    suggestedValue: number | string;
+    reason: string;
+  }>;
 }
 
 export interface OCRProvider {
@@ -51,9 +76,11 @@ class OpenAIProvider implements OCRProvider {
     }
 
     const startTime = Date.now();
+    console.log(`[openai_ocr] Starting OpenAI processing, image size: ${imageBuffer.length} bytes`);
     const base64Image = imageBuffer.toString('base64');
     const imageUrl = `data:${mimeType};base64,${base64Image}`;
 
+    console.log(`[openai_ocr] Calling GPT-4o vision API...`);
     const response = await this.client.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -62,7 +89,9 @@ class OpenAIProvider implements OCRProvider {
           content: [
             {
               type: "text",
-              text: `Extract receipt data as JSON:
+              text: `You are an expert receipt analyzer. Extract ALL data from this receipt image with high precision.
+
+Return JSON in this EXACT format:
 {
   "place": "Restaurant Name",
   "date": "YYYY-MM-DD",
@@ -72,78 +101,82 @@ class OpenAIProvider implements OCRProvider {
   "service_fee": 0.00,
   "tax": 0.00,
   "tip": 0.00,
-  "total": 0.00
+  "total": 0.00,
+  "fieldConfidence": {
+    "place": "high|medium|low",
+    "date": "high|medium|low",
+    "subtotal": "high|medium|low",
+    "tax": "high|medium|low",
+    "tip": "high|medium|low",
+    "total": "high|medium|low",
+    "items": "high|medium|low"
+  },
+  "handwrittenFields": ["tip", "total"],
+  "receiptType": "customer_copy|merchant_copy|itemized|summary"
 }
 
-CRITICAL RULES:
+═══════════════════════════════════════════════════════════════
+🔍 HANDWRITTEN TEXT DETECTION - CRITICAL!
+═══════════════════════════════════════════════════════════════
+Many receipts have HANDWRITTEN tips and totals. Look carefully for:
+- Handwritten numbers in the TIP line (often filled in by customer)
+- Handwritten TOTAL at the bottom (customer's final amount)
+- Handwriting looks different from printed text - often slanted, uneven, or in pen/pencil
+- Customer copy receipts often have blank tip/total lines that were filled in by hand
 
-1. FOOD/DRINK ITEMS: Extract all food and drink items with their FULL prices (before discounts).
-   - DO NOT include taxes, tips, fees, or discounts as items
-   - Items should be the original menu prices
-   - CRITICAL: Copy item names EXACTLY as written on the receipt - preserve spelling, capitalization, and special characters
-   - Do NOT auto-correct spellings or change wording (e.g., "Mu Shu" stays "Mu Shu", not "Moo Shu")
-   - Be precise with characters - "301. Mu Shu Pork" should be extracted as "301. Mu Shu Pork"
+If you see handwritten amounts:
+1. Extract them as the actual values
+2. Add the field name to "handwrittenFields" array
+3. Set confidence to "medium" for handwritten values
 
-2. DISCOUNTS & PROMOS: Look CAREFULLY for ALL discounts, promos, benefits, and savings.
-   - Common labels: "Discount", "Delivery Discount", "Promo", "Coupon", "BOGO", "Buy One Get One", "10% Off", "Rewards", "Points", "Credits"
-   - Membership/subscription: "Member Discount", "Membership Savings", "Membership Benefit", "Member Benefit", "Subscription Savings", "Plus Benefit"
-   - App-specific: "Uber One Benefit", "DashPass Benefit", "Grubhub+ Benefit"
-   - IMPORTANT: SUM UP **ALL** discount line items (even if they have different labels)
-   - Put the TOTAL of all discounts in the "discount" field as a POSITIVE number
-   - Example: $1.49 delivery discount + $6.97 membership benefit = discount: 8.46
-   - DO NOT include discount line items in the items array
-   - DO NOT miss any discount just because it has an unusual label
+═══════════════════════════════════════════════════════════════
+📋 RECEIPT TYPE DETECTION
+═══════════════════════════════════════════════════════════════
+Identify the receipt type:
+- "customer_copy": Has signature line, tip line, often handwritten totals
+- "merchant_copy": Store's copy, may have different info
+- "itemized": Full itemized receipt with all items
+- "summary": Summary receipt without individual items
 
-3. SUBTOTAL: The subtotal shown on the receipt (items AFTER discounts applied).
-   - This is what the customer owes for food after discounts but before fees/taxes/tips
-   - May be labeled "Subtotal" on the receipt
+═══════════════════════════════════════════════════════════════
+🍔 FOOD/DRINK ITEMS
+═══════════════════════════════════════════════════════════════
+- Extract ALL food and drink items with FULL prices
+- Copy item names EXACTLY as written (preserve spelling, caps, special chars)
+- DO NOT include taxes, tips, fees, or discounts as items
 
-4. TAX: LOOK CAREFULLY for tax. Common labels:
-   - "Tax", "Sales Tax", "GST", "VAT", "Tax & Fees"
-   - Extract the EXACT dollar amount as POSITIVE number
-   - If $0.00, return 0.00 (not null)
+**QUANTITY HANDLING:**
+- "3 Cold Beverage $10.50" → {"label": "3 Cold Beverage", "price": 10.50}
+- Keep quantity as part of label, DO NOT divide prices
 
-5. TIP: LOOK CAREFULLY for tip/gratuity ONLY. Common labels:
-   - "Tip", "Gratuity", "Tips"
-   - Extract the EXACT dollar amount as POSITIVE number
-   - If $0.00, return 0.00 (not null)
-   - DO NOT include service fees, delivery fees, or platform fees here
+═══════════════════════════════════════════════════════════════
+💰 FINANCIAL FIELDS
+═══════════════════════════════════════════════════════════════
+**SUBTOTAL**: Sum of items after discounts, before tax/tip/fees
+**TAX**: "Tax", "Sales Tax", "GST", "VAT" - exact amount shown
+**TIP**: "Tip", "Gratuity" - CHECK FOR HANDWRITTEN VALUES!
+**TOTAL**: Final amount - CHECK FOR HANDWRITTEN VALUES!
+**DISCOUNT**: Sum ALL discounts/promos/benefits as POSITIVE number
+**SERVICE_FEE**: Sum ALL fees (delivery, service, platform, etc.)
 
-6. SERVICE FEES: These are NOT tips! Keep them separate:
-   - Common labels: "Service Fee", "Service Charge", "Delivery Fee", "Platform Fee", "Small Order Fee", "Convenience Fee", "Regulatory Fee", "Processing Fee", "Booking Fee"
-   - App-specific: "Uber Service Fee", "DoorDash Fee", "Grubhub Fee", "Postmates Fee"
-   - IMPORTANT: SUM UP all service-related fees (delivery + service + platform + etc)
-   - Example: $1.49 delivery fee + $12.54 service fee = service_fee: 14.03
-   - These fees go in a "service_fee" field (NOT in the tip field)
-   - DO NOT add these to the tip amount
-   - DO NOT confuse service fees with tips/gratuity
+═══════════════════════════════════════════════════════════════
+🧮 VALIDATION HINTS
+═══════════════════════════════════════════════════════════════
+After extraction, verify:
+- Items sum should ≈ subtotal (±$0.50 for rounding)
+- total ≈ subtotal - discount + service_fee + tax + tip
+- If math doesn't work, re-check for missed items or handwritten values
 
-7. TOTAL: Final charged amount at the bottom (should equal subtotal - discount + service_fee + tax + tip).
+═══════════════════════════════════════════════════════════════
+⚠️ CONFIDENCE SCORING
+═══════════════════════════════════════════════════════════════
+For each field, rate confidence:
+- "high": Clearly printed, easy to read
+- "medium": Handwritten, slightly blurry, or unusual format
+- "low": Very hard to read, guessing, or couldn't find
 
-8. Use 0.00 for any field if not found (not null).
-
-9. IMPORTANT: For delivery apps (DoorDash/UberEats/GrubHub):
-   - Service/Delivery/Platform fees: SUM ALL FEES and put in "service_fee" field (NOT in tip!)
-   - Tip/Gratuity goes in "tip" field (keep separate from fees!)
-   - Discounts: SUM ALL DISCOUNTS including membership benefits and put in "discount" field as POSITIVE number
-   - Example Uber Eats: If you see "Delivery Fee $1.49" + "Service Fee $12.54" + "Delivery Discount -$1.49" + "Membership Benefit -$6.97"
-     Then: service_fee = 14.03, discount = 8.46
-   - Make sure you extract all fields accurately and don't miss any line items!
-
-CRITICAL EXTRACTION STEPS:
-1. First, find and list ALL line items on the receipt (food, fees, taxes, tips, discounts)
-2. Categorize each line item:
-   - Food/drink → goes in "items" array
-   - Fees (delivery, service, platform) → add to "service_fee" total
-   - Discounts (delivery discount, membership benefit, promos) → add to "discount" total
-   - Tax lines → "tax" field
-   - Tip lines → "tip" field
-3. Double-check you didn't miss any negative amounts (these are usually discounts!)
-4. Sum up all discounts and all fees separately
-5. Return the final JSON
-
-Extract ACTUAL VALUES from the receipt image, not the example values shown above.
-PAY SPECIAL ATTENTION to lines with negative amounts - these are discounts that MUST be included!`
+Return 0.00 for fields not found (not null).
+Extract ACTUAL VALUES from this receipt image.`
             },
             {
               type: "image_url",
@@ -155,14 +188,18 @@ PAY SPECIAL ATTENTION to lines with negative amounts - these are discounts that 
           ]
         }
       ],
-      max_tokens: 600,
+      max_tokens: 2000,
       temperature: 0
     });
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[openai_ocr] GPT-4o responded in ${elapsed}ms`);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
       throw new Error('No content in OpenAI response');
     }
+    console.log(`[openai_ocr] Response content length: ${content.length} chars`);
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -171,6 +208,77 @@ PAY SPECIAL ATTENTION to lines with negative amounts - these are discounts that 
 
     const parsed = JSON.parse(jsonMatch[0]);
     const processingTime = Date.now() - startTime;
+
+    // Calculate validation metrics
+    const items = parsed.items || [];
+    const calculatedSubtotal = items.reduce((sum: number, item: { price: number }) => sum + (item.price || 0), 0);
+    const subtotal = parsed.subtotal || 0;
+    const tax = parsed.tax || 0;
+    const tip = parsed.tip || 0;
+    const discount = parsed.discount || 0;
+    const serviceFee = parsed.service_fee || 0;
+    const total = parsed.total || 0;
+
+    // Expected total calculation
+    const calculatedTotal = subtotal - discount + serviceFee + tax + tip;
+    const itemsMatchSubtotal = Math.abs(calculatedSubtotal - subtotal) <= 0.50;
+    const totalsMatch = Math.abs(calculatedTotal - total) <= 0.50;
+
+    // Generate warnings
+    const warnings: string[] = [];
+    if (!itemsMatchSubtotal && items.length > 0) {
+      const diff = Math.abs(calculatedSubtotal - subtotal);
+      warnings.push(`Items sum ($${calculatedSubtotal.toFixed(2)}) differs from subtotal ($${subtotal.toFixed(2)}) by $${diff.toFixed(2)}`);
+    }
+    if (!totalsMatch && total > 0) {
+      const diff = Math.abs(calculatedTotal - total);
+      warnings.push(`Calculated total ($${calculatedTotal.toFixed(2)}) differs from receipt total ($${total.toFixed(2)}) by $${diff.toFixed(2)}`);
+    }
+    if (tip === 0 && parsed.handwrittenFields?.includes('tip')) {
+      warnings.push('Tip may be handwritten but was not extracted - please verify');
+    }
+    if (parsed.receiptType === 'customer_copy' && tip === 0) {
+      warnings.push('Customer copy detected with no tip - tip may need manual entry');
+    }
+
+    // Generate suggested corrections
+    const suggestedCorrections: Array<{ field: string; currentValue: number | string | null; suggestedValue: number | string; reason: string }> = [];
+
+    // If items don't match subtotal but we have items, suggest using calculated subtotal
+    if (!itemsMatchSubtotal && items.length > 0 && calculatedSubtotal > 0) {
+      suggestedCorrections.push({
+        field: 'subtotal',
+        currentValue: subtotal,
+        suggestedValue: calculatedSubtotal,
+        reason: 'Calculated from item prices'
+      });
+    }
+
+    // If tip is 0 on a customer copy, flag it
+    if (parsed.receiptType === 'customer_copy' && tip === 0 && total > subtotal + tax) {
+      const possibleTip = total - subtotal - tax - serviceFee + discount;
+      if (possibleTip > 0) {
+        suggestedCorrections.push({
+          field: 'tip',
+          currentValue: tip,
+          suggestedValue: Math.round(possibleTip * 100) / 100,
+          reason: 'Calculated from total minus other fields'
+        });
+      }
+    }
+
+    // Calculate overall confidence
+    const fieldConfidence = parsed.fieldConfidence || {};
+    const confidenceValues = Object.values(fieldConfidence) as string[];
+    const hasLowConfidence = confidenceValues.some(c => c === 'low');
+    const hasMediumConfidence = confidenceValues.some(c => c === 'medium');
+    let overallConfidence = 0.95;
+    if (hasLowConfidence) overallConfidence = 0.6;
+    else if (hasMediumConfidence) overallConfidence = 0.8;
+    if (warnings.length > 0) overallConfidence -= 0.1 * warnings.length;
+    overallConfidence = Math.max(0.3, overallConfidence);
+
+    console.log(`[openai_ocr] Validation: items=${itemsMatchSubtotal}, totals=${totalsMatch}, warnings=${warnings.length}, confidence=${overallConfidence.toFixed(2)}`);
 
     return {
       place: parsed.place || null,
@@ -184,8 +292,20 @@ PAY SPECIAL ATTENTION to lines with negative amounts - these are discounts that 
       rawText: parsed.rawText || content,
       items: parsed.items || [],
       provider: 'openai',
-      confidence: 0.9, // High confidence for GPT-4o-mini
-      processingTime
+      confidence: overallConfidence,
+      processingTime,
+      // Enhanced fields
+      validation: {
+        itemsMatchSubtotal,
+        totalsMatch,
+        calculatedSubtotal: Math.round(calculatedSubtotal * 100) / 100,
+        calculatedTotal: Math.round(calculatedTotal * 100) / 100,
+        discrepancy: Math.abs(calculatedTotal - total) > 0.50 ? Math.round(Math.abs(calculatedTotal - total) * 100) / 100 : undefined,
+        warnings
+      },
+      fieldConfidence: parsed.fieldConfidence || undefined,
+      handwrittenFields: parsed.handwrittenFields || undefined,
+      suggestedCorrections: suggestedCorrections.length > 0 ? suggestedCorrections : undefined
     };
   }
 }

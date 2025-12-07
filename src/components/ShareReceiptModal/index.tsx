@@ -11,10 +11,17 @@ interface Item {
   price: number;
 }
 
+interface ItemShare {
+  itemId: string;
+  weight: number;
+  shareAmount: number;
+}
+
 interface Person {
   id: string;
   name: string;
   items: string[];
+  itemShares?: ItemShare[];  // New: includes weight and calculated share amount
   total: number;
 }
 
@@ -139,8 +146,33 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
   };
 
   const renderPersonReceipt = (person: Person, personIndex: number) => {
-    const personItems = items.filter(item => person.items.includes(item.id));
-    const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
+    // Use itemShares if available (includes proper weight-based share amounts)
+    // Otherwise fall back to legacy behavior for backwards compatibility
+    let itemsSubtotal: number;
+    let personItemsWithShares: Array<{ item: Item; shareAmount: number; weight: number }> = [];
+
+    if (person.itemShares && person.itemShares.length > 0) {
+      // New behavior: use pre-calculated share amounts
+      personItemsWithShares = person.itemShares.map(share => {
+        const item = items.find(i => i.id === share.itemId);
+        return {
+          item: item || { id: share.itemId, emoji: '🍽️', price: 0, name: 'Item' },
+          shareAmount: share.shareAmount,
+          weight: share.weight
+        };
+      }).filter(x => x.item);
+      itemsSubtotal = person.itemShares.reduce((sum, share) => sum + share.shareAmount, 0);
+    } else {
+      // Legacy fallback: calculate from item IDs (may be inaccurate for shared items)
+      const personItems = items.filter(item => person.items.includes(item.id));
+      personItemsWithShares = personItems.map(item => ({
+        item,
+        shareAmount: item.price,
+        weight: 1
+      }));
+      itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
+    }
+
     const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
     const personDiscount = discount * proportion;
     const personServiceFee = serviceFee * proportion;
@@ -161,15 +193,18 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         <div className="modern-items-section">
           <h3 className="modern-section-label">Items</h3>
           <div className="modern-items-list">
-            {personItems.map(item => (
+            {personItemsWithShares.map(({ item, shareAmount, weight }) => (
               <div key={item.id} className="modern-item-row">
                 <div className="modern-item-info">
                   <span className="modern-item-emoji">
                     <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={16} color="#1a1a1a" />
                   </span>
-                  <span className="modern-item-name">{item.name || item.label || 'Item'}</span>
+                  <span className="modern-item-name">
+                    {item.name || item.label || 'Item'}
+                    {weight < 1 && <span className="modern-item-split"> ({Math.round(weight * 100)}%)</span>}
+                  </span>
                 </div>
-                <span className="modern-item-price">${item.price ? item.price.toFixed(2) : '0.00'}</span>
+                <span className="modern-item-price">${shareAmount.toFixed(2)}</span>
               </div>
             ))}
           </div>

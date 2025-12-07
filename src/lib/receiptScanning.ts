@@ -210,6 +210,32 @@ export type ParseResult = {
   discount?: number | null
   total?: number | null
   rawText?: string | null
+  // Enhanced analysis fields from OCR
+  validation?: {
+    itemsMatchSubtotal: boolean
+    totalsMatch: boolean
+    calculatedSubtotal: number
+    calculatedTotal: number
+    discrepancy?: number
+    warnings: string[]
+  }
+  fieldConfidence?: {
+    place: 'high' | 'medium' | 'low'
+    date: 'high' | 'medium' | 'low'
+    subtotal: 'high' | 'medium' | 'low'
+    tax: 'high' | 'medium' | 'low'
+    tip: 'high' | 'medium' | 'low'
+    total: 'high' | 'medium' | 'low'
+    items: 'high' | 'medium' | 'low'
+  }
+  handwrittenFields?: string[]
+  suggestedCorrections?: Array<{
+    field: string
+    currentValue: number | string | null
+    suggestedValue: number | string
+    reason: string
+  }>
+  confidence?: number
 }
 
 // Legacy types for backwards compatibility
@@ -584,6 +610,15 @@ export async function parseReceipt(
     const originalServiceFee = apiServiceFee || serviceFeeTotal
     const originalTotal = normalizeNumber(responseData.total)
 
+    // Extract enhanced analysis fields if available
+    const enhancedData = data as {
+      validation?: ParseResult['validation']
+      fieldConfidence?: ParseResult['fieldConfidence']
+      handwrittenFields?: string[]
+      suggestedCorrections?: ParseResult['suggestedCorrections']
+      confidence?: number
+    }
+
     const result: ParseResult = {
       place: responseData.place || null,
       date: responseData.date || null,
@@ -594,7 +629,13 @@ export async function parseReceipt(
       service_fee: originalServiceFee,
       discount: originalDiscount,
       total: originalTotal,
-      rawText: responseData.rawText || null
+      rawText: responseData.rawText || null,
+      // Enhanced analysis fields
+      validation: enhancedData.validation,
+      fieldConfidence: enhancedData.fieldConfidence,
+      handwrittenFields: enhancedData.handwrittenFields,
+      suggestedCorrections: enhancedData.suggestedCorrections,
+      confidence: enhancedData.confidence
     }
 
     // Log service fee and tip detection if any
@@ -758,6 +799,123 @@ export function getCurrentDate() {
       year: 'numeric'
     })
   }
+}
+
+// Multi-image receipt parsing for long receipts
+export async function parseMultipleReceipts(
+  files: File[],
+  onProgress?: (step: string, current: number, total: number) => void,
+  signal?: AbortSignal
+): Promise<ParseResult> {
+  if (files.length === 0) {
+    throw new Error('No files provided')
+  }
+
+  if (files.length === 1) {
+    // Single file, use normal parsing
+    return parseReceipt(files[0], (step) => onProgress?.(step, 1, 1), signal)
+  }
+
+  console.info(`[multi_scan] Starting multi-image scan with ${files.length} images`)
+
+  // Parse all images in sequence
+  const results: ParseResult[] = []
+
+  for (let i = 0; i < files.length; i++) {
+    if (signal?.aborted) {
+      throw new DOMException('Scan cancelled', 'AbortError')
+    }
+
+    onProgress?.(`Scanning image ${i + 1}/${files.length}...`, i + 1, files.length)
+    console.info(`[multi_scan] Processing image ${i + 1}/${files.length}: ${files[i].name}`)
+
+    try {
+      const result = await parseReceipt(files[i], undefined, signal)
+      results.push(result)
+      console.info(`[multi_scan] Image ${i + 1} returned ${result.items.length} items`)
+    } catch (error) {
+      console.warn(`[multi_scan] Failed to parse image ${i + 1}:`, error)
+      // Continue with other images
+    }
+  }
+
+  if (results.length === 0) {
+    throw new Error('Failed to parse any of the receipt images')
+  }
+
+  // Merge results intelligently
+  onProgress?.('Merging results...', files.length, files.length)
+  return mergeReceiptResults(results)
+}
+
+// Merge multiple receipt parsing results
+function mergeReceiptResults(results: ParseResult[]): ParseResult {
+  if (results.length === 1) {
+    return results[0]
+  }
+
+  console.info(`[multi_scan] Merging ${results.length} receipt results`)
+
+  // Use place/date from first result that has them
+  const place = results.find(r => r.place)?.place || null
+  const date = results.find(r => r.date)?.date || null
+
+  // Collect all items, deduplicating by label+price
+  const itemMap = new Map<string, ParseResult['items'][0]>()
+  const seenKeys = new Set<string>()
+
+  for (const result of results) {
+    for (const item of result.items) {
+      // Create a key for deduplication (normalize label, round price)
+      const key = `${item.label.toLowerCase().trim()}-${item.price.toFixed(2)}`
+
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key)
+        itemMap.set(item.id, item)
+      } else {
+        console.log(`[multi_scan] Skipping duplicate item: ${item.label} ($${item.price})`)
+      }
+    }
+  }
+
+  const items = Array.from(itemMap.values())
+  console.info(`[multi_scan] Merged ${items.length} unique items from ${results.reduce((sum, r) => sum + r.items.length, 0)} total`)
+
+  // For totals: prefer the result that has the most complete data
+  // or use the last result (often the payment summary)
+  const resultWithTotals = results.find(r =>
+    r.total && r.total > 0 && r.subtotal && r.subtotal > 0
+  ) || results[results.length - 1]
+
+  // Calculate subtotal from merged items
+  const calculatedSubtotal = items.reduce((sum, item) => sum + item.price, 0)
+
+  // Use receipt totals if they seem valid, otherwise calculate
+  const subtotal = resultWithTotals.subtotal && Math.abs(resultWithTotals.subtotal - calculatedSubtotal) < 5
+    ? resultWithTotals.subtotal
+    : calculatedSubtotal
+
+  const tax = resultWithTotals.tax || results.reduce((max, r) => Math.max(max, r.tax || 0), 0)
+  const tip = resultWithTotals.tip || results.reduce((max, r) => Math.max(max, r.tip || 0), 0)
+  const discount = resultWithTotals.discount || results.reduce((sum, r) => sum + (r.discount || 0), 0)
+  const serviceFee = resultWithTotals.service_fee || results.reduce((sum, r) => sum + (r.service_fee || 0), 0)
+  const total = resultWithTotals.total || (subtotal - discount + serviceFee + tax + tip)
+
+  const merged: ParseResult = {
+    place,
+    date,
+    items,
+    subtotal,
+    tax,
+    tip,
+    discount,
+    service_fee: serviceFee,
+    total,
+    rawText: results.map(r => r.rawText).filter(Boolean).join('\n---\n')
+  }
+
+  console.info(`[multi_scan] Final merged result: ${items.length} items, total: $${total}`)
+  return merged
 }
 
 // Utility to clear all scan caches (for fixing bad cached receipts)

@@ -54,7 +54,7 @@ export default async function handler(
 
       // Fetch receipt data - query by editor_token or viewer_token (not UUID id)
       const { data: receipt, error: receiptError } = await supabaseAdmin
-        .from('receipts')
+        .from('tabby_receipts')
         .select(`
           id,
           editor_token,
@@ -75,7 +75,7 @@ export default async function handler(
 
         // Fetch items for this receipt
         const { data: items, error: itemsError } = await supabaseAdmin
-          .from('items')
+          .from('tabby_items')
           .select(`
             id,
             label,
@@ -104,7 +104,7 @@ export default async function handler(
 
         // Fetch people for this receipt
         const { data: people, error: peopleError } = await supabaseAdmin
-          .from('people')
+          .from('tabby_people')
           .select(`
             id,
             name,
@@ -123,7 +123,7 @@ export default async function handler(
 
         // Fetch item shares (assignments) - join through items table
         const { data: shares, error: sharesError } = await supabaseAdmin
-          .from('item_shares')
+          .from('tabby_item_shares')
           .select(`
             item_id,
             person_id,

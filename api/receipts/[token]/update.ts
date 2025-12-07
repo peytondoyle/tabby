@@ -89,7 +89,7 @@ export default async function handler(
 
     // Update the receipt
     const { data: receipt, error: updateError } = await supabaseAdmin
-      .from('receipts')
+      .from('tabby_receipts')
       .update(updateData)
       .or(`editor_token.eq.${token},viewer_token.eq.${token}`)
       .select('id, editor_token, viewer_token, title, place, date, subtotal, sales_tax, tip')

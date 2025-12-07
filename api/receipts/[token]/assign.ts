@@ -87,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[receipts_assign] Looking for receipt with token:', token);
 
     const { data: receipt, error: receiptError } = await supabaseAdmin
-      .from('receipts')
+      .from('tabby_receipts')
       .select('id, editor_token, viewer_token')
       .or(`editor_token.eq.${token},viewer_token.eq.${token}`)
       .single();
@@ -104,7 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ==================== UPDATE PEOPLE ====================
     // Delete existing people for this receipt
     const { error: deleteError } = await supabaseAdmin
-      .from('people')
+      .from('tabby_people')
       .delete()
       .eq('receipt_id', receipt.id);
 
@@ -122,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }));
 
     const { data: insertedPeople, error: insertError } = await supabaseAdmin
-      .from('people')
+      .from('tabby_people')
       .insert(peopleToInsert)
       .select();
 
@@ -151,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ==================== UPDATE SHARES ====================
     // Get all items for this receipt to validate shares
     const { data: items, error: itemsError } = await supabaseAdmin
-      .from('items')
+      .from('tabby_items')
       .select('id')
       .eq('receipt_id', receipt.id);
 
@@ -181,7 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Get existing shares to determine what to delete
     const { data: existingShares } = await supabaseAdmin
-      .from('item_shares')
+      .from('tabby_item_shares')
       .select('item_id, person_id')
       .in('item_id', Array.from(itemIds));
 
@@ -201,7 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const key of keysToDelete) {
         const [item_id, person_id] = key.split(':');
         const { error: deleteShareError } = await supabaseAdmin
-          .from('item_shares')
+          .from('tabby_item_shares')
           .delete()
           .eq('item_id', item_id)
           .eq('person_id', person_id);
@@ -222,7 +222,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }));
 
       const { data: upsertData, error: upsertError } = await supabaseAdmin
-        .from('item_shares')
+        .from('tabby_item_shares')
         .upsert(sharesToUpsert, {
           onConflict: 'item_id,person_id',
           ignoreDuplicates: false

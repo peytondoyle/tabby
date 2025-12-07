@@ -1,9 +1,15 @@
 import React from 'react'
 import type { FlowPerson, FlowItem } from '@/lib/flowStore'
 
+// Extended item type that includes share amount for split items
+interface ItemWithShare extends FlowItem {
+  shareAmount?: number  // The person's share of the item (may be less than price if split)
+  weight?: number       // The person's weight/proportion (0-1)
+}
+
 interface PersonCardProps {
   name: string
-  items: FlowItem[]
+  items: ItemWithShare[]
   subtotal: number
   discountShare: number
   serviceFeeShare: number
@@ -18,7 +24,7 @@ interface PersonCardProps {
 interface GroupCardProps {
   groups: Array<{
     person: FlowPerson
-    items: FlowItem[]
+    items: ItemWithShare[]
     subtotal: number
     discountShare: number
     serviceFeeShare: number
@@ -77,18 +83,27 @@ export const PersonCard: React.FC<PersonCardProps> = ({
       <div className="mb-6">
         <h3 className="font-semibold mb-3 text-gray-700">Items:</h3>
         <div className="space-y-2">
-          {items.map((item, index) => (
-            <div key={index} className="flex justify-between items-center text-sm">
-              <div className="flex items-center gap-2">
-                <span>{item.emoji}</span>
-                <span>{item.label}</span>
-                {item.quantity && item.quantity > 1 && (
-                  <span className="text-gray-500">x{item.quantity}</span>
-                )}
+          {items.map((item, index) => {
+            // Use shareAmount if available, otherwise fall back to full price
+            const displayPrice = item.shareAmount ?? item.price
+            const isShared = item.weight !== undefined && item.weight < 1
+
+            return (
+              <div key={index} className="flex justify-between items-center text-sm">
+                <div className="flex items-center gap-2">
+                  <span>{item.emoji}</span>
+                  <span>{item.label}</span>
+                  {item.quantity && item.quantity > 1 && (
+                    <span className="text-gray-500">x{item.quantity}</span>
+                  )}
+                  {isShared && (
+                    <span className="text-gray-400 text-xs">({Math.round((item.weight || 1) * 100)}%)</span>
+                  )}
+                </div>
+                <span className="font-medium">{formatPrice(displayPrice)}</span>
               </div>
-              <span className="font-medium">{formatPrice(item.price)}</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -175,12 +190,21 @@ export const GroupCard: React.FC<GroupCardProps> = ({
             </div>
             
             <div className="ml-11 space-y-1 text-sm">
-              {group.items.map((item, itemIndex) => (
-                <div key={itemIndex} className="flex justify-between text-gray-600">
-                  <span>{item.emoji} {item.label}</span>
-                  <span>{formatPrice(item.price)}</span>
-                </div>
-              ))}
+              {group.items.map((item, itemIndex) => {
+                // Use shareAmount if available, otherwise fall back to full price
+                const displayPrice = item.shareAmount ?? item.price
+                const isShared = item.weight !== undefined && item.weight < 1
+
+                return (
+                  <div key={itemIndex} className="flex justify-between text-gray-600">
+                    <span>
+                      {item.emoji} {item.label}
+                      {isShared && <span className="text-gray-400 text-xs ml-1">({Math.round((item.weight || 1) * 100)}%)</span>}
+                    </span>
+                    <span>{formatPrice(displayPrice)}</span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         ))}

@@ -11,9 +11,11 @@ import { AddPeopleModal } from '@/components/AddPeopleModal'
 import { RestaurantNameModal } from '@/components/RestaurantNameModal'
 import { PeopleDock } from '@/components/PeopleDock'
 import { HomeButton } from '@/components/HomeButton'
+import { ValidationWarnings } from '@/components/ValidationWarnings'
 // Removed PageContainer import - using full-width layout
 import { SplashScreen } from '@/components/SplashScreen'
 import { fetchReceiptByToken, createReceipt, buildCreatePayload } from '@/lib/receipts'
+import { trackCorrection } from '@/lib/correctionAnalytics'
 import { isLocalId } from '@/lib/id'
 import { Button } from "@/components/design-system";
 import { logServer } from '@/lib/errorLogger'
@@ -39,6 +41,15 @@ export const Flow: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [useKeyboardNavigation, setUseKeyboardNavigation] = useState(false)
   const [showRestaurantModal, setShowRestaurantModal] = useState(false)
+
+  // Validation state from OCR analysis
+  const [validationInfo, setValidationInfo] = useState<{
+    validation?: ParseResult['validation']
+    fieldConfidence?: ParseResult['fieldConfidence']
+    handwrittenFields?: string[]
+    suggestedCorrections?: ParseResult['suggestedCorrections']
+    confidence?: number
+  } | null>(null)
 
   // Device capability detection for performance optimization
   const device = deviceDetector.detect()
@@ -275,6 +286,22 @@ export const Flow: React.FC = () => {
         total: result.total || undefined
       })
 
+      // Store validation info for displaying warnings
+      if (result.validation || result.suggestedCorrections || result.handwrittenFields) {
+        setValidationInfo({
+          validation: result.validation,
+          fieldConfidence: result.fieldConfidence,
+          handwrittenFields: result.handwrittenFields,
+          suggestedCorrections: result.suggestedCorrections,
+          confidence: result.confidence
+        })
+        console.log('[flow] Validation info stored:', {
+          warnings: result.validation?.warnings?.length || 0,
+          corrections: result.suggestedCorrections?.length || 0,
+          handwritten: result.handwrittenFields?.length || 0
+        })
+      }
+
       // Mark analysis as complete
       setIsProcessingReceipt(false)
       setIsAnalyzingReceipt(false)
@@ -341,6 +368,58 @@ export const Flow: React.FC = () => {
     // if (token) {
     //   setTimeout(() => saveState(token), 100)
     // }
+  }
+
+  // Handle applying suggested corrections from validation
+  const handleApplyCorrection = (field: string, value: number | string) => {
+    console.log('[flow] Applying correction:', field, value)
+
+    // Get the original value for tracking
+    const originalValue = bill?.[field as keyof typeof bill] ?? null
+
+    // Track the correction for analytics
+    const correction = validationInfo?.suggestedCorrections?.find(c => c.field === field)
+    trackCorrection({
+      receipt_id: bill?.token,
+      field,
+      original_value: originalValue as string | number | null,
+      corrected_value: value,
+      correction_type: 'suggested_applied',
+      confidence: validationInfo?.confidence,
+      was_handwritten: validationInfo?.handwrittenFields?.includes(field)
+    })
+
+    // Update bill metadata with the corrected value
+    const updates: Partial<typeof bill> = {}
+    if (field === 'subtotal') updates.subtotal = value as number
+    if (field === 'tax') updates.tax = value as number
+    if (field === 'tip') updates.tip = value as number
+    if (field === 'total') updates.total = value as number
+    if (field === 'discount') updates.discount = value as number
+    if (field === 'service_fee') updates.service_fee = value as number
+
+    setBillMeta(updates)
+
+    // Remove the applied correction from suggestions
+    if (validationInfo?.suggestedCorrections) {
+      setValidationInfo({
+        ...validationInfo,
+        suggestedCorrections: validationInfo.suggestedCorrections.filter(c => c.field !== field)
+      })
+    }
+  }
+
+  // Handle dismissing a warning
+  const handleDismissWarning = (index: number) => {
+    if (validationInfo?.validation?.warnings) {
+      setValidationInfo({
+        ...validationInfo,
+        validation: {
+          ...validationInfo.validation,
+          warnings: validationInfo.validation.warnings.filter((_, i) => i !== index)
+        }
+      })
+    }
   }
 
   const handleRestaurantNameSubmit = (name: string) => {
@@ -465,6 +544,20 @@ export const Flow: React.FC = () => {
       case 'people':
         return (
           <div className="w-full max-w-2xl mx-auto py-8 px-4">
+            {/* Show validation warnings if available */}
+            {validationInfo && analysisComplete && (
+              <div className="mb-6">
+                <ValidationWarnings
+                  validation={validationInfo.validation}
+                  fieldConfidence={validationInfo.fieldConfidence}
+                  handwrittenFields={validationInfo.handwrittenFields}
+                  suggestedCorrections={validationInfo.suggestedCorrections}
+                  confidence={validationInfo.confidence}
+                  onApplyCorrection={handleApplyCorrection}
+                  onDismissWarning={handleDismissWarning}
+                />
+              </div>
+            )}
             <PeopleStep
               onNext={handleNext}
               onPrev={handlePrev}
