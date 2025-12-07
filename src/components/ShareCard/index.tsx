@@ -138,7 +138,7 @@ export const ShareCard: React.FC<ShareCardProps> = ({
         })
         if (sharesError) throw sharesError
 
-        // Calculate share_amount from weights and item prices
+        // Calculate share_amount from weights with penny reconciliation
         // Group shares by item to compute total weight per item
         const itemWeightTotals = new Map<string, number>()
         sharesData.forEach((share: { item_id: string; weight: number }) => {
@@ -146,15 +146,53 @@ export const ShareCard: React.FC<ShareCardProps> = ({
           itemWeightTotals.set(share.item_id, current + share.weight)
         })
 
-        // Now compute share_amount for each share
-        const sharesWithAmounts: ItemShare[] = sharesData.map((share: { item_id: string; person_id: string; weight: number }) => {
-          const item = itemsData.find((i: Item) => i.id === share.item_id)
-          const totalWeight = itemWeightTotals.get(share.item_id) || 1
-          const shareAmount = item ? Math.round(((share.weight / totalWeight) * item.price) * 100) / 100 : 0
-          return {
-            ...share,
-            share_amount: shareAmount
+        // Group shares by item_id for penny reconciliation
+        const sharesByItem = new Map<string, Array<{ item_id: string; person_id: string; weight: number }>>()
+        sharesData.forEach((share: { item_id: string; person_id: string; weight: number }) => {
+          const existing = sharesByItem.get(share.item_id) || []
+          existing.push(share)
+          sharesByItem.set(share.item_id, existing)
+        })
+
+        // Calculate shares with penny reconciliation (largest remainder method)
+        const sharesWithAmounts: ItemShare[] = []
+        sharesByItem.forEach((itemShares, itemId) => {
+          const item = itemsData.find((i: Item) => i.id === itemId)
+          if (!item) return
+
+          const totalWeight = itemWeightTotals.get(itemId) || 1
+
+          // Calculate raw shares and round down
+          const shares: Array<{ share: typeof itemShares[0]; rawShare: number; roundedShare: number }> = []
+          let totalRounded = 0
+
+          itemShares.forEach(share => {
+            const rawShare = (share.weight / totalWeight) * item.price
+            const roundedShare = Math.floor(rawShare * 100) / 100
+            totalRounded += roundedShare
+            shares.push({ share, rawShare, roundedShare })
+          })
+
+          // Distribute remaining pennies to highest fractional parts
+          const remainingCents = Math.round((item.price - totalRounded) * 100)
+          if (remainingCents > 0) {
+            const sortedByFraction = [...shares].sort((a, b) => {
+              const fracA = (a.rawShare * 100) % 1
+              const fracB = (b.rawShare * 100) % 1
+              return fracB - fracA
+            })
+            for (let i = 0; i < remainingCents && i < sortedByFraction.length; i++) {
+              sortedByFraction[i].roundedShare += 0.01
+            }
           }
+
+          // Add to final array
+          shares.forEach(({ share, roundedShare }) => {
+            sharesWithAmounts.push({
+              ...share,
+              share_amount: Math.round(roundedShare * 100) / 100
+            })
+          })
         })
         setItemShares(sharesWithAmounts)
 
