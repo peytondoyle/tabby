@@ -197,30 +197,30 @@ export const ItemPill: React.FC<ItemPillProps> = ({
         )}
       </button>
 
-      {/* Edit icon - shows on hover (desktop), outside the main button */}
-      {hasEditActions && isHovered && !showMenu && (
+      {/* Edit icon - always visible when edit actions available, brighter on hover */}
+      {hasEditActions && !showMenu && (
         <button
           onClick={handleMenuToggle}
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '24px',
-            height: '24px',
+            width: '28px',
+            height: '28px',
             padding: 0,
             border: 'none',
             borderRadius: designTokens.borderRadius.full,
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            color: designTokens.semantic.text.secondary,
+            backgroundColor: isHovered ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)',
+            color: isHovered ? designTokens.semantic.text.primary : designTokens.semantic.text.tertiary,
             cursor: 'pointer',
             transition: designTokens.transitions.fast,
           }}
           aria-label="Edit item"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="12" r="2" />
-            <circle cx="12" cy="5" r="2" />
-            <circle cx="12" cy="19" r="2" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="2.5" />
+            <circle cx="12" cy="5" r="2.5" />
+            <circle cx="12" cy="19" r="2.5" />
           </svg>
         </button>
       )}
