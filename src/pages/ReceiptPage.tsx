@@ -90,7 +90,8 @@ export const ReceiptPage: React.FC = () => {
           try {
             const shareData = JSON.parse(localShareData);
             people = shareData.people || [];
-            console.log('Loaded people from localStorage:', people);
+            console.log('[ReceiptPage] Loaded people from localStorage:', people);
+            console.log('[ReceiptPage] localStorage itemShares:', people.map(p => ({ name: p.name, itemShares: p.itemShares })));
           } catch (e) {
             console.error('Error parsing localStorage share data:', e);
           }
@@ -98,12 +99,17 @@ export const ReceiptPage: React.FC = () => {
 
         // If no people from localStorage, try to construct from API data
         if (people.length === 0 && billData.people && billData.people.length > 0) {
+          console.log('[ReceiptPage] Building people from API data');
+          console.log('[ReceiptPage] Shares from API:', billData.shares);
+
           // First, calculate total weight for each item (for shared items)
           const itemWeightTotals = new Map<string, number>();
           (billData.shares || []).forEach((share: any) => {
             const current = itemWeightTotals.get(share.item_id) || 0;
             itemWeightTotals.set(share.item_id, current + (share.weight || 1));
           });
+
+          console.log('[ReceiptPage] Item weight totals:', Object.fromEntries(itemWeightTotals));
 
           // Pre-calculate item shares with penny reconciliation
           const itemShareMap = new Map<string, Map<string, { weight: number; shareAmount: number }>>();
