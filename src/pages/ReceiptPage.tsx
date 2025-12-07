@@ -105,6 +105,27 @@ export const ReceiptPage: React.FC = () => {
             itemWeightTotals.set(share.item_id, current + (share.weight || 1));
           });
 
+          // First pass: calculate each person's item subtotals
+          const personSubtotals = new Map<string, number>();
+          (billData.people || []).forEach((person: any) => {
+            const personShares = (billData.shares || []).filter(
+              (share: any) => share.person_id === person.id
+            );
+            let personItemsSubtotal = 0;
+            personShares.forEach((share: any) => {
+              const item = items.find(i => i.id === share.item_id);
+              const itemPrice = item?.price || 0;
+              const totalWeight = itemWeightTotals.get(share.item_id) || 1;
+              const weight = share.weight || 1;
+              personItemsSubtotal += (weight / totalWeight) * itemPrice;
+            });
+            personSubtotals.set(person.id, personItemsSubtotal);
+          });
+
+          // Calculate total of all people's subtotals for proper proportional distribution
+          // This ensures tip/tax splits sum exactly to the entered amounts
+          const allPeopleSubtotal = Array.from(personSubtotals.values()).reduce((sum, s) => sum + s, 0);
+
           // Map people from API and calculate their items/totals from shares with proper weights
           people = (billData.people || []).map((person: any) => {
             const personShares = (billData.shares || []).filter(
@@ -129,7 +150,8 @@ export const ReceiptPage: React.FC = () => {
 
             // Calculate person's subtotal from their share amounts
             const itemsSubtotal = itemShares.reduce((sum, share) => sum + share.shareAmount, 0);
-            const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
+            // Use allPeopleSubtotal as denominator to ensure proportions sum to 1.0
+            const proportion = allPeopleSubtotal > 0 ? itemsSubtotal / allPeopleSubtotal : 0;
             const personTax = tax * proportion;
             const personTip = tip * proportion;
             const personTotal = itemsSubtotal + personTax + personTip;

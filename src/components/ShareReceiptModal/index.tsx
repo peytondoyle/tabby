@@ -145,6 +145,17 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     }
   };
 
+  // Calculate total of all people's subtotals for proper proportional distribution
+  // This ensures tip/tax splits sum exactly to the entered amounts
+  const allPeopleSubtotal = people.reduce((sum, p) => {
+    if (p.itemShares && p.itemShares.length > 0) {
+      return sum + p.itemShares.reduce((s, share) => s + share.shareAmount, 0);
+    } else {
+      const personItems = items.filter(item => p.items.includes(item.id));
+      return sum + personItems.reduce((s, item) => s + item.price, 0);
+    }
+  }, 0);
+
   const renderPersonReceipt = (person: Person, personIndex: number) => {
     // Use itemShares if available (includes proper weight-based share amounts)
     // Otherwise fall back to legacy behavior for backwards compatibility
@@ -173,7 +184,9 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
       itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
     }
 
-    const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
+    // Use allPeopleSubtotal as denominator to ensure proportions sum to 1.0
+    // This guarantees tip/tax splits add up exactly to the entered amounts
+    const proportion = allPeopleSubtotal > 0 ? itemsSubtotal / allPeopleSubtotal : 0;
     const personDiscount = discount * proportion;
     const personServiceFee = serviceFee * proportion;
     const personTax = tax * proportion;
