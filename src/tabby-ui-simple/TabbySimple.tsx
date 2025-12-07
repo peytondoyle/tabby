@@ -2561,6 +2561,16 @@ export const TabbySimple: React.FC = () => {
           // Pre-calculate all item shares with penny reconciliation
           const itemShareMap = new Map<string, Map<string, { weight: number; shareAmount: number }>>();
 
+          // DEBUG: Log split items
+          const splitItems = items.filter(item => item.splitBetween && item.splitBetween.length > 1);
+          if (splitItems.length > 0) {
+            console.log('[ShareReceipt] Split items:', splitItems.map(i => ({
+              name: i.name,
+              price: i.price,
+              splitBetween: i.splitBetween
+            })));
+          }
+
           items.forEach(item => {
             if (!item.splitBetween || item.splitBetween.length <= 1) {
               // Not split - full price to single person
@@ -2610,10 +2620,14 @@ export const TabbySimple: React.FC = () => {
           });
 
           // Build people with itemShares
-          return people.map(person => {
+          const result = people.map(person => {
             const personItems = items.filter(item => person.items.includes(item.id));
             const itemShares = personItems.map(item => {
               const share = itemShareMap.get(item.id)?.get(person.id);
+              // DEBUG: Log when falling back to full price
+              if (!share) {
+                console.log('[ShareReceipt] No share found for', item.name, 'person', person.name, '- using full price', item.price);
+              }
               return {
                 itemId: item.id,
                 weight: share?.weight ?? 1,
@@ -2622,6 +2636,11 @@ export const TabbySimple: React.FC = () => {
             });
             return { ...person, itemShares };
           });
+          console.log('[ShareReceipt] Final people data:', result.map(p => ({
+            name: p.name,
+            itemShares: p.itemShares
+          })));
+          return result;
         })()}
         subtotal={subtotal}
         tax={tax}
