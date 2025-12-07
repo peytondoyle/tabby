@@ -2557,7 +2557,55 @@ export const TabbySimple: React.FC = () => {
           year: 'numeric'
         })}
         items={items}
-        people={people}
+        people={(() => {
+          // Pre-calculate all item shares with penny reconciliation
+          const itemShareMap = new Map<string, Map<string, { weight: number; shareAmount: number }>>();
+
+          items.forEach(item => {
+            if (!item.splitBetween || item.splitBetween.length <= 1) {
+              // Not split - full price to single person
+              const personId = item.assignedTo || item.splitBetween?.[0];
+              if (personId) {
+                const personMap = new Map<string, { weight: number; shareAmount: number }>();
+                personMap.set(personId, { weight: 1, shareAmount: item.price });
+                itemShareMap.set(item.id, personMap);
+              }
+              return;
+            }
+
+            // Split item - calculate shares with penny reconciliation
+            const splitCount = item.splitBetween.length;
+            const rawShare = item.price / splitCount;
+            const roundedDown = Math.floor(rawShare * 100) / 100;
+            const totalRounded = roundedDown * splitCount;
+            const remainingCents = Math.round((item.price - totalRounded) * 100);
+
+            const personMap = new Map<string, { weight: number; shareAmount: number }>();
+            item.splitBetween.forEach((personId, index) => {
+              // Give extra pennies to first N people (deterministic)
+              const extraPenny = index < remainingCents ? 0.01 : 0;
+              personMap.set(personId, {
+                weight: 1 / splitCount,
+                shareAmount: roundedDown + extraPenny
+              });
+            });
+            itemShareMap.set(item.id, personMap);
+          });
+
+          // Build people with itemShares
+          return people.map(person => {
+            const personItems = items.filter(item => person.items.includes(item.id));
+            const itemShares = personItems.map(item => {
+              const share = itemShareMap.get(item.id)?.get(person.id);
+              return {
+                itemId: item.id,
+                weight: share?.weight ?? 1,
+                shareAmount: share?.shareAmount ?? item.price
+              };
+            });
+            return { ...person, itemShares };
+          });
+        })()}
         subtotal={subtotal}
         tax={tax}
         tip={tip}
