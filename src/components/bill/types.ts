@@ -10,6 +10,7 @@ export interface ItemData {
   id: string
   name: string
   price: number
-  icon: string
+  icon?: string   // Legacy - prefer emoji
+  emoji?: string  // Preferred field name
   category?: string
 }

@@ -15,7 +15,7 @@ import './TabbySimple.css';
 interface Item {
   id: string;
   emoji: string;
-  name: string;
+  name: string;  // Display name (maps to 'label' in database)
   price: number;
   assignedTo?: string;
   splitBetween?: string[]; // Array of person IDs sharing this item

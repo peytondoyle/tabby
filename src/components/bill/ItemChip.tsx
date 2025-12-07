@@ -13,7 +13,8 @@ export interface ItemData {
   id: string
   name: string
   price: number
-  icon?: string
+  icon?: string   // Legacy field name
+  emoji?: string  // Preferred field name (use this one)
   quantity?: number
 }
 
@@ -42,7 +43,7 @@ export const ItemChip: React.FC<ItemChipProps> = ({
     }
   }
 
-  const itemIcon = item.icon ? normalizeEmoji(item.icon) : '📦'
+  const itemIcon = (item.emoji || item.icon) ? normalizeEmoji(item.emoji || item.icon!) : '📦'
   const displayName = truncateText(item.name, 20)
   const displayPrice = formatMoney(item.price)
 

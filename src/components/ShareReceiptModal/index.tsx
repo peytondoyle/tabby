@@ -6,8 +6,8 @@ import './styles.css';
 interface Item {
   id: string;
   emoji: string;
-  name?: string;
-  label?: string;
+  name?: string;   // TabbySimple uses 'name'
+  label?: string;  // API/database uses 'label'
   price: number;
 }
 

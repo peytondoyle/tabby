@@ -6,7 +6,7 @@ import { HomeButton } from '@/components/HomeButton';
 
 interface Item {
   id: string;
-  label: string;
+  label: string;  // API/database field name
   price: number;
   emoji?: string;
 }
