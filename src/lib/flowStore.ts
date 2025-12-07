@@ -278,32 +278,35 @@ export const useFlowStore = create<FlowState>()(
         const { items, assignments, bill } = get()
         let subtotal = 0
 
-        assignments.forEach((assignments, itemId) => {
-          const personAssignment = assignments.find(a => a.personId === personId)
+        assignments.forEach((itemAssignments, itemId) => {
+          const personAssignment = itemAssignments.find(a => a.personId === personId)
           if (personAssignment) {
             const item = items.find(i => i.id === itemId)
             if (item) {
-              // Calculate cost based on weight
-              const totalWeight = assignments.reduce((sum, a) => sum + a.weight, 0)
-              const personShare = (personAssignment.weight / totalWeight) * item.price
+              // Calculate cost based on weight, round to cents
+              const totalWeight = itemAssignments.reduce((sum, a) => sum + a.weight, 0)
+              const personShare = Math.round(((personAssignment.weight / totalWeight) * item.price) * 100) / 100
               subtotal += personShare
             }
           }
         })
 
-        // Add proportional discounts, fees, tax and tip
+        // Round subtotal to cents
+        subtotal = Math.round(subtotal * 100) / 100
+
+        // Add proportional discounts, fees, tax and tip (all rounded)
         const totalSubtotal = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
         const discount = bill?.discount || 0
         const serviceFee = bill?.service_fee || 0
         const tax = bill?.tax || 0
         const tip = bill?.tip || 0
 
-        const discountShare = totalSubtotal > 0 ? (subtotal / totalSubtotal) * discount : 0
-        const serviceFeeShare = totalSubtotal > 0 ? (subtotal / totalSubtotal) * serviceFee : 0
-        const taxShare = totalSubtotal > 0 ? (subtotal / totalSubtotal) * tax : 0
-        const tipShare = totalSubtotal > 0 ? (subtotal / totalSubtotal) * tip : 0
+        const discountShare = totalSubtotal > 0 ? Math.round(((subtotal / totalSubtotal) * discount) * 100) / 100 : 0
+        const serviceFeeShare = totalSubtotal > 0 ? Math.round(((subtotal / totalSubtotal) * serviceFee) * 100) / 100 : 0
+        const taxShare = totalSubtotal > 0 ? Math.round(((subtotal / totalSubtotal) * tax) * 100) / 100 : 0
+        const tipShare = totalSubtotal > 0 ? Math.round(((subtotal / totalSubtotal) * tip) * 100) / 100 : 0
 
-        return subtotal + discountShare + serviceFeeShare + taxShare + tipShare
+        return Math.round((subtotal + discountShare + serviceFeeShare + taxShare + tipShare) * 100) / 100
       },
 
       computeBillTotals: () => {

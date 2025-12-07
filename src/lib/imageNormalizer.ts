@@ -11,7 +11,9 @@ class ImageNormalizerWorker {
   private pendingOperations = new Map<string, {
     resolve: (result: NormalizedFile) => void
     reject: (error: Error) => void
+    timeout: ReturnType<typeof setTimeout>
   }>()
+  private operationCounter = 0
 
   private getWorker(): Worker {
     if (!this.worker) {
@@ -19,95 +21,84 @@ class ImageNormalizerWorker {
         new URL('../workers/imageNormalizer.worker.ts', import.meta.url),
         { type: 'module' }
       )
-      
+
       this.worker.onmessage = (event) => {
-        const { type, result, error } = event.data
-        
-        if (type === 'success') {
-          // Find the pending operation (we'll use a simple approach for now)
-          const pending = Array.from(this.pendingOperations.values())[0]
-          if (pending) {
-            // Clear timeout
-            if ((pending as any).timeout) {
-              clearTimeout((pending as any).timeout)
-            }
-            
-            const normalizedFile: NormalizedFile = {
-              file: new File([result.blob], 'normalized.jpg', { type: 'image/jpeg' }),
-              originalSize: result.originalSize,
-              normalizedSize: result.normalizedSize,
-              transformations: result.steps
-            }
-            pending.resolve(normalizedFile)
-            this.pendingOperations.clear()
-          }
-        } else if (type === 'error') {
-          const pending = Array.from(this.pendingOperations.values())[0]
-          if (pending) {
-            // Clear timeout
-            if ((pending as any).timeout) {
-              clearTimeout((pending as any).timeout)
-            }
-            
-            pending.reject(new Error(error))
-            this.pendingOperations.clear()
-          }
+        const { type, result, error, operationId } = event.data
+
+        // Find the pending operation by ID (fixes race condition)
+        const pending = this.pendingOperations.get(operationId)
+        if (!pending) {
+          console.warn('[imageNormalizer] Received response for unknown operation:', operationId)
+          return
         }
+
+        // Clear timeout
+        clearTimeout(pending.timeout)
+
+        if (type === 'success') {
+          const normalizedFile: NormalizedFile = {
+            file: new File([result.blob], 'normalized.jpg', { type: 'image/jpeg' }),
+            originalSize: result.originalSize,
+            normalizedSize: result.normalizedSize,
+            transformations: result.steps
+          }
+          pending.resolve(normalizedFile)
+        } else if (type === 'error') {
+          pending.reject(new Error(error))
+        }
+
+        this.pendingOperations.delete(operationId)
       }
-      
+
       this.worker.onerror = (error) => {
         console.error('[imageNormalizer] Worker error:', error)
-        const pending = Array.from(this.pendingOperations.values())[0]
-        if (pending) {
-          // Clear timeout
-          if ((pending as any).timeout) {
-            clearTimeout((pending as any).timeout)
-          }
-          
+        // Reject all pending operations on worker crash
+        for (const [id, pending] of this.pendingOperations) {
+          clearTimeout(pending.timeout)
           pending.reject(new Error(`Worker error: ${error.message || 'Unknown worker error'}`))
-          this.pendingOperations.clear()
         }
+        this.pendingOperations.clear()
+        // Terminate and recreate worker on next use
+        this.worker?.terminate()
+        this.worker = null
       }
     }
-    
+
     return this.worker
   }
 
   async normalizeFile(file: File): Promise<NormalizedFile> {
     return new Promise((resolve, reject) => {
-      const operationId = Math.random().toString(36)
-      
-      this.pendingOperations.set(operationId, { resolve, reject })
-      
+      // Generate unique operation ID to prevent race conditions
+      const operationId = `op-${++this.operationCounter}-${Date.now()}`
+
       // Add timeout to prevent hanging
       const timeout = setTimeout(() => {
         this.pendingOperations.delete(operationId)
         reject(new Error('Image normalization timeout'))
       }, 30000) // 30 second timeout
-      
+
+      this.pendingOperations.set(operationId, { resolve, reject, timeout })
+
       try {
+        // Pass operation ID to worker so it can return it with response
         this.getWorker().postMessage({
           type: 'normalize',
-          file
+          file,
+          operationId
         })
       } catch (error) {
         clearTimeout(timeout)
         this.pendingOperations.delete(operationId)
-        
+
         // If worker fails, try to handle HEIC files directly
-        if (file.type === 'image/heic' || file.type === 'image/heif' || 
+        if (file.type === 'image/heic' || file.type === 'image/heif' ||
             file.name.toLowerCase().match(/\.(heic|heif)$/)) {
           console.warn('[imageNormalizer] Worker failed for HEIC, trying direct conversion')
           this.handleHeicDirectly(file).then(resolve).catch(reject)
         } else {
           reject(error instanceof Error ? error : new Error('Failed to start normalization'))
         }
-      }
-      
-      // Store timeout with the operation so we can clear it on success/error
-      const operation = this.pendingOperations.get(operationId)
-      if (operation) {
-        (operation as any).timeout = timeout
       }
     })
   }

@@ -12,6 +12,63 @@ interface AssignStepProps {
   onPrev: () => void
 }
 
+// Edit price modal component
+const EditPriceModal: React.FC<{
+  item: { id: string; label: string; price: number } | null
+  onSave: (newPrice: number) => void
+  onClose: () => void
+}> = ({ item, onSave, onClose }) => {
+  const [priceValue, setPriceValue] = useState(item?.price.toFixed(2) ?? '')
+
+  if (!item) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        className="bg-[var(--ui-panel)] rounded-2xl p-6 w-80 shadow-xl border border-[var(--ui-border)]"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-semibold text-[var(--ui-text)] mb-4">Edit Price</h3>
+        <p className="text-sm text-[var(--ui-text-dim)] mb-4">{item.label}</p>
+        <div className="flex items-center gap-2 mb-6">
+          <span className="text-[var(--ui-text)] text-lg">$</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={priceValue}
+            onChange={(e) => setPriceValue(e.target.value)}
+            className="flex-1 bg-[var(--ui-panel-2)] border border-[var(--ui-border)] rounded-lg px-3 py-2 text-[var(--ui-text)] text-lg"
+            autoFocus
+          />
+        </div>
+        <div className="flex gap-3">
+          <Button variant="ghost" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            className="flex-1"
+            onClick={() => {
+              const newPrice = parseFloat(priceValue)
+              if (!isNaN(newPrice) && newPrice >= 0) {
+                onSave(newPrice)
+              }
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
 export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
   const {
     people,
@@ -19,11 +76,35 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
     getItemAssignments,
     assign,
     unassign,
-    getTotalForPerson
+    getTotalForPerson,
+    updateItem,
+    removeItem
   } = useFlowStore()
 
   const [selectedItems, setSelectedItems] = useState<Set<ItemId>>(new Set())
   const [isSplittingBill, setIsSplittingBill] = useState(false)
+  const [editingItem, setEditingItem] = useState<{ id: string; label: string; price: number } | null>(null)
+
+  // Edit/delete handlers
+  const handleEditItem = useCallback((itemId: string) => {
+    const item = items.find(i => i.id === itemId)
+    if (item) {
+      setEditingItem({ id: item.id, label: item.label, price: item.price })
+    }
+  }, [items])
+
+  const handleSavePrice = useCallback((newPrice: number) => {
+    if (editingItem) {
+      updateItem(editingItem.id as ItemId, { price: newPrice })
+      setEditingItem(null)
+    }
+  }, [editingItem, updateItem])
+
+  const handleDeleteItem = useCallback((itemId: string) => {
+    if (confirm('Delete this item?')) {
+      removeItem(itemId as ItemId)
+    }
+  }, [removeItem])
 
   const handleItemToggle = useCallback((itemId: ItemId) => {
     setSelectedItems(prev => {
@@ -162,7 +243,10 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
                         icon={item.emoji}
                         name={item.label}
                         price={item.price}
-                        onClick={(itemId) => handleQuickAssign(itemId, person.id)}
+                        showPrice={true}
+                        onClick={(itemId) => handleQuickAssign(itemId as ItemId, person.id)}
+                        onEdit={handleEditItem}
+                        onDelete={handleDeleteItem}
                       />
                     ))}
                   </div>
@@ -247,12 +331,15 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
                     price={item.price}
                     selected={isSelected}
                     assigned={isAssigned && !isSelected}
+                    showPrice={isAssigned || isSelected}
                     onClick={handleItemToggle}
+                    onEdit={handleEditItem}
+                    onDelete={handleDeleteItem}
                   />
-                  
+
                   {/* Assignment count badge */}
                   {isAssigned && assignments.length > 0 && !isSelected && (
-                    <motion.div 
+                    <motion.div
                       className="absolute -top-2 -right-2 bg-[var(--ui-primary)] text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
@@ -323,6 +410,17 @@ export const AssignStep: React.FC<AssignStepProps> = ({ onNext, onPrev }) => {
         </div>
       </div>
       </div>
+
+      {/* Edit Price Modal */}
+      <AnimatePresence>
+        {editingItem && (
+          <EditPriceModal
+            item={editingItem}
+            onSave={handleSavePrice}
+            onClose={() => setEditingItem(null)}
+          />
+        )}
+      </AnimatePresence>
     </StepErrorBoundary>
   )
 }

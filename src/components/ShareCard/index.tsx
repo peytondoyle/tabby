@@ -139,14 +139,14 @@ export const ShareCard: React.FC<ShareCardProps> = ({
         if (sharesError) throw sharesError
         setItemShares(sharesData)
 
-        // Calculate person totals
+        // Calculate person totals with proper rounding
         const totals = peopleData.map((person: Person) => {
           const personShares = sharesData.filter((share: ItemShare) => share.person_id === person.id)
-          const subtotal = personShares.reduce((sum: number, share: ItemShare) => sum + share.share_amount, 0)
-          const taxShare = (subtotal / billData.subtotal) * billData.sales_tax
-          const tipShare = (subtotal / billData.subtotal) * billData.tip
-          const total = subtotal + taxShare + tipShare
-          
+          const subtotal = Math.round(personShares.reduce((sum: number, share: ItemShare) => sum + share.share_amount, 0) * 100) / 100
+          const taxShare = billData.subtotal > 0 ? Math.round(((subtotal / billData.subtotal) * billData.sales_tax) * 100) / 100 : 0
+          const tipShare = billData.subtotal > 0 ? Math.round(((subtotal / billData.subtotal) * billData.tip) * 100) / 100 : 0
+          const total = Math.round((subtotal + taxShare + tipShare) * 100) / 100
+
           return {
             person_id: person.id,
             subtotal,

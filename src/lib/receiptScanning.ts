@@ -296,13 +296,6 @@ function isDiscount(label: string): boolean {
   return discountKeywords.some(keyword => lowerLabel.includes(keyword))
 }
 
-// Check if two items are duplicates (same label and price)
-function areDuplicates(item1: { label: string; price: number }, item2: { label: string; price: number }): boolean {
-  const normalizeLabel = (label: string) => label.toLowerCase().trim().replace(/\s+/g, ' ')
-  return normalizeLabel(item1.label) === normalizeLabel(item2.label) && 
-         Math.abs(item1.price - item2.price) < 0.01 // Allow for small floating point differences
-}
-
 // Process and normalize items
 function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?: string | null }>): Array<{
   id: string
@@ -353,8 +346,10 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
   
   console.log(`[process_items] After filtering: ${normalizedItems.length} items`)
   
-  // Step 2: Coalesce duplicates
-  const coalescedItems: Array<{
+  // Step 2: Filter special items (fees, tips) and process discounts
+  // NOTE: We no longer coalesce duplicates because server already expanded quantity items
+  // (e.g., "2 Membership Charge" -> 2 separate items) and we want to keep them separate for splitting
+  const processedItems: Array<{
     id: string
     label: string
     price: number
@@ -362,14 +357,14 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
     quantity: number
     unit_price: number
   }> = []
-  
+
   for (const item of normalizedItems) {
     // Skip service charges and tips - they'll be handled separately
     if (isServiceCharge(item.label) || isTip(item.label)) {
       console.log(`[process_items] Skipping fee/tip item: ${item.label} - $${item.price}`)
       continue
     }
-    
+
     // Check if this item is a discount (keep as negative line item)
     if (isDiscount(item.label) && item.price > 0) {
       // Make discount negative
@@ -377,27 +372,14 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
       item.unit_price = item.price
       console.log(`[process_items] Discount item: ${item.label} - $${item.price}`)
     }
-    
-    // Look for existing duplicate
-    const existingIndex = coalescedItems.findIndex(existing => 
-      areDuplicates(existing, item)
-    )
-    
-    if (existingIndex >= 0) {
-      // Merge with existing item
-      const existing = coalescedItems[existingIndex]
-      existing.quantity += item.quantity
-      existing.price += item.price
-      console.log(`[process_items] Coalesced duplicate: ${item.label} (qty: ${existing.quantity}, total: $${existing.price})`)
-    } else {
-      // Add as new item
-      coalescedItems.push(item)
-    }
+
+    // Add item as-is (no coalescing - keep expanded items separate for splitting)
+    processedItems.push(item)
   }
-  
-  console.log(`[process_items] After coalescing: ${coalescedItems.length} items`)
-  
-  return coalescedItems
+
+  console.log(`[process_items] After processing: ${processedItems.length} items`)
+
+  return processedItems
 }
 
 // Normalize number values, convert NaN to 0
@@ -937,3 +919,124 @@ export function setScanCacheEnabled(enabled: boolean) {
   localStorage.setItem('use-scan-cache', enabled ? '1' : '0')
   console.info(`[scan_cache] Scan cache ${enabled ? 'enabled' : 'disabled'}`)
 }
+
+// #11: Correction Feedback Loop Integration
+// Sync local corrections to server for OCR improvement
+
+interface CorrectionFeedback {
+  field: string
+  originalValue: number | string | null
+  correctedValue: number | string
+  correctionType: 'manual' | 'suggested_applied' | 'auto_calculated'
+  wasHandwritten?: boolean
+  receiptId?: string
+}
+
+// Get session ID for feedback grouping (uses localStorage for persistence)
+function getFeedbackSessionId(): string {
+  let sessionId = localStorage.getItem('tabby_feedback_session')
+  if (!sessionId) {
+    sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`
+    localStorage.setItem('tabby_feedback_session', sessionId)
+  }
+  return sessionId
+}
+
+// Sync local corrections to server for OCR learning
+export async function syncCorrectionsToServer(): Promise<{ success: boolean; adjustmentsGenerated?: number }> {
+  try {
+    // Get local corrections from correctionAnalytics
+    const localCorrectionsRaw = localStorage.getItem('tabby_correction_analytics')
+    if (!localCorrectionsRaw) {
+      console.info('[feedback] No local corrections to sync')
+      return { success: true }
+    }
+
+    const localCorrections = JSON.parse(localCorrectionsRaw)
+    if (!Array.isArray(localCorrections) || localCorrections.length === 0) {
+      console.info('[feedback] No corrections in local storage')
+      return { success: true }
+    }
+
+    // Only sync corrections from the last 24 hours
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+    const recentCorrections = localCorrections.filter((c: any) => {
+      const createdAt = new Date(c.created_at).getTime()
+      return createdAt > oneDayAgo
+    })
+
+    if (recentCorrections.length === 0) {
+      console.info('[feedback] No recent corrections to sync')
+      return { success: true }
+    }
+
+    // Format corrections for server
+    const corrections: CorrectionFeedback[] = recentCorrections.map((c: any) => ({
+      field: c.field,
+      originalValue: c.original_value,
+      correctedValue: c.corrected_value,
+      correctionType: c.correction_type,
+      wasHandwritten: c.was_handwritten,
+      receiptId: c.receipt_id
+    }))
+
+    const sessionId = getFeedbackSessionId()
+    console.info(`[feedback] Syncing ${corrections.length} corrections for session ${sessionId}`)
+
+    const response = await fetch(`${API_BASE}/api/corrections/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ corrections, sessionId })
+    })
+
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.info(`[feedback] Server generated ${result.adjustmentsGenerated || 0} prompt adjustments from ${result.patternsTracked || 0} patterns`)
+
+    return {
+      success: true,
+      adjustmentsGenerated: result.adjustmentsGenerated
+    }
+  } catch (error) {
+    console.warn('[feedback] Failed to sync corrections:', error)
+    return { success: false }
+  }
+}
+
+// Fetch learned adjustments from server for upcoming OCR requests
+export async function fetchOCRAdjustments(): Promise<string[]> {
+  try {
+    const sessionId = getFeedbackSessionId()
+    const response = await fetch(`${API_BASE}/api/corrections/feedback?sessionId=${sessionId}`)
+
+    if (!response.ok) {
+      return []
+    }
+
+    const data = await response.json()
+    return data.adjustments || []
+  } catch (error) {
+    console.warn('[feedback] Failed to fetch OCR adjustments:', error)
+    return []
+  }
+}
+
+// Auto-sync corrections periodically (call this on app startup or after corrections)
+let syncTimeout: ReturnType<typeof setTimeout> | null = null
+
+export function scheduleCorrectionSync(delayMs: number = 5000): void {
+  if (syncTimeout) {
+    clearTimeout(syncTimeout)
+  }
+
+  syncTimeout = setTimeout(async () => {
+    await syncCorrectionsToServer()
+    syncTimeout = null
+  }, delayMs)
+}
+
+// Export for testing
+export { getFeedbackSessionId }
