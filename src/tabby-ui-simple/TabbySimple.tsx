@@ -2546,6 +2546,7 @@ export const TabbySimple: React.FC = () => {
       />
 
       {/* Share Receipt Modal */}
+      {showShareReceipt && console.log('[ShareReceipt] Modal opening, items:', items.map(i => ({ name: i.name, splitBetween: i.splitBetween })))}
       <ShareReceiptModal
         isOpen={showShareReceipt}
         onClose={() => setShowShareReceipt(false)}
