@@ -315,27 +315,65 @@ export const useFlowStore = create<FlowState>()(
         const tip = bill?.tip || 0
         const billTotal = subtotal + discount + serviceFee + tax + tip
 
+        // Pre-calculate item shares with penny reconciliation
+        const itemShareMap = new Map<string, Map<string, number>>()
+        items.forEach(item => {
+          const itemAssignments = assignments.get(item.id) || []
+          if (itemAssignments.length === 0) return
+
+          const totalWeight = itemAssignments.reduce((sum, a) => sum + a.weight, 0)
+          if (totalWeight === 0) return
+
+          // Calculate raw shares and round down
+          const shares: Array<{ personId: string; rawShare: number; roundedShare: number }> = []
+          let totalRounded = 0
+
+          itemAssignments.forEach(assignment => {
+            const rawShare = (assignment.weight / totalWeight) * item.price
+            const roundedShare = Math.floor(rawShare * 100) / 100
+            totalRounded += roundedShare
+            shares.push({ personId: assignment.personId, rawShare, roundedShare })
+          })
+
+          // Distribute remaining pennies to highest fractional parts
+          const remainingCents = Math.round((item.price - totalRounded) * 100)
+          if (remainingCents > 0) {
+            const sortedByFraction = [...shares].sort((a, b) => {
+              const fracA = (a.rawShare * 100) % 1
+              const fracB = (b.rawShare * 100) % 1
+              return fracB - fracA
+            })
+            for (let i = 0; i < remainingCents && i < sortedByFraction.length; i++) {
+              sortedByFraction[i].roundedShare += 0.01
+            }
+          }
+
+          // Store in map
+          const personMap = new Map<string, number>()
+          shares.forEach(share => personMap.set(share.personId, share.roundedShare))
+          itemShareMap.set(item.id, personMap)
+        })
+
+        // Calculate person totals using pre-calculated shares
         const personTotals = people.map(person => {
-          // Get person's item subtotal
+          // Get person's item subtotal from pre-calculated shares
           let personSubtotal = 0
-          assignments.forEach((itemAssignments, itemId) => {
-            const personAssignment = itemAssignments.find(a => a.personId === person.id)
-            if (personAssignment) {
-              const item = items.find(i => i.id === itemId)
-              if (item) {
-                const totalWeight = itemAssignments.reduce((sum, a) => sum + a.weight, 0)
-                const personShare = (personAssignment.weight / totalWeight) * item.price
-                personSubtotal += personShare
-              }
+          itemShareMap.forEach((personShares, _itemId) => {
+            const share = personShares.get(person.id)
+            if (share !== undefined) {
+              personSubtotal += share
             }
           })
 
+          // Round subtotal to cents
+          personSubtotal = Math.round(personSubtotal * 100) / 100
+
           // Calculate proportional discount, service fee, tax and tip shares
-          const discountShare = subtotal > 0 ? (personSubtotal / subtotal) * discount : 0
-          const serviceFeeShare = subtotal > 0 ? (personSubtotal / subtotal) * serviceFee : 0
-          const taxShare = subtotal > 0 ? (personSubtotal / subtotal) * tax : 0
-          const tipShare = subtotal > 0 ? (personSubtotal / subtotal) * tip : 0
-          const total = personSubtotal + discountShare + serviceFeeShare + taxShare + tipShare
+          const discountShare = subtotal > 0 ? Math.round((personSubtotal / subtotal) * discount * 100) / 100 : 0
+          const serviceFeeShare = subtotal > 0 ? Math.round((personSubtotal / subtotal) * serviceFee * 100) / 100 : 0
+          const taxShare = subtotal > 0 ? Math.round((personSubtotal / subtotal) * tax * 100) / 100 : 0
+          const tipShare = subtotal > 0 ? Math.round((personSubtotal / subtotal) * tip * 100) / 100 : 0
+          const total = Math.round((personSubtotal + discountShare + serviceFeeShare + taxShare + tipShare) * 100) / 100
 
           return {
             personId: person.id,
@@ -347,6 +385,25 @@ export const useFlowStore = create<FlowState>()(
             total
           }
         })
+
+        // Reconcile pennies: ensure person totals sum to billTotal
+        const personTotalsSum = personTotals.reduce((sum, p) => sum + p.total, 0)
+        const pennyDiff = Math.round((billTotal - personTotalsSum) * 100)
+        if (pennyDiff !== 0 && personTotals.length > 0) {
+          // Sort by total descending and distribute pennies
+          const sortedIndices = personTotals
+            .map((_, i) => i)
+            .sort((a, b) => personTotals[b].total - personTotals[a].total)
+
+          const penniesPerPerson = Math.floor(Math.abs(pennyDiff) / personTotals.length)
+          const remainder = Math.abs(pennyDiff) % personTotals.length
+          const sign = pennyDiff > 0 ? 1 : -1
+
+          sortedIndices.forEach((idx, i) => {
+            const extraPennies = penniesPerPerson + (i < remainder ? 1 : 0)
+            personTotals[idx].total = Math.round((personTotals[idx].total + (sign * extraPennies * 0.01)) * 100) / 100
+          })
+        }
 
         return { personTotals, billTotal }
       },

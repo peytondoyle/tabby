@@ -2580,13 +2580,30 @@ export const TabbySimple: React.FC = () => {
             const totalRounded = roundedDown * splitCount;
             const remainingCents = Math.round((item.price - totalRounded) * 100);
 
+            // Build shares array with fractional parts for fair penny distribution
+            const shares = item.splitBetween.map(personId => ({
+              personId,
+              rawShare,
+              roundedShare: roundedDown
+            }));
+
+            // Give extra pennies to those with highest fractional parts
+            if (remainingCents > 0) {
+              const sortedByFraction = [...shares].sort((a, b) => {
+                const fracA = (a.rawShare * 100) % 1;
+                const fracB = (b.rawShare * 100) % 1;
+                return fracB - fracA;
+              });
+              for (let i = 0; i < remainingCents && i < sortedByFraction.length; i++) {
+                sortedByFraction[i].roundedShare += 0.01;
+              }
+            }
+
             const personMap = new Map<string, { weight: number; shareAmount: number }>();
-            item.splitBetween.forEach((personId, index) => {
-              // Give extra pennies to first N people (deterministic)
-              const extraPenny = index < remainingCents ? 0.01 : 0;
-              personMap.set(personId, {
+            shares.forEach(share => {
+              personMap.set(share.personId, {
                 weight: 1 / splitCount,
-                shareAmount: roundedDown + extraPenny
+                shareAmount: share.roundedShare
               });
             });
             itemShareMap.set(item.id, personMap);

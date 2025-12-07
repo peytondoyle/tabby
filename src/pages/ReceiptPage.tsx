@@ -105,65 +105,109 @@ export const ReceiptPage: React.FC = () => {
             itemWeightTotals.set(share.item_id, current + (share.weight || 1));
           });
 
-          // First pass: calculate each person's item subtotals
+          // Pre-calculate item shares with penny reconciliation
+          const itemShareMap = new Map<string, Map<string, { weight: number; shareAmount: number }>>();
+          items.forEach(item => {
+            const itemShares = (billData.shares || []).filter((s: any) => s.item_id === item.id);
+            if (itemShares.length === 0) return;
+
+            const totalWeight = itemWeightTotals.get(item.id) || 1;
+
+            // Calculate raw shares and round down
+            const shares: Array<{ personId: string; weight: number; rawShare: number; roundedShare: number }> = [];
+            let totalRounded = 0;
+
+            itemShares.forEach((share: any) => {
+              const weight = share.weight || 1;
+              const normalizedWeight = weight / totalWeight;
+              const rawShare = item.price * normalizedWeight;
+              const roundedShare = Math.floor(rawShare * 100) / 100;
+              totalRounded += roundedShare;
+              shares.push({ personId: share.person_id, weight: normalizedWeight, rawShare, roundedShare });
+            });
+
+            // Distribute remaining pennies to highest fractional parts
+            const remainingCents = Math.round((item.price - totalRounded) * 100);
+            if (remainingCents > 0) {
+              const sortedByFraction = [...shares].sort((a, b) => {
+                const fracA = (a.rawShare * 100) % 1;
+                const fracB = (b.rawShare * 100) % 1;
+                return fracB - fracA;
+              });
+              for (let i = 0; i < remainingCents && i < sortedByFraction.length; i++) {
+                sortedByFraction[i].roundedShare += 0.01;
+              }
+            }
+
+            // Store in map
+            const personMap = new Map<string, { weight: number; shareAmount: number }>();
+            shares.forEach(share => personMap.set(share.personId, { weight: share.weight, shareAmount: share.roundedShare }));
+            itemShareMap.set(item.id, personMap);
+          });
+
+          // Calculate all people subtotals for proper proportional distribution
           const personSubtotals = new Map<string, number>();
           (billData.people || []).forEach((person: any) => {
-            const personShares = (billData.shares || []).filter(
-              (share: any) => share.person_id === person.id
-            );
             let personItemsSubtotal = 0;
-            personShares.forEach((share: any) => {
-              const item = items.find(i => i.id === share.item_id);
-              const itemPrice = item?.price || 0;
-              const totalWeight = itemWeightTotals.get(share.item_id) || 1;
-              const weight = share.weight || 1;
-              personItemsSubtotal += (weight / totalWeight) * itemPrice;
+            itemShareMap.forEach((personShares) => {
+              const share = personShares.get(person.id);
+              if (share) personItemsSubtotal += share.shareAmount;
             });
             personSubtotals.set(person.id, personItemsSubtotal);
           });
-
-          // Calculate total of all people's subtotals for proper proportional distribution
-          // This ensures tip/tax splits sum exactly to the entered amounts
           const allPeopleSubtotal = Array.from(personSubtotals.values()).reduce((sum, s) => sum + s, 0);
 
-          // Map people from API and calculate their items/totals from shares with proper weights
+          // Map people from API and calculate their items/totals
           people = (billData.people || []).map((person: any) => {
             const personShares = (billData.shares || []).filter(
               (share: any) => share.person_id === person.id
             );
             const personItemIds = personShares.map((share: any) => share.item_id);
 
-            // Calculate share amounts based on weights
-            const itemShares: ItemShare[] = personShares.map((share: any) => {
-              const item = items.find(i => i.id === share.item_id);
-              const itemPrice = item?.price || 0;
-              const totalWeight = itemWeightTotals.get(share.item_id) || 1;
-              const weight = share.weight || 1;
-              const shareAmount = (weight / totalWeight) * itemPrice;
-
+            // Get pre-calculated item shares
+            const itemShares: ItemShare[] = personItemIds.map((itemId: string) => {
+              const share = itemShareMap.get(itemId)?.get(person.id);
               return {
-                itemId: share.item_id,
-                weight: weight / totalWeight,  // Normalized weight (0-1)
-                shareAmount
+                itemId,
+                weight: share?.weight ?? 1,
+                shareAmount: share?.shareAmount ?? 0
               };
-            });
+            }).filter((s: ItemShare) => s.shareAmount > 0);
 
             // Calculate person's subtotal from their share amounts
             const itemsSubtotal = itemShares.reduce((sum, share) => sum + share.shareAmount, 0);
             // Use allPeopleSubtotal as denominator to ensure proportions sum to 1.0
             const proportion = allPeopleSubtotal > 0 ? itemsSubtotal / allPeopleSubtotal : 0;
-            const personTax = tax * proportion;
-            const personTip = tip * proportion;
-            const personTotal = itemsSubtotal + personTax + personTip;
+            const personTax = Math.round(tax * proportion * 100) / 100;
+            const personTip = Math.round(tip * proportion * 100) / 100;
+            const personTotal = Math.round((itemsSubtotal + personTax + personTip) * 100) / 100;
 
             return {
               id: person.id,
               name: person.name,
               items: personItemIds,
-              itemShares,  // Include calculated share amounts
+              itemShares,
               total: personTotal
             };
           });
+
+          // Reconcile pennies: ensure person totals sum to grand total
+          const grandTotal = subtotal + tax + tip;
+          const personTotalsSum = people.reduce((sum, p) => sum + p.total, 0);
+          const pennyDiff = Math.round((grandTotal - personTotalsSum) * 100);
+          if (pennyDiff !== 0 && people.length > 0) {
+            const sortedIndices = people
+              .map((_, i) => i)
+              .sort((a, b) => people[b].total - people[a].total);
+            const penniesPerPerson = Math.floor(Math.abs(pennyDiff) / people.length);
+            const remainder = Math.abs(pennyDiff) % people.length;
+            const sign = pennyDiff > 0 ? 1 : -1;
+
+            sortedIndices.forEach((idx, i) => {
+              const extraPennies = penniesPerPerson + (i < remainder ? 1 : 0);
+              people[idx].total = Math.round((people[idx].total + (sign * extraPennies * 0.01)) * 100) / 100;
+            });
+          }
         }
 
         const receiptData: ReceiptData = {
