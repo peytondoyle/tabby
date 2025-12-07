@@ -132,16 +132,35 @@ export const ShareCard: React.FC<ShareCardProps> = ({
         if (itemsError) throw itemsError
         setItems(itemsData)
 
-        // Fetch item shares
+        // Fetch item shares (only has weight, not share_amount - we calculate it)
         const { data: sharesData, error: sharesError } = await supabase!.rpc('get_item_shares_by_token', {
           token: billToken
         })
         if (sharesError) throw sharesError
-        setItemShares(sharesData)
+
+        // Calculate share_amount from weights and item prices
+        // Group shares by item to compute total weight per item
+        const itemWeightTotals = new Map<string, number>()
+        sharesData.forEach((share: { item_id: string; weight: number }) => {
+          const current = itemWeightTotals.get(share.item_id) || 0
+          itemWeightTotals.set(share.item_id, current + share.weight)
+        })
+
+        // Now compute share_amount for each share
+        const sharesWithAmounts: ItemShare[] = sharesData.map((share: { item_id: string; person_id: string; weight: number }) => {
+          const item = itemsData.find((i: Item) => i.id === share.item_id)
+          const totalWeight = itemWeightTotals.get(share.item_id) || 1
+          const shareAmount = item ? Math.round(((share.weight / totalWeight) * item.price) * 100) / 100 : 0
+          return {
+            ...share,
+            share_amount: shareAmount
+          }
+        })
+        setItemShares(sharesWithAmounts)
 
         // Calculate person totals with proper rounding
         const totals = peopleData.map((person: Person) => {
-          const personShares = sharesData.filter((share: ItemShare) => share.person_id === person.id)
+          const personShares = sharesWithAmounts.filter((share: ItemShare) => share.person_id === person.id)
           const subtotal = Math.round(personShares.reduce((sum: number, share: ItemShare) => sum + share.share_amount, 0) * 100) / 100
           const taxShare = billData.subtotal > 0 ? Math.round(((subtotal / billData.subtotal) * billData.sales_tax) * 100) / 100 : 0
           const tipShare = billData.subtotal > 0 ? Math.round(((subtotal / billData.subtotal) * billData.tip) * 100) / 100 : 0
