@@ -5,10 +5,8 @@ import { useNavigate } from 'react-router-dom'
 import { isSupabaseAvailable } from '@/lib/supabaseClient'
 import { ReceiptScanner } from '@/components/ReceiptScanner'
 import type { ParseResult } from '@/lib/receiptScanning'
-import { useFlowStore } from '@/lib/flowStore'
 import { apiFetch } from '@/lib/apiClient'
 import { logServer } from '@/lib/errorLogger'
-// import { OnboardingFlow } from '@/components/OnboardingFlow'
 import { getCurrentDate } from '@/lib/receiptScanning'
 import { fetchReceipts, deleteReceipt, createReceipt, buildCreatePayload, type ReceiptListItem } from '@/lib/receipts'
 import { getReceiptHistory, removeReceiptFromHistory, type ReceiptHistoryItem } from '@/lib/receiptHistory'
@@ -268,7 +266,7 @@ export const MyBillsPage: React.FC = () => {
     onSuccess: (receipt) => {
       queryClient.invalidateQueries({ queryKey: ['my-bills'] })
               // Navigate using the receipt's editor token
-        navigate(`/bill/${(receipt as any).editor_token}`)
+        navigate(`/receipt/${(receipt as any).editor_token}/edit`)
     }
   })
 
@@ -308,10 +306,6 @@ export const MyBillsPage: React.FC = () => {
 
   // Inline draft helper - creates bill and items from parse result
   const createDraftFromScan = async (result: ParseResult): Promise<string> => {
-    // Use getState() to access store outside of React component context
-    // This is safe because it doesn't use React hooks
-    const flowStore = useFlowStore.getState()
-
     try {
       // Use the new schema-aligned createReceipt function
       const payload = buildCreatePayload(result)
@@ -320,69 +314,13 @@ export const MyBillsPage: React.FC = () => {
       // The API returns {receipt: {id, ...}, items: [...]}
       const billId = created.receipt?.id || created.id
 
-      // Set bill metadata using helper
-      flowStore.setBillMeta({
-        token: billId,
-        title: result.place || 'Scanned Receipt',
-        place: result.place || undefined,
-        date: result.date || undefined,
-        subtotal: result.subtotal || undefined,
-        tax: result.tax || undefined,
-        tip: result.tip || undefined,
-        total: result.total || undefined
-      })
-      
-      // Replace items using helper
-      const flowItems = result.items.map(item => ({
-        id: item.id,
-        label: item.label,
-        price: item.price,
-        emoji: item.emoji || '🍽️'
-      }))
-      flowStore.replaceItems(flowItems)
-      
       return billId
-      
+
     } catch (error) {
       console.error('[scan_api_error] Failed to create bill via server API:', error)
       logServer('error', 'Failed to create bill via server API', { error, context: 'MyBillsPage.createDraftFromScan' })
-      
-      // Check if local fallback is allowed
-      const allowLocalFallback = import.meta.env.VITE_ALLOW_LOCAL_FALLBACK === '1'
-      
-      if (!allowLocalFallback) {
-        // Re-throw the error for the UI to handle
-        throw error
-      }
-      
-      console.warn('Creating local fallback token...')
+      throw error
     }
-    
-    // Fallback: create local token and store locally (only if allowed)
-    const localToken = `local-${Date.now()}`
-    
-    // Set bill metadata using helper
-    flowStore.setBillMeta({
-      token: localToken,
-      title: result.place || 'Scanned Receipt',
-      place: result.place || undefined,
-      date: result.date || undefined,
-      subtotal: result.subtotal || undefined,
-      tax: result.tax || undefined,
-      tip: result.tip || undefined,
-      total: result.total || undefined
-    })
-    
-    // Replace items using helper
-    const flowItems = result.items.map(item => ({
-      id: item.id,
-      label: item.label,
-      price: item.price,
-      emoji: item.emoji || '🍽️'
-    }))
-    flowStore.replaceItems(flowItems)
-    
-    return localToken
   }
 
   const handleParsed = async (result: ParseResult) => {
@@ -396,7 +334,7 @@ export const MyBillsPage: React.FC = () => {
       // Small delay to ensure modal is closed before navigation
       setTimeout(() => {
         // Navigate to bill flow
-        navigate(`/bill/${token}`)
+        navigate(`/receipt/${token}/edit`)
       }, 100)
     } catch (error) {
       console.error('Error handling parsed receipt:', error)
@@ -473,7 +411,7 @@ export const MyBillsPage: React.FC = () => {
               <div
                 key={bill.token}
                 className="bg-white rounded-xl p-4 border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
-                onClick={() => navigate(`/bill/${bill.token}`)}
+                onClick={() => navigate(`/receipt/${bill.token}/edit`)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">
@@ -506,7 +444,7 @@ export const MyBillsPage: React.FC = () => {
                       aria-label="Share bill"
                       onClick={async (e) => {
                         e.stopPropagation()
-                        const shareUrl = `${window.location.origin}/bill/${bill.token}`
+                        const shareUrl = `${window.location.origin}/receipt/${bill.token}`
                         try {
                           if (navigator.share) {
                             await navigator.share({
@@ -642,19 +580,6 @@ export const MyBillsPage: React.FC = () => {
           />
         )}
       </AnimatePresence>
-
-      {/* Onboarding Flow - temporarily commented out for debugging */}
-      {/*
-      <OnboardingFlow
-        isOpen={showOnboarding}
-        onClose={() => {
-          setShowOnboarding(false)
-          localStorage.setItem('tabby-onboarding-seen', 'true')
-          setHasSeenOnboarding(true)
-        }}
-        onComplete={() => console.log('TODO')}
-      />
-      */}
 
     </StepErrorBoundary>
   )

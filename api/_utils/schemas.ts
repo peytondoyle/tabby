@@ -32,6 +32,8 @@ export const CreateReceiptRequestSchema = z.object({
   })).default([]),
   tax: z.number().default(0),
   tip: z.number().default(0),
+  discount: z.number().default(0),      // Discount amount (subtracted from total)
+  service_fee: z.number().default(0),   // Service fee (added to total)
   user_id: z.string().optional() // Optional user ID for authenticated users
 })
 
@@ -48,6 +50,8 @@ export const ReceiptSchema = z.object({
   subtotal: z.number().nullable(),
   sales_tax: z.number().nullable(),
   tip: z.number().nullable(),
+  discount: z.number().nullable().default(0),
+  service_fee: z.number().nullable().default(0),
   total_amount: z.number().nullable(),
   item_count: z.number(),
   people_count: z.number(),

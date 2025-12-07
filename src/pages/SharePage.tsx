@@ -117,7 +117,7 @@ export const SharePage: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
           >
             <Link
-              to={`/bill/${id}`}
+              to={`/receipt/${id}/edit`}
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
             >
               <ExternalLink size={16} />

@@ -79,12 +79,12 @@ export const ReceiptPage: React.FC = () => {
           emoji: item.emoji || item.icon || '🍽️'
         }));
 
-        // Calculate totals - prefer localStorage values (which include discount/serviceFee)
+        // Calculate totals - API now returns discount/service_fee from database
         let subtotal = Number(billData.receipt.subtotal || 0);
         let tax = Number(billData.receipt.sales_tax || 0);
         let tip = Number(billData.receipt.tip || 0);
-        let discount = 0;
-        let serviceFee = 0;
+        let discount = Number(billData.receipt.discount || 0);
+        let serviceFee = Number(billData.receipt.service_fee || 0);
         let total = subtotal - discount + serviceFee + tax + tip;
 
         // Try to get people and assignments from localStorage if available
@@ -94,9 +94,9 @@ export const ReceiptPage: React.FC = () => {
           try {
             const shareData = JSON.parse(localShareData);
             people = shareData.people || [];
-            // Load discount/serviceFee from localStorage (not in database yet)
-            discount = Number(shareData.discount || 0);
-            serviceFee = Number(shareData.serviceFee || 0);
+            // Override from localStorage if present (more recent values)
+            if (shareData.discount !== undefined) discount = Number(shareData.discount);
+            if (shareData.serviceFee !== undefined) serviceFee = Number(shareData.serviceFee);
             // Recalculate total with discount/serviceFee
             if (shareData.subtotal) subtotal = Number(shareData.subtotal);
             if (shareData.tax) tax = Number(shareData.tax);

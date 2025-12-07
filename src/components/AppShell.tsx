@@ -9,8 +9,8 @@ export const AppShell: React.FC = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   
-  // Determine if we're on a bill page
-  const isBillPage = location.pathname.startsWith('/bill/') && id && id !== 'new'
+  // Determine if we're on a receipt page (editing or viewing)
+  const isBillPage = (location.pathname.startsWith('/receipt/') && id && id !== 'new') || (location.pathname.startsWith('/bill/') && id && id !== 'new')
   
   // Get breadcrumb context
   const getBreadcrumb = () => {

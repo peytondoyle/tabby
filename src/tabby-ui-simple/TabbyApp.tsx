@@ -286,7 +286,7 @@ export const BillyApp: React.FC = () => {
                   fontFamily: 'monospace',
                   color: 'var(--tabby-blue)',
                 }}>
-                  {window.location.origin}/bill/{billId}
+                  {window.location.origin}/receipt/{billId}
                 </div>
               </>
             )}

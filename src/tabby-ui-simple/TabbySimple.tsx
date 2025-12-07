@@ -289,7 +289,9 @@ export const TabbySimple: React.FC = () => {
             setSubtotal(Number(receiptData.subtotal || 0));
             setTax(Number(receiptData.sales_tax || 0));
             setTip(Number(receiptData.tip || 0));
-            setTotal(Number(receiptData.total_amount || receiptData.subtotal + receiptData.sales_tax + receiptData.tip || 0));
+            setDiscount(Number(receiptData.discount || 0));
+            setServiceFee(Number(receiptData.service_fee || 0));
+            setTotal(Number(receiptData.total_amount || receiptData.subtotal - (receiptData.discount || 0) + (receiptData.service_fee || 0) + receiptData.sales_tax + receiptData.tip || 0));
             setBillToken(urlToken);
 
             // Load people from API if available

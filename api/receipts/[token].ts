@@ -65,7 +65,9 @@ export default async function handler(
           created_at,
           subtotal,
           sales_tax,
-          tip
+          tip,
+          discount,
+          service_fee
         `)
         .or(`editor_token.eq.${token},viewer_token.eq.${token}`)
         .single()
@@ -142,7 +144,7 @@ export default async function handler(
         // Calculate counts
         const item_count = items?.length || 0
         const people_count = people?.length || 0
-        const total_amount = (receipt.subtotal || 0) + (receipt.sales_tax || 0) + (receipt.tip || 0)
+        const total_amount = (receipt.subtotal || 0) - (receipt.discount || 0) + (receipt.service_fee || 0) + (receipt.sales_tax || 0) + (receipt.tip || 0)
 
         // Transform people to include their assigned items
         const transformedPeople = people?.map(person => {
@@ -151,16 +153,18 @@ export default async function handler(
             ?.filter(share => share.person_id === person.id)
             .map(share => share.item_id) || []
 
-          // Calculate person's total (items + proportional tax/tip)
+          // Calculate person's total (items + proportional discount/service_fee/tax/tip)
           const personItemsTotal = assignedItems.reduce((sum, itemId) => {
             const item = items?.find(i => i.id === itemId)
             return sum + (item?.unit_price || 0)
           }, 0)
 
           const proportion = receipt.subtotal > 0 ? personItemsTotal / receipt.subtotal : 0
+          const personDiscount = (receipt.discount || 0) * proportion
+          const personServiceFee = (receipt.service_fee || 0) * proportion
           const personTax = (receipt.sales_tax || 0) * proportion
           const personTip = (receipt.tip || 0) * proportion
-          const personTotal = personItemsTotal + personTax + personTip
+          const personTotal = personItemsTotal - personDiscount + personServiceFee + personTax + personTip
 
           return {
             id: person.id,
@@ -180,6 +184,8 @@ export default async function handler(
           subtotal: receipt.subtotal,
           sales_tax: receipt.sales_tax,
           tip: receipt.tip,
+          discount: receipt.discount || 0,
+          service_fee: receipt.service_fee || 0,
           item_count,
           people_count,
           total_amount
@@ -190,7 +196,8 @@ export default async function handler(
           bill: receiptSummary, // Keep 'bill' for backwards compatibility with frontend
           receipt: receiptSummary, // Also include 'receipt' for consistency
           items: transformedItems,
-          people: transformedPeople
+          people: transformedPeople,
+          shares: shares || []  // Include raw shares for weight-based splitting
         })
       }
 

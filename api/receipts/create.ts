@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const { items, place, total, date, people, tax, tip, user_id } = validation.data as CreateReceiptRequest;
+    const { items, place, total, date, people, tax, tip, discount, service_fee, user_id } = validation.data as CreateReceiptRequest;
 
     // Log user_id if present
     if (user_id) {
@@ -134,6 +134,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           subtotal: subtotal,
           sales_tax: tax || 0,
           tip: tip || 0,
+          discount: discount || 0,
+          service_fee: service_fee || 0,
         };
         console.log('[receipt_create] Insert data:', insertData);
 

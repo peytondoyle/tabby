@@ -6,12 +6,10 @@ export function toMoney(n: unknown): Money {
 }
 
 // Import types first
-import type { Item, Bill } from '@/types/domain'
-// import type { PersonId, ItemId, FlowAssignment, AssignmentMap } from '@/types/flow'
-import type { FlowItem } from '@/lib/flowStore'
+import type { Item, Bill, FlowItem, FlowPerson } from '@/types/domain'
 
 // Re-export domain types for convenience
-export type { Item, Person, Bill } from '@/types/domain'
+export type { Item, Person, Bill, FlowItem, FlowPerson } from '@/types/domain'
 export type { PersonId, ItemId, FlowAssignment, AssignmentMap, GetItemAssignments } from '@/types/flow'
 
 // Alias for BillMeta
@@ -35,9 +33,6 @@ export interface ExtendedFlowItem {
   created_at: string
   updated_at: string
 }
-
-// Re-export FlowItem and FlowPerson for compatibility
-export type { FlowItem, FlowPerson } from '@/lib/flowStore'
 
 // Helper function to convert FlowItem to Item format
 export function flowItemToItem(flowItem: FlowItem, billId: string): Item {
