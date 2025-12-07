@@ -40,6 +40,67 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
     }).format(price)
   }
 
+  // Pre-calculate all share amounts with penny reconciliation
+  // This ensures split items add up exactly to the item price
+  const itemShareAmounts = React.useMemo(() => {
+    const shareMap = new Map<string, Map<string, { weight: number; shareAmount: number }>>()
+
+    items.forEach(item => {
+      const itemAssignments = assignments.get(item.id) || []
+      if (itemAssignments.length === 0) return
+
+      const totalWeight = itemAssignments.reduce((sum, a) => sum + a.weight, 0)
+      if (totalWeight === 0) return
+
+      // Calculate raw shares and round down
+      const shares: Array<{ personId: string; weight: number; rawShare: number; roundedShare: number }> = []
+      let totalRounded = 0
+
+      itemAssignments.forEach(assignment => {
+        const normalizedWeight = assignment.weight / totalWeight
+        const rawShare = item.price * normalizedWeight
+        const roundedShare = Math.floor(rawShare * 100) / 100 // Round down to cents
+        totalRounded += roundedShare
+        shares.push({
+          personId: assignment.personId,
+          weight: normalizedWeight,
+          rawShare,
+          roundedShare
+        })
+      })
+
+      // Calculate remaining pennies to distribute
+      const remainingCents = Math.round((item.price - totalRounded) * 100)
+
+      // Distribute extra pennies randomly (using item id + person id as seed for consistency)
+      if (remainingCents > 0) {
+        // Sort by fractional part (who was closest to getting rounded up)
+        const sortedByFraction = [...shares].sort((a, b) => {
+          const fracA = (a.rawShare * 100) % 1
+          const fracB = (b.rawShare * 100) % 1
+          return fracB - fracA // Highest fraction first
+        })
+
+        // Give pennies to those with highest fractional parts
+        for (let i = 0; i < remainingCents && i < sortedByFraction.length; i++) {
+          sortedByFraction[i].roundedShare += 0.01
+        }
+      }
+
+      // Store in map
+      const personMap = new Map<string, { weight: number; shareAmount: number }>()
+      shares.forEach(share => {
+        personMap.set(share.personId, {
+          weight: share.weight,
+          shareAmount: share.roundedShare
+        })
+      })
+      shareMap.set(item.id, personMap)
+    })
+
+    return shareMap
+  }, [items, assignments])
+
   // Get items for a person with proper share amounts for split items
   const getPersonItemsForExport = (personId: string) => {
     return items
@@ -48,20 +109,14 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
         return itemAssignments.includes(personId)
       })
       .map(item => {
-        // Get all assignments for this item to calculate weights
-        const itemAssignments = assignments.get(item.id) || []
-        const totalWeight = itemAssignments.reduce((sum, a) => sum + a.weight, 0)
-        const personAssignment = itemAssignments.find(a => a.personId === personId)
-        const personWeight = personAssignment?.weight || 1
-
-        // Calculate this person's share of the item
-        const normalizedWeight = totalWeight > 0 ? personWeight / totalWeight : 1
-        const shareAmount = item.price * normalizedWeight
+        // Look up pre-calculated share amount with penny reconciliation
+        const itemShares = itemShareAmounts.get(item.id)
+        const personShare = itemShares?.get(personId)
 
         return {
           ...item,
-          weight: normalizedWeight,
-          shareAmount
+          weight: personShare?.weight ?? 1,
+          shareAmount: personShare?.shareAmount ?? item.price
         }
       })
   }
