@@ -336,10 +336,14 @@ export const TabbySimple: React.FC = () => {
                 });
 
                 const receiptSubtotal = Number(receiptData.subtotal || 0);
+                const receiptDiscount = Number(receiptData.discount || 0);
+                const receiptServiceFee = Number(receiptData.service_fee || 0);
                 const proportion = receiptSubtotal > 0 ? itemsSubtotal / receiptSubtotal : 0;
+                const personDiscount = receiptDiscount * proportion;
+                const personServiceFee = receiptServiceFee * proportion;
                 const personTax = Number(receiptData.sales_tax || 0) * proportion;
                 const personTip = Number(receiptData.tip || 0) * proportion;
-                const total = itemsSubtotal + personTax + personTip;
+                const total = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
 
                 return {
                   ...person,
@@ -559,9 +563,11 @@ export const TabbySimple: React.FC = () => {
       const personItems = newItems.filter(item => person.items.includes(item.id));
       const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
       const proportion = newSubtotal > 0 ? itemsSubtotal / newSubtotal : 0;
+      const personDiscount = discount * proportion;
+      const personServiceFee = serviceFee * proportion;
       const personTax = tax * proportion;
       const personTip = tip * proportion;
-      const total = itemsSubtotal + personTax + personTip;
+      const total = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
       return {
         ...person,
         total
@@ -598,9 +604,11 @@ export const TabbySimple: React.FC = () => {
       const personItems = items.filter(item => person.items.includes(item.id));
       const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
       const proportion = newSubtotal > 0 ? itemsSubtotal / newSubtotal : 0;
+      const personDiscount = discount * proportion;
+      const personServiceFee = serviceFee * proportion;
       const personTax = newTax * proportion;
       const personTip = newTip * proportion;
-      const total = itemsSubtotal + personTax + personTip;
+      const total = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
       return {
         ...person,
         total
@@ -665,9 +673,11 @@ export const TabbySimple: React.FC = () => {
       const personItems = items.filter(item => person.items.includes(item.id));
       const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
       const proportion = newSubtotal > 0 ? itemsSubtotal / newSubtotal : 0;
+      const personDiscount = discount * proportion;
+      const personServiceFee = serviceFee * proportion;
       const personTax = newTax * proportion;
       const personTip = newTip * proportion;
-      const total = itemsSubtotal + personTax + personTip;
+      const total = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
       return {
         ...person,
         total
@@ -1433,6 +1443,12 @@ export const TabbySimple: React.FC = () => {
                 const shareData = {
                   billToken,
                   people: peopleWithShares,
+                  subtotal,
+                  tax,
+                  tip,
+                  discount,
+                  serviceFee,
+                  total,
                   assignments: items.reduce((acc, item) => {
                     if (item.assignedTo) {
                       acc[item.id] = item.assignedTo;
@@ -1672,6 +1688,8 @@ export const TabbySimple: React.FC = () => {
                 });
 
                 const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
+                const personDiscount = discount * proportion;
+                const personServiceFee = serviceFee * proportion;
                 const personTax = tax * proportion;
                 const personTip = tip * proportion;
 
@@ -1790,6 +1808,18 @@ export const TabbySimple: React.FC = () => {
                         <span>Items</span>
                         <span>${itemsSubtotal.toFixed(2)}</span>
                       </div>
+                      {personDiscount > 0.01 && (
+                        <div className="breakdown-row">
+                          <span>Discount</span>
+                          <span>-${personDiscount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {personServiceFee > 0.01 && (
+                        <div className="breakdown-row">
+                          <span>Service Fee</span>
+                          <span>${personServiceFee.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="breakdown-row">
                         <span>Tax</span>
                         <span>${personTax.toFixed(2)}</span>
@@ -1989,9 +2019,11 @@ export const TabbySimple: React.FC = () => {
                         });
 
                         const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
+                        const personDiscount = discount * proportion;
+                        const personServiceFee = serviceFee * proportion;
                         const personTax = tax * proportion;
                         const personTip = tip * proportion;
-                        const total = itemsSubtotal + personTax + personTip;
+                        const total = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
 
                         return {
                           ...person,

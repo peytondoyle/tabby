@@ -34,6 +34,8 @@ interface ReceiptData {
   subtotal: number;
   tax: number;
   tip: number;
+  discount: number;
+  serviceFee: number;
   total: number;
 }
 
@@ -77,11 +79,13 @@ export const ReceiptPage: React.FC = () => {
           emoji: item.emoji || item.icon || '🍽️'
         }));
 
-        // Calculate totals
-        const subtotal = Number(billData.receipt.subtotal || 0);
-        const tax = Number(billData.receipt.sales_tax || 0);
-        const tip = Number(billData.receipt.tip || 0);
-        const total = subtotal + tax + tip;
+        // Calculate totals - prefer localStorage values (which include discount/serviceFee)
+        let subtotal = Number(billData.receipt.subtotal || 0);
+        let tax = Number(billData.receipt.sales_tax || 0);
+        let tip = Number(billData.receipt.tip || 0);
+        let discount = 0;
+        let serviceFee = 0;
+        let total = subtotal - discount + serviceFee + tax + tip;
 
         // Try to get people and assignments from localStorage if available
         let people: Person[] = [];
@@ -90,8 +94,16 @@ export const ReceiptPage: React.FC = () => {
           try {
             const shareData = JSON.parse(localShareData);
             people = shareData.people || [];
+            // Load discount/serviceFee from localStorage (not in database yet)
+            discount = Number(shareData.discount || 0);
+            serviceFee = Number(shareData.serviceFee || 0);
+            // Recalculate total with discount/serviceFee
+            if (shareData.subtotal) subtotal = Number(shareData.subtotal);
+            if (shareData.tax) tax = Number(shareData.tax);
+            if (shareData.tip) tip = Number(shareData.tip);
+            total = subtotal - discount + serviceFee + tax + tip;
             console.log('[ReceiptPage] Loaded people from localStorage:', people);
-            console.log('[ReceiptPage] localStorage itemShares:', people.map(p => ({ name: p.name, itemShares: p.itemShares })));
+            console.log('[ReceiptPage] Loaded discount/serviceFee:', { discount, serviceFee });
           } catch (e) {
             console.error('Error parsing localStorage share data:', e);
           }
@@ -225,6 +237,8 @@ export const ReceiptPage: React.FC = () => {
           subtotal,
           tax,
           tip,
+          discount,
+          serviceFee,
           total
         };
 
@@ -310,6 +324,8 @@ export const ReceiptPage: React.FC = () => {
         subtotal={receipt.subtotal}
         tax={receipt.tax}
         tip={receipt.tip}
+        discount={receipt.discount}
+        serviceFee={receipt.serviceFee}
         total={receipt.total}
       />
     </>
