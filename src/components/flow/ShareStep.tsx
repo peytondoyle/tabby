@@ -19,6 +19,7 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
     people,
     items,
     bill,
+    assignments,
     computeBillTotals,
     getPersonItems: _getPersonItems,
     getItemAssignments
@@ -39,11 +40,30 @@ export const ShareStep: React.FC<ShareStepProps> = ({ onPrev, onBack }) => {
     }).format(price)
   }
 
+  // Get items for a person with proper share amounts for split items
   const getPersonItemsForExport = (personId: string) => {
-    return items.filter(item => {
-      const assignments = getItemAssignments(item.id)
-      return assignments.includes(personId)
-    })
+    return items
+      .filter(item => {
+        const itemAssignments = getItemAssignments(item.id)
+        return itemAssignments.includes(personId)
+      })
+      .map(item => {
+        // Get all assignments for this item to calculate weights
+        const itemAssignments = assignments.get(item.id) || []
+        const totalWeight = itemAssignments.reduce((sum, a) => sum + a.weight, 0)
+        const personAssignment = itemAssignments.find(a => a.personId === personId)
+        const personWeight = personAssignment?.weight || 1
+
+        // Calculate this person's share of the item
+        const normalizedWeight = totalWeight > 0 ? personWeight / totalWeight : 1
+        const shareAmount = item.price * normalizedWeight
+
+        return {
+          ...item,
+          weight: normalizedWeight,
+          shareAmount
+        }
+      })
   }
 
   const handleGroupShare = async () => {
