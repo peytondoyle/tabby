@@ -136,7 +136,7 @@ function downscaleImage(
 async function compressImage(
   canvas: OffscreenCanvas,
   maxSizeBytes: number,
-  quality: number = 0.82
+  quality: number = 0.92
 ): Promise<Blob> {
   let blob = await canvas.convertToBlob({ type: 'image/jpeg', quality })
   
@@ -172,8 +172,8 @@ async function normalizeImage(file: File): Promise<NormalizationResult> {
         const ctx = canvas.getContext('2d')!
         ctx.drawImage(imageBitmap, 0, 0)
         
-        // Convert to JPEG blob
-        currentFile = new File([await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.75 })],
+        // Convert to JPEG blob with high quality for OCR
+        currentFile = new File([await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 })],
                              file.name.replace(/\.(heic|heif)$/i, '.jpg'),
                              { type: 'image/jpeg' })
         steps.push('HEIC→JPEG')
@@ -210,17 +210,17 @@ async function normalizeImage(file: File): Promise<NormalizationResult> {
     // const _rotatedDimensions = applyExifRotation(canvas, ctx, orientation, imageBitmap.width, imageBitmap.height)
     ctx.drawImage(imageBitmap, 0, 0)
     
-    // Step 5: Downscale if needed (optimized for speed)
+    // Step 5: Downscale if needed (optimized for OCR accuracy)
     const beforeDownscale = canvas.width * canvas.height
-    const downscaledDimensions = downscaleImage(canvas, ctx, 768) // Reduced from 1024px for faster API processing
+    const downscaledDimensions = downscaleImage(canvas, ctx, 2048) // Higher resolution for better OCR text recognition
     if (canvas.width * canvas.height !== beforeDownscale) {
-      steps.push('downscaled to 768px')
+      steps.push('downscaled to 2048px')
       console.log(`[worker] Downscaled image - new dimensions: ${downscaledDimensions.width}x${downscaledDimensions.height}`)
     }
 
-    // Step 6: Compress to target size (optimized for speed)
-    const beforeCompress = (await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.70 })).size
-    const compressedBlob = await compressImage(canvas, 1.5 * 1024 * 1024, 0.70) // Reduced quality for faster upload
+    // Step 6: Compress to target size (optimized for OCR accuracy)
+    const beforeCompress = (await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 })).size
+    const compressedBlob = await compressImage(canvas, 4 * 1024 * 1024, 0.92) // Higher quality for better text clarity
     if (compressedBlob.size !== beforeCompress) {
       steps.push(`compressed to ${Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100}MB`)
       console.log(`[worker] Compressed image - final size: ${compressedBlob.size} bytes`)
