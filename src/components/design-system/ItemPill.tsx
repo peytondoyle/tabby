@@ -128,7 +128,12 @@ export const ItemPill: React.FC<ItemPillProps> = ({
   return (
     <div
       ref={menuRef}
-      style={{ position: 'relative', display: 'inline-block' }}
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+      onMouseEnter={() => !disabled && setIsHovered(true)}
+      onMouseLeave={() => {
+        setIsHovered(false)
+        handleLongPressEnd()
+      }}
     >
       <button
         className="pill-touch-target focus-ring hover-lift"
@@ -154,11 +159,6 @@ export const ItemPill: React.FC<ItemPillProps> = ({
         }}
         onClick={() => onClick?.(id)}
         disabled={disabled}
-        onMouseEnter={() => !disabled && setIsHovered(true)}
-        onMouseLeave={() => {
-          setIsHovered(false)
-          handleLongPressEnd()
-        }}
         onTouchStart={handleLongPressStart}
         onTouchEnd={handleLongPressEnd}
         onTouchCancel={handleLongPressEnd}
@@ -195,36 +195,35 @@ export const ItemPill: React.FC<ItemPillProps> = ({
             {formatPrice(price)}
           </span>
         )}
-
-        {/* Edit icon - shows on hover (desktop) */}
-        {hasEditActions && isHovered && !showMenu && (
-          <button
-            onClick={handleMenuToggle}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '20px',
-              height: '20px',
-              padding: 0,
-              border: 'none',
-              borderRadius: designTokens.borderRadius.full,
-              backgroundColor: 'rgba(255,255,255,0.15)',
-              color: designTokens.semantic.text.secondary,
-              cursor: 'pointer',
-              transition: designTokens.transitions.fast,
-              marginLeft: designTokens.spacing[1],
-            }}
-            aria-label="Edit item"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="12" cy="5" r="1" />
-              <circle cx="12" cy="19" r="1" />
-            </svg>
-          </button>
-        )}
       </button>
+
+      {/* Edit icon - shows on hover (desktop), outside the main button */}
+      {hasEditActions && isHovered && !showMenu && (
+        <button
+          onClick={handleMenuToggle}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '24px',
+            height: '24px',
+            padding: 0,
+            border: 'none',
+            borderRadius: designTokens.borderRadius.full,
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            color: designTokens.semantic.text.secondary,
+            cursor: 'pointer',
+            transition: designTokens.transitions.fast,
+          }}
+          aria-label="Edit item"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="12" cy="5" r="2" />
+            <circle cx="12" cy="19" r="2" />
+          </svg>
+        </button>
+      )}
 
       {/* Dropdown menu */}
       {showMenu && (
