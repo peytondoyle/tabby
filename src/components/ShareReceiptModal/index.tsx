@@ -191,7 +191,8 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     const personServiceFee = serviceFee * proportion;
     const personTax = tax * proportion;
     const personTip = tip * proportion;
-    const personTotal = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
+    // Use pre-calculated person.total to match summary view exactly
+    const personTotal = person.total;
 
     return (
       <div ref={cardRef} className="receipt-card modern-person-card">
