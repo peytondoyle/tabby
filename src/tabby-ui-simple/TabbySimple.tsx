@@ -1359,15 +1359,80 @@ export const TabbySimple: React.FC = () => {
             onClick={() => {
               console.log('[TabbySimple] Continue button clicked', { billToken, peopleCount: people.length });
               if (billToken) {
-                // Save current state to localStorage before navigating
-                const shareData = {
-                  billToken,
-                  people: people.map(person => ({
+                // Calculate itemShares with penny reconciliation for split items
+                const itemShareMap = new Map<string, Map<string, { weight: number; shareAmount: number }>>();
+
+                items.forEach(item => {
+                  if (!item.splitBetween || item.splitBetween.length <= 1) {
+                    // Not split - full price to single person
+                    const personId = item.assignedTo || item.splitBetween?.[0];
+                    if (personId) {
+                      const personMap = new Map<string, { weight: number; shareAmount: number }>();
+                      personMap.set(personId, { weight: 1, shareAmount: item.price });
+                      itemShareMap.set(item.id, personMap);
+                    }
+                    return;
+                  }
+
+                  // Split item - calculate shares with penny reconciliation
+                  const splitCount = item.splitBetween.length;
+                  const rawShare = item.price / splitCount;
+                  const roundedDown = Math.floor(rawShare * 100) / 100;
+                  const totalRounded = roundedDown * splitCount;
+                  const remainingCents = Math.round((item.price - totalRounded) * 100);
+
+                  const shares = item.splitBetween.map(personId => ({
+                    personId,
+                    rawShare,
+                    roundedShare: roundedDown
+                  }));
+
+                  // Give extra pennies to those with highest fractional parts
+                  if (remainingCents > 0) {
+                    const sortedByFraction = [...shares].sort((a, b) => {
+                      const fracA = (a.rawShare * 100) % 1;
+                      const fracB = (b.rawShare * 100) % 1;
+                      return fracB - fracA;
+                    });
+                    for (let i = 0; i < remainingCents && i < sortedByFraction.length; i++) {
+                      sortedByFraction[i].roundedShare += 0.01;
+                    }
+                  }
+
+                  const personMap = new Map<string, { weight: number; shareAmount: number }>();
+                  shares.forEach(share => {
+                    personMap.set(share.personId, {
+                      weight: 1 / splitCount,
+                      shareAmount: share.roundedShare
+                    });
+                  });
+                  itemShareMap.set(item.id, personMap);
+                });
+
+                // Build people with itemShares included
+                const peopleWithShares = people.map(person => {
+                  const personItems = items.filter(item => person.items.includes(item.id));
+                  const itemShares = personItems.map(item => {
+                    const share = itemShareMap.get(item.id)?.get(person.id);
+                    return {
+                      itemId: item.id,
+                      weight: share?.weight ?? 1,
+                      shareAmount: share?.shareAmount ?? item.price
+                    };
+                  });
+                  return {
                     id: person.id,
                     name: person.name,
                     items: person.items,
+                    itemShares,
                     total: person.total
-                  })),
+                  };
+                });
+
+                // Save current state to localStorage before navigating
+                const shareData = {
+                  billToken,
+                  people: peopleWithShares,
                   assignments: items.reduce((acc, item) => {
                     if (item.assignedTo) {
                       acc[item.id] = item.assignedTo;
@@ -1375,6 +1440,7 @@ export const TabbySimple: React.FC = () => {
                     return acc;
                   }, {} as Record<string, string>)
                 };
+                console.log('[TabbySimple] Saving to localStorage with itemShares:', peopleWithShares.map(p => ({ name: p.name, itemShares: p.itemShares })));
                 localStorage.setItem(`bill-share-${billToken}`, JSON.stringify(shareData));
                 console.log('[TabbySimple] Navigating to:', `/receipt/${billToken}/edit`);
                 navigate(`/receipt/${billToken}/edit`);
