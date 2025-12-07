@@ -491,31 +491,32 @@ export async function parseReceipt(
       console.info(`[scan_step] PDF converted - new file: ${fileName} (${fileSize} bytes, ${fileType})`)
     }
 
-    // Step 2: Check cache (only if explicitly enabled)
-    const useScanCache = localStorage.getItem('use-scan-cache') !== '0'
-
-    if (useScanCache) {
-      try {
-        const arrayBuffer = await processedFile.arrayBuffer()
-        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
-        const hashArray = Array.from(new Uint8Array(hashBuffer))
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-        cacheKey = `scan-cache-${hashHex}`
-
-        const cached = localStorage.getItem(cacheKey)
-        if (cached) {
-          console.info(`[scan_cache] Cache hit for ${hashHex.substring(0, 8)}...`)
-          onProgress?.('Loaded from cache!')
-          return JSON.parse(cached)
-        }
-        console.info(`[scan_cache] Cache miss for ${hashHex.substring(0, 8)}...`)
-      } catch (cacheError) {
-        console.warn('[scan_cache] Cache check failed:', cacheError)
-        // Continue with normal processing
-      }
-    } else {
-      console.info('[scan_cache] Scan cache disabled by user')
-    }
+    // Step 2: Check cache - DISABLED for testing (always do fresh scans)
+    // const useScanCache = localStorage.getItem('use-scan-cache') !== '0'
+    //
+    // if (useScanCache) {
+    //   try {
+    //     const arrayBuffer = await processedFile.arrayBuffer()
+    //     const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+    //     const hashArray = Array.from(new Uint8Array(hashBuffer))
+    //     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    //     cacheKey = `scan-cache-${hashHex}`
+    //
+    //     const cached = localStorage.getItem(cacheKey)
+    //     if (cached) {
+    //       console.info(`[scan_cache] Cache hit for ${hashHex.substring(0, 8)}...`)
+    //       onProgress?.('Loaded from cache!')
+    //       return JSON.parse(cached)
+    //     }
+    //     console.info(`[scan_cache] Cache miss for ${hashHex.substring(0, 8)}...`)
+    //   } catch (cacheError) {
+    //     console.warn('[scan_cache] Cache check failed:', cacheError)
+    //     // Continue with normal processing
+    //   }
+    // } else {
+    //   console.info('[scan_cache] Scan cache disabled by user')
+    // }
+    console.info('[scan_cache] Cache disabled - always doing fresh scan')
 
     // Step 3: Normalize file
     onProgress?.('Normalizing…')
@@ -631,19 +632,18 @@ export async function parseReceipt(
     const totalDuration = Date.now() - startTime
     console.info(`[scan_ok] Receipt parsed successfully in ${totalDuration}ms - items: ${result.items.length}, place: ${!!result.place}, total: $${result.total || 0}`)
 
-    // Save to cache for instant future loads
-    // Only cache real OCR results, not demo/fallback data
-    const isDemoData = result.place === 'Demo Restaurant' && result.items.some(item => item.label === 'Margherita Pizza')
-    if (cacheKey && !isDemoData) {
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify(result))
-        console.info(`[scan_cache] Cached result for future use (${cacheKey.substring(11, 19)}...)`)
-      } catch (cacheError) {
-        console.warn('[scan_cache] Failed to cache result:', cacheError)
-      }
-    } else if (isDemoData) {
-      console.warn('[scan_cache] Skipping cache - demo/fallback data should not be cached')
-    }
+    // Save to cache for instant future loads - DISABLED for testing
+    // const isDemoData = result.place === 'Demo Restaurant' && result.items.some(item => item.label === 'Margherita Pizza')
+    // if (cacheKey && !isDemoData) {
+    //   try {
+    //     localStorage.setItem(cacheKey, JSON.stringify(result))
+    //     console.info(`[scan_cache] Cached result for future use (${cacheKey.substring(11, 19)}...)`)
+    //   } catch (cacheError) {
+    //     console.warn('[scan_cache] Failed to cache result:', cacheError)
+    //   }
+    // } else if (isDemoData) {
+    //   console.warn('[scan_cache] Skipping cache - demo/fallback data should not be cached')
+    // }
 
     performanceMonitor.end(true)
     return result
