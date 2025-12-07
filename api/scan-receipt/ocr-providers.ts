@@ -145,27 +145,59 @@ Identify the receipt type:
 - Copy item names EXACTLY as written (preserve spelling, caps, special chars)
 - DO NOT include taxes, tips, fees, or discounts as items
 
+**PRICE EXTRACTION - CRITICAL:**
+- Read prices VERY CAREFULLY - look at EACH DIGIT
+- Prices are typically RIGHT-ALIGNED in a column
+- Common misreads to avoid: 90→19, 16→11, 12→2 (don't drop leading digits!)
+- Double-check any price that seems unusually low for the item type
+- Example: "Topgolf Gameplay" at $19 is wrong - gameplay typically costs $60-150
+- Example: Cocktails/drinks are typically $8-20, not $1-5
+- If unsure, re-read the price digit by digit from left to right
+
 **QUANTITY HANDLING:**
 - "3 Cold Beverage $10.50" → {"label": "3 Cold Beverage", "price": 10.50}
 - Keep quantity as part of label, DO NOT divide prices
 
 ═══════════════════════════════════════════════════════════════
-💰 FINANCIAL FIELDS
+💰 FINANCIAL FIELDS - READ CAREFULLY!
 ═══════════════════════════════════════════════════════════════
 **SUBTOTAL**: Sum of items after discounts, before tax/tip/fees
-**TAX**: "Tax", "Sales Tax", "GST", "VAT" - exact amount shown
+  - This should approximately equal the sum of all item prices
+  - If your items sum to much less than the subtotal shown, RE-CHECK PRICES
+
+**TAX**: Look for "Tax", "Sales Tax", "GST", "VAT"
+  - Usually 5-10% of subtotal
+  - MUST extract this value - do NOT return 0 if tax is shown on receipt
+  - Read the exact dollar amount shown
+
 **TIP**: "Tip", "Gratuity" - CHECK FOR HANDWRITTEN VALUES!
 **TOTAL**: Final amount - CHECK FOR HANDWRITTEN VALUES!
+  - TOTAL should equal SUBTOTAL + TAX + TIP (approximately)
+  - If math doesn't work, re-check all values
+
 **DISCOUNT**: Sum ALL discounts/promos/benefits as POSITIVE number
 **SERVICE_FEE**: Sum ALL fees (delivery, service, platform, etc.)
 
 ═══════════════════════════════════════════════════════════════
-🧮 VALIDATION HINTS
+🧮 VALIDATION - MUST DO BEFORE RETURNING!
 ═══════════════════════════════════════════════════════════════
-After extraction, verify:
-- Items sum should ≈ subtotal (±$0.50 for rounding)
-- total ≈ subtotal - discount + service_fee + tax + tip
-- If math doesn't work, re-check for missed items or handwritten values
+BEFORE returning your answer, CHECK THE MATH:
+
+1. Add up all your item prices: item1 + item2 + item3 + ...
+2. Compare to the SUBTOTAL shown on receipt
+3. If your sum is MORE THAN $5 different from subtotal:
+   - You probably misread some prices
+   - GO BACK and re-read each price digit by digit
+   - Look especially for prices $10+ that you may have read as single digits
+
+Common errors that cause large discrepancies:
+- Reading $90 as $19 (dropped leading digit)
+- Reading $16 as $11 or $6
+- Reading $12 as $2
+- Missing the tens digit entirely
+
+If items sum ≈ subtotal (±$2): Good, proceed
+If items sum << subtotal: RE-READ ALL PRICES BEFORE RETURNING
 
 ═══════════════════════════════════════════════════════════════
 ⚠️ CONFIDENCE SCORING
