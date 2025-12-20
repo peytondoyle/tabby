@@ -556,8 +556,8 @@ export const TabbySimple: React.FC = () => {
     const newSubtotal = newItems.reduce((sum, item) => sum + item.price, 0);
     setSubtotal(newSubtotal);
 
-    // Recalculate total
-    const newTotal = newSubtotal + tax + tip;
+    // Recalculate total (must include discount and serviceFee)
+    const newTotal = newSubtotal - discount + serviceFee + tax + tip;
     setTotal(newTotal);
 
     // Recalculate all person totals
@@ -579,7 +579,7 @@ export const TabbySimple: React.FC = () => {
 
   const handleUnifiedBillTotalsSave = async (data: { subtotal: number; tax: number; tip: number }) => {
     const { subtotal: newSubtotal, tax: newTax, tip: newTip } = data;
-    const newTotal = newSubtotal + newTax + newTip;
+    const newTotal = newSubtotal - discount + serviceFee + newTax + newTip;
 
     setSubtotal(newSubtotal);
     setTax(newTax);
@@ -639,8 +639,8 @@ export const TabbySimple: React.FC = () => {
     const newSubtotal = editableItems.reduce((sum, item) => sum + item.price, 0);
     setSubtotal(newSubtotal);
 
-    // Recalculate total
-    const newTotal = newSubtotal + tax + tip;
+    // Recalculate total (must include discount and serviceFee)
+    const newTotal = newSubtotal - discount + serviceFee + tax + tip;
     setTotal(newTotal);
   };
 
@@ -648,7 +648,7 @@ export const TabbySimple: React.FC = () => {
     const newSubtotal = parseFloat(editableSubtotal) || 0;
     const newTax = parseFloat(editableTax) || 0;
     const newTip = parseFloat(editableTip) || 0;
-    const newTotal = newSubtotal + newTax + newTip;
+    const newTotal = newSubtotal - discount + serviceFee + newTax + newTip;
 
     setSubtotal(newSubtotal);
     setTax(newTax);

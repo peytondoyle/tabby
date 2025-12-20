@@ -145,20 +145,8 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     }
   };
 
-  // Calculate total of all people's subtotals for proper proportional distribution
-  // This ensures tip/tax splits sum exactly to the entered amounts
-  const allPeopleSubtotal = people.reduce((sum, p) => {
-    if (p.itemShares && p.itemShares.length > 0) {
-      return sum + p.itemShares.reduce((s, share) => s + share.shareAmount, 0);
-    } else {
-      const personItems = items.filter(item => p.items.includes(item.id));
-      return sum + personItems.reduce((s, item) => s + item.price, 0);
-    }
-  }, 0);
-
-  const renderPersonReceipt = (person: Person, personIndex: number) => {
-    // Use itemShares if available (includes proper weight-based share amounts)
-    // Otherwise fall back to legacy behavior for backwards compatibility
+  // Pre-compute all person data for consistent calculations across views
+  const computedPeople = people.map(person => {
     let itemsSubtotal: number;
     let personItemsWithShares: Array<{ item: Item; shareAmount: number; weight: number }> = [];
 
@@ -184,15 +172,47 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
       itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
     }
 
-    // Use allPeopleSubtotal as denominator to ensure proportions sum to 1.0
-    // This guarantees tip/tax splits add up exactly to the entered amounts
+    return { person, itemsSubtotal, personItemsWithShares };
+  });
+
+  // Calculate total of all people's subtotals for proper proportional distribution
+  // This ensures tip/tax splits sum exactly to the entered amounts
+  const allPeopleSubtotal = computedPeople.reduce((sum, p) => sum + p.itemsSubtotal, 0);
+
+  // Compute final totals for each person
+  const peopleWithTotals = computedPeople.map(({ person, itemsSubtotal, personItemsWithShares }) => {
     const proportion = allPeopleSubtotal > 0 ? itemsSubtotal / allPeopleSubtotal : 0;
     const personDiscount = discount * proportion;
     const personServiceFee = serviceFee * proportion;
     const personTax = tax * proportion;
     const personTip = tip * proportion;
-    // Use pre-calculated person.total to match summary view exactly
-    const personTotal = person.total;
+    // Calculate personTotal from the breakdown so displayed values add up correctly
+    const personTotal = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
+
+    return {
+      person,
+      itemsSubtotal,
+      personItemsWithShares,
+      proportion,
+      personDiscount,
+      personServiceFee,
+      personTax,
+      personTip,
+      personTotal
+    };
+  });
+
+  const renderPersonReceipt = (personData: typeof peopleWithTotals[0], personIndex: number) => {
+    const {
+      person,
+      itemsSubtotal,
+      personItemsWithShares,
+      personDiscount,
+      personServiceFee,
+      personTax,
+      personTip,
+      personTotal
+    } = personData;
 
     return (
       <div ref={cardRef} className="receipt-card modern-person-card">
@@ -267,6 +287,9 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     );
   };
 
+  // Calculate the bill total from person totals to ensure consistency
+  const calculatedBillTotal = peopleWithTotals.reduce((sum, p) => sum + p.personTotal, 0);
+
   const renderFullBreakdown = () => {
     return (
       <div ref={cardRef} className="receipt-card modern-summary-card">
@@ -278,16 +301,16 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
 
         {/* People List */}
         <div className="modern-people-list">
-          {people.length === 0 && (
+          {peopleWithTotals.length === 0 && (
             <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '14px' }}>
               No people added yet
             </div>
           )}
 
-          {people.map((person, personIndex) => (
-            <div key={person.id} className="modern-person-row">
-              <span className="modern-person-name">{person.name}</span>
-              <span className="modern-person-total">${person.total.toFixed(2)}</span>
+          {peopleWithTotals.map((personData, personIndex) => (
+            <div key={personData.person.id} className="modern-person-row">
+              <span className="modern-person-name">{personData.person.name}</span>
+              <span className="modern-person-total">${personData.personTotal.toFixed(2)}</span>
             </div>
           ))}
         </div>
@@ -295,7 +318,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         {/* Bill Total */}
         <div className="modern-bill-total">
           <span className="modern-total-label">Bill Total</span>
-          <span className="modern-total-amount">${total.toFixed(2)}</span>
+          <span className="modern-total-amount">${calculatedBillTotal.toFixed(2)}</span>
         </div>
 
         {/* Footer */}
@@ -316,8 +339,8 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
   };
 
   const getSlideTitle = () => {
-    if (currentSlide < people.length) {
-      return `${people[currentSlide].name}'s Bill`;
+    if (currentSlide < peopleWithTotals.length) {
+      return `${peopleWithTotals[currentSlide].person.name}'s Bill`;
     }
     return 'Split by Person';
   };
@@ -342,8 +365,8 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
             </button>
 
             <div className="carousel-content">
-              {currentSlide < people.length
-                ? renderPersonReceipt(people[currentSlide], currentSlide)
+              {currentSlide < peopleWithTotals.length
+                ? renderPersonReceipt(peopleWithTotals[currentSlide], currentSlide)
                 : renderFullBreakdown()
               }
             </div>
