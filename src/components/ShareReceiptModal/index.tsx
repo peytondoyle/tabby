@@ -145,6 +145,14 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     }
   };
 
+  // First, count how many people have each item (for auto-detecting splits)
+  const itemPersonCount = new Map<string, number>();
+  people.forEach(person => {
+    person.items.forEach(itemId => {
+      itemPersonCount.set(itemId, (itemPersonCount.get(itemId) || 0) + 1);
+    });
+  });
+
   // Pre-compute all person data for consistent calculations across views
   const computedPeople = people.map(person => {
     let itemsSubtotal: number;
@@ -162,21 +170,26 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
       }).filter(x => x.item);
       itemsSubtotal = person.itemShares.reduce((sum, share) => sum + share.shareAmount, 0);
     } else {
-      // Legacy fallback: calculate from item IDs (may be inaccurate for shared items)
+      // Auto-detect splits: if same item is in multiple people's lists, split the price
       const personItems = items.filter(item => person.items.includes(item.id));
-      personItemsWithShares = personItems.map(item => ({
-        item,
-        shareAmount: item.price,
-        weight: 1
-      }));
-      itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
+      personItemsWithShares = personItems.map(item => {
+        const splitCount = itemPersonCount.get(item.id) || 1;
+        const shareAmount = item.price / splitCount;
+        const weight = 1 / splitCount;
+        return {
+          item,
+          shareAmount,
+          weight
+        };
+      });
+      itemsSubtotal = personItemsWithShares.reduce((sum, pis) => sum + pis.shareAmount, 0);
     }
 
     return { person, itemsSubtotal, personItemsWithShares };
   });
 
-  // Calculate total of all people's subtotals for proper proportional distribution
-  // This ensures tip/tax splits sum exactly to the entered amounts
+  // Use the actual bill subtotal for proportional calculations, not the sum of displayed items
+  // This ensures tax/tip/discount are distributed based on real bill values
   const allPeopleSubtotal = computedPeople.reduce((sum, p) => sum + p.itemsSubtotal, 0);
 
   // Compute final totals for each person
