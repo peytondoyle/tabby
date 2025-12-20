@@ -188,23 +188,29 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     return { person, itemsSubtotal, personItemsWithShares };
   });
 
-  // Use the actual bill subtotal for proportional calculations, not the sum of displayed items
-  // This ensures tax/tip/discount are distributed based on real bill values
+  // Use the sum of computed subtotals for proportional calculations
   const allPeopleSubtotal = computedPeople.reduce((sum, p) => sum + p.itemsSubtotal, 0);
 
-  // Compute final totals for each person
-  const peopleWithTotals = computedPeople.map(({ person, itemsSubtotal, personItemsWithShares }) => {
+  // The ACTUAL bill total is the source of truth - person totals MUST sum to this exactly
+  const actualBillTotal = total;
+
+  // Compute preliminary totals for each person (before penny reconciliation)
+  const preliminaryTotals = computedPeople.map(({ person, itemsSubtotal, personItemsWithShares }) => {
     const proportion = allPeopleSubtotal > 0 ? itemsSubtotal / allPeopleSubtotal : 0;
-    const personDiscount = discount * proportion;
-    const personServiceFee = serviceFee * proportion;
-    const personTax = tax * proportion;
-    const personTip = tip * proportion;
-    // Calculate personTotal from the breakdown so displayed values add up correctly
-    const personTotal = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
+
+    // Round each component to cents
+    const personDiscount = Math.round(discount * proportion * 100) / 100;
+    const personServiceFee = Math.round(serviceFee * proportion * 100) / 100;
+    const personTax = Math.round(tax * proportion * 100) / 100;
+    const personTip = Math.round(tip * proportion * 100) / 100;
+    const roundedSubtotal = Math.round(itemsSubtotal * 100) / 100;
+
+    // Calculate person total from rounded components
+    const personTotal = Math.round((roundedSubtotal - personDiscount + personServiceFee + personTax + personTip) * 100) / 100;
 
     return {
       person,
-      itemsSubtotal,
+      itemsSubtotal: roundedSubtotal,
       personItemsWithShares,
       proportion,
       personDiscount,
@@ -214,6 +220,31 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
       personTotal
     };
   });
+
+  // Penny reconciliation: ensure person totals sum EXACTLY to actual bill total
+  const currentSum = preliminaryTotals.reduce((sum, p) => sum + p.personTotal, 0);
+  const differenceInCents = Math.round((actualBillTotal - currentSum) * 100);
+
+  // Distribute pennies to make totals exact (give to largest totals first)
+  const sortedIndices = preliminaryTotals
+    .map((p, i) => ({ total: p.personTotal, index: i }))
+    .sort((a, b) => b.total - a.total)
+    .map(x => x.index);
+
+  const peopleWithTotals = preliminaryTotals.map((p, i) => ({ ...p }));
+
+  if (differenceInCents !== 0) {
+    const pennyValue = differenceInCents > 0 ? 0.01 : -0.01;
+    let remaining = Math.abs(differenceInCents);
+    let idx = 0;
+
+    while (remaining > 0) {
+      const personIdx = sortedIndices[idx % sortedIndices.length];
+      peopleWithTotals[personIdx].personTotal = Math.round((peopleWithTotals[personIdx].personTotal + pennyValue) * 100) / 100;
+      remaining--;
+      idx++;
+    }
+  }
 
   const renderPersonReceipt = (personData: typeof peopleWithTotals[0], personIndex: number) => {
     const {
@@ -300,9 +331,6 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     );
   };
 
-  // Calculate the bill total from person totals to ensure consistency
-  const calculatedBillTotal = peopleWithTotals.reduce((sum, p) => sum + p.personTotal, 0);
-
   const renderFullBreakdown = () => {
     return (
       <div ref={cardRef} className="receipt-card modern-summary-card">
@@ -331,7 +359,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         {/* Bill Total */}
         <div className="modern-bill-total">
           <span className="modern-total-label">Bill Total</span>
-          <span className="modern-total-amount">${calculatedBillTotal.toFixed(2)}</span>
+          <span className="modern-total-amount">${total.toFixed(2)}</span>
         </div>
 
         {/* Footer */}
