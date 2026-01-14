@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { FoodIcon } from '../../lib/foodIcons';
 import { HomeButton } from '../HomeButton';
+import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare as ComputeItemShare } from '../../lib/computeTotals';
 import './styles.css';
 
 interface Item {
@@ -145,106 +146,100 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     }
   };
 
-  // First, count how many people have each item (for auto-detecting splits)
-  const itemPersonCount = new Map<string, number>();
-  people.forEach(person => {
-    person.items.forEach(itemId => {
-      itemPersonCount.set(itemId, (itemPersonCount.get(itemId) || 0) + 1);
+  // SINGLE SOURCE OF TRUTH: Use computeTotals for all calculations
+  const peopleWithTotals = useMemo(() => {
+    if (!people || people.length === 0) return [];
+
+    // Count how many people have each item (for auto-detecting splits)
+    const itemPersonCount = new Map<string, number>();
+    people.forEach(person => {
+      person.items.forEach(itemId => {
+        itemPersonCount.set(itemId, (itemPersonCount.get(itemId) || 0) + 1);
+      });
     });
-  });
 
-  // Pre-compute all person data for consistent calculations across views
-  const computedPeople = people.map(person => {
-    let itemsSubtotal: number;
-    let personItemsWithShares: Array<{ item: Item; shareAmount: number; weight: number }> = [];
+    // Build shares from itemShares if available, otherwise auto-detect splits
+    const shares: ComputeItemShare[] = [];
+    people.forEach(person => {
+      if (person.itemShares && person.itemShares.length > 0) {
+        // Use pre-calculated weights from itemShares
+        person.itemShares.forEach(share => {
+          shares.push({
+            item_id: share.itemId,
+            person_id: person.id,
+            weight: share.weight
+          });
+        });
+      } else {
+        // Auto-detect splits: if same item is in multiple people's lists, split evenly
+        person.items.forEach(itemId => {
+          const splitCount = itemPersonCount.get(itemId) || 1;
+          shares.push({
+            item_id: itemId,
+            person_id: person.id,
+            weight: 1 / splitCount
+          });
+        });
+      }
+    });
 
-    if (person.itemShares && person.itemShares.length > 0) {
-      // New behavior: use pre-calculated share amounts
-      personItemsWithShares = person.itemShares.map(share => {
-        const item = items.find(i => i.id === share.itemId);
+    // Normalize items and people for computeTotals
+    const normalizedItems: ComputeItem[] = items.map(item => ({
+      id: item.id,
+      label: item.name || item.label || 'Item',
+      price: item.price,
+      quantity: 1,
+      unit_price: item.price,
+      emoji: item.emoji
+    }));
+
+    const normalizedPeople: ComputePerson[] = people.map(p => ({
+      id: p.id,
+      name: p.name,
+      is_paid: false
+    }));
+
+    // Compute all totals using the single source of truth
+    const billTotals = computeTotals(
+      normalizedItems,
+      shares,
+      normalizedPeople,
+      tax,
+      tip,
+      discount,
+      serviceFee,
+      'proportional',
+      'proportional',
+      true
+    );
+
+    // Map back to component's display format
+    return billTotals.person_totals.map(pt => {
+      const person = people.find(p => p.id === pt.person_id)!;
+
+      // Build items with shares for display
+      const personItemsWithShares = pt.items.map(itemData => {
+        const item = items.find(i => i.id === itemData.item_id);
         return {
-          item: item || { id: share.itemId, emoji: '🍽️', price: 0, name: 'Item' },
-          shareAmount: share.shareAmount,
-          weight: share.weight
-        };
-      }).filter(x => x.item);
-      itemsSubtotal = person.itemShares.reduce((sum, share) => sum + share.shareAmount, 0);
-    } else {
-      // Auto-detect splits: if same item is in multiple people's lists, split the price
-      const personItems = items.filter(item => person.items.includes(item.id));
-      personItemsWithShares = personItems.map(item => {
-        const splitCount = itemPersonCount.get(item.id) || 1;
-        const shareAmount = item.price / splitCount;
-        const weight = 1 / splitCount;
-        return {
-          item,
-          shareAmount,
-          weight
+          item: item || { id: itemData.item_id, emoji: '🍽️', price: 0, name: 'Item' },
+          shareAmount: itemData.share_amount,
+          weight: itemData.weight
         };
       });
-      itemsSubtotal = personItemsWithShares.reduce((sum, pis) => sum + pis.shareAmount, 0);
-    }
 
-    return { person, itemsSubtotal, personItemsWithShares };
-  });
-
-  // Use the sum of computed subtotals for proportional calculations
-  const allPeopleSubtotal = computedPeople.reduce((sum, p) => sum + p.itemsSubtotal, 0);
-
-  // The ACTUAL bill total is the source of truth - person totals MUST sum to this exactly
-  const actualBillTotal = total;
-
-  // Compute preliminary totals for each person (before penny reconciliation)
-  const preliminaryTotals = computedPeople.map(({ person, itemsSubtotal, personItemsWithShares }) => {
-    const proportion = allPeopleSubtotal > 0 ? itemsSubtotal / allPeopleSubtotal : 0;
-
-    // Round each component to cents
-    const personDiscount = Math.round(discount * proportion * 100) / 100;
-    const personServiceFee = Math.round(serviceFee * proportion * 100) / 100;
-    const personTax = Math.round(tax * proportion * 100) / 100;
-    const personTip = Math.round(tip * proportion * 100) / 100;
-    const roundedSubtotal = Math.round(itemsSubtotal * 100) / 100;
-
-    // Calculate person total from rounded components
-    const personTotal = Math.round((roundedSubtotal - personDiscount + personServiceFee + personTax + personTip) * 100) / 100;
-
-    return {
-      person,
-      itemsSubtotal: roundedSubtotal,
-      personItemsWithShares,
-      proportion,
-      personDiscount,
-      personServiceFee,
-      personTax,
-      personTip,
-      personTotal
-    };
-  });
-
-  // Penny reconciliation: ensure person totals sum EXACTLY to actual bill total
-  const currentSum = preliminaryTotals.reduce((sum, p) => sum + p.personTotal, 0);
-  const differenceInCents = Math.round((actualBillTotal - currentSum) * 100);
-
-  // Distribute pennies to make totals exact (give to largest totals first)
-  const sortedIndices = preliminaryTotals
-    .map((p, i) => ({ total: p.personTotal, index: i }))
-    .sort((a, b) => b.total - a.total)
-    .map(x => x.index);
-
-  const peopleWithTotals = preliminaryTotals.map((p, i) => ({ ...p }));
-
-  if (differenceInCents !== 0) {
-    const pennyValue = differenceInCents > 0 ? 0.01 : -0.01;
-    let remaining = Math.abs(differenceInCents);
-    let idx = 0;
-
-    while (remaining > 0) {
-      const personIdx = sortedIndices[idx % sortedIndices.length];
-      peopleWithTotals[personIdx].personTotal = Math.round((peopleWithTotals[personIdx].personTotal + pennyValue) * 100) / 100;
-      remaining--;
-      idx++;
-    }
-  }
+      return {
+        person,
+        itemsSubtotal: pt.subtotal,
+        personItemsWithShares,
+        proportion: subtotal > 0 ? pt.subtotal / subtotal : 0,
+        personDiscount: pt.discount_share,
+        personServiceFee: pt.service_fee_share,
+        personTax: pt.tax_share,
+        personTip: pt.tip_share,
+        personTotal: pt.total
+      };
+    });
+  }, [people, items, subtotal, tax, tip, discount, serviceFee]);
 
   const renderPersonReceipt = (personData: typeof peopleWithTotals[0], personIndex: number) => {
     const {

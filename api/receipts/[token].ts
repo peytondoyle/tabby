@@ -2,6 +2,7 @@ import { type VercelRequest, type VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 import { applyCors } from '../_utils/cors.js'
 import { getReceipt } from '../_utils/memoryDb.js'
+import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare } from '../_lib/computeTotals.js'
 
 // Server-side Supabase client using secret key
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -146,33 +147,56 @@ export default async function handler(
         const people_count = people?.length || 0
         const total_amount = (receipt.subtotal || 0) - (receipt.discount || 0) + (receipt.service_fee || 0) + (receipt.sales_tax || 0) + (receipt.tip || 0)
 
-        // Transform people to include their assigned items
-        const transformedPeople = people?.map(person => {
-          // Get all item IDs assigned to this person
-          const assignedItems = shares
-            ?.filter(share => share.person_id === person.id)
-            .map(share => share.item_id) || []
+        // Use computeTotals for accurate person total calculation with penny reconciliation
+        // Transform data to computeTotals format
+        const computeItems: ComputeItem[] = transformedItems.map(item => ({
+          id: item.id,
+          label: item.label,
+          price: item.price * (item.quantity || 1),
+          quantity: item.quantity || 1,
+          unit_price: item.price,
+          emoji: item.emoji
+        }))
 
-          // Calculate person's total (items + proportional discount/service_fee/tax/tip)
-          const personItemsTotal = assignedItems.reduce((sum, itemId) => {
-            const item = items?.find(i => i.id === itemId)
-            return sum + (item?.unit_price || 0)
-          }, 0)
+        const computePeople: ComputePerson[] = (people || []).map(person => ({
+          id: person.id,
+          name: person.name,
+          is_paid: false
+        }))
 
-          const proportion = receipt.subtotal > 0 ? personItemsTotal / receipt.subtotal : 0
-          const personDiscount = (receipt.discount || 0) * proportion
-          const personServiceFee = (receipt.service_fee || 0) * proportion
-          const personTax = (receipt.sales_tax || 0) * proportion
-          const personTip = (receipt.tip || 0) * proportion
-          const personTotal = personItemsTotal - personDiscount + personServiceFee + personTax + personTip
+        const computeShares: ItemShare[] = (shares || []).map(share => ({
+          item_id: share.item_id,
+          person_id: share.person_id,
+          weight: share.weight || 1
+        }))
+
+        // Calculate totals using the centralized computation engine
+        const billTotals = computeTotals(
+          computeItems,
+          computeShares,
+          computePeople,
+          receipt.sales_tax || 0,
+          receipt.tip || 0,
+          receipt.discount || 0,
+          receipt.service_fee || 0,
+          'proportional',
+          'proportional',
+          true
+        )
+
+        // Transform computed totals to API response format
+        const transformedPeople = billTotals.person_totals.map(pt => {
+          const assignedItems = computeShares
+            .filter(share => share.person_id === pt.person_id)
+            .map(share => share.item_id)
 
           return {
-            id: person.id,
-            name: person.name,
+            id: pt.person_id,
+            name: pt.name,
             items: assignedItems,
-            total: personTotal
+            total: pt.total
           }
-        }) || []
+        })
 
         const receiptSummary = {
           id: receipt.id,

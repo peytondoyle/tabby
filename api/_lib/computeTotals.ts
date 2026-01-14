@@ -432,47 +432,6 @@ export function deriveAssignedMap(
 }
 
 /**
- * Convert TabbySimple's UI model to ItemShare format.
- * Detects shared items (same item in multiple people's items arrays).
- * Supports both string[] (item IDs) and { id: string }[] formats.
- *
- * @param items - Array of items with id and price
- * @param people - Array of people with id and items array (items can be string[] or { id: string }[])
- * @returns Array of ItemShare objects with weights calculated for shared items
- */
-export function buildSharesFromPeopleItems(
-  items: { id: string; price: number }[],
-  people: { id: string; items?: (string | { id: string })[] }[]
-): ItemShare[] {
-  const shares: ItemShare[] = []
-
-  // Helper to check if person has item
-  const personHasItem = (personItems: (string | { id: string })[] | undefined, itemId: string): boolean => {
-    if (!personItems) return false
-    return personItems.some(i => typeof i === 'string' ? i === itemId : i.id === itemId)
-  }
-
-  for (const item of items) {
-    // Find all people who have this item in their items array
-    const ownersOfItem = people.filter(p => personHasItem(p.items, item.id))
-
-    if (ownersOfItem.length > 0) {
-      // Split evenly among all owners
-      const weight = 1 / ownersOfItem.length
-      for (const owner of ownersOfItem) {
-        shares.push({
-          item_id: item.id,
-          person_id: owner.id,
-          weight
-        })
-      }
-    }
-  }
-
-  return shares
-}
-
-/**
  * Validates that person totals sum to the grand total
  * @param totals - BillTotals object to validate
  * @returns Object with valid boolean and optional error message

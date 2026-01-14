@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { LazyShareReceiptModal as ShareReceiptModal } from '../components/ShareReceiptModal/LazyShareReceiptModal';
 import { fetchReceiptByToken } from '../lib/receipts';
 import { HomeButton } from '@/components/HomeButton';
+import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare as ComputeItemShare } from '../lib/computeTotals';
 
 interface Item {
   id: string;
@@ -114,118 +115,62 @@ export const ReceiptPage: React.FC = () => {
           console.log('[ReceiptPage] Building people from API data');
           console.log('[ReceiptPage] Shares from API:', billData.shares);
 
-          // First, calculate total weight for each item (for shared items)
-          const itemWeightTotals = new Map<string, number>();
-          (billData.shares || []).forEach((share: any) => {
-            const current = itemWeightTotals.get(share.item_id) || 0;
-            itemWeightTotals.set(share.item_id, current + (share.weight || 1));
-          });
+          // Use centralized computeTotals for accurate calculations with penny reconciliation
+          const computeItems: ComputeItem[] = items.map(item => ({
+            id: item.id,
+            label: item.label,
+            price: item.price,
+            quantity: 1,
+            unit_price: item.price,
+            emoji: item.emoji
+          }));
 
-          console.log('[ReceiptPage] Item weight totals:', Object.fromEntries(itemWeightTotals));
+          const computePeople: ComputePerson[] = (billData.people || []).map((person: any) => ({
+            id: person.id,
+            name: person.name,
+            is_paid: false
+          }));
 
-          // Pre-calculate item shares with penny reconciliation
-          const itemShareMap = new Map<string, Map<string, { weight: number; shareAmount: number }>>();
-          items.forEach(item => {
-            const itemShares = (billData.shares || []).filter((s: any) => s.item_id === item.id);
-            if (itemShares.length === 0) return;
+          const computeShares: ComputeItemShare[] = (billData.shares || []).map((share: any) => ({
+            item_id: share.item_id,
+            person_id: share.person_id,
+            weight: share.weight || 1
+          }));
 
-            const totalWeight = itemWeightTotals.get(item.id) || 1;
+          // Calculate totals using the centralized computation engine
+          const billTotals = computeTotals(
+            computeItems,
+            computeShares,
+            computePeople,
+            tax,
+            tip,
+            discount,
+            serviceFee,
+            'proportional',
+            'proportional',
+            true
+          );
 
-            // Calculate raw shares and round down
-            const shares: Array<{ personId: string; weight: number; rawShare: number; roundedShare: number }> = [];
-            let totalRounded = 0;
+          // Transform to ReceiptPage's expected format
+          people = billTotals.person_totals.map(pt => {
+            const personItemIds = computeShares
+              .filter(share => share.person_id === pt.person_id)
+              .map(share => share.item_id);
 
-            itemShares.forEach((share: any) => {
-              const weight = share.weight || 1;
-              const normalizedWeight = weight / totalWeight;
-              const rawShare = item.price * normalizedWeight;
-              const roundedShare = Math.floor(rawShare * 100) / 100;
-              totalRounded += roundedShare;
-              shares.push({ personId: share.person_id, weight: normalizedWeight, rawShare, roundedShare });
-            });
-
-            // Distribute remaining pennies to highest fractional parts
-            const remainingCents = Math.round((item.price - totalRounded) * 100);
-            if (remainingCents > 0) {
-              const sortedByFraction = [...shares].sort((a, b) => {
-                const fracA = (a.rawShare * 100) % 1;
-                const fracB = (b.rawShare * 100) % 1;
-                return fracB - fracA;
-              });
-              for (let i = 0; i < remainingCents && i < sortedByFraction.length; i++) {
-                sortedByFraction[i].roundedShare += 0.01;
-              }
-            }
-
-            // Store in map
-            const personMap = new Map<string, { weight: number; shareAmount: number }>();
-            shares.forEach(share => personMap.set(share.personId, { weight: share.weight, shareAmount: share.roundedShare }));
-            itemShareMap.set(item.id, personMap);
-          });
-
-          // Calculate all people subtotals for proper proportional distribution
-          const personSubtotals = new Map<string, number>();
-          (billData.people || []).forEach((person: any) => {
-            let personItemsSubtotal = 0;
-            itemShareMap.forEach((personShares) => {
-              const share = personShares.get(person.id);
-              if (share) personItemsSubtotal += share.shareAmount;
-            });
-            personSubtotals.set(person.id, personItemsSubtotal);
-          });
-          const allPeopleSubtotal = Array.from(personSubtotals.values()).reduce((sum, s) => sum + s, 0);
-
-          // Map people from API and calculate their items/totals
-          people = (billData.people || []).map((person: any) => {
-            const personShares = (billData.shares || []).filter(
-              (share: any) => share.person_id === person.id
-            );
-            const personItemIds = personShares.map((share: any) => share.item_id);
-
-            // Get pre-calculated item shares
-            const itemShares: ItemShare[] = personItemIds.map((itemId: string) => {
-              const share = itemShareMap.get(itemId)?.get(person.id);
-              return {
-                itemId,
-                weight: share?.weight ?? 1,
-                shareAmount: share?.shareAmount ?? 0
-              };
-            }).filter((s: ItemShare) => s.shareAmount > 0);
-
-            // Calculate person's subtotal from their share amounts
-            const itemsSubtotal = itemShares.reduce((sum, share) => sum + share.shareAmount, 0);
-            // Use allPeopleSubtotal as denominator to ensure proportions sum to 1.0
-            const proportion = allPeopleSubtotal > 0 ? itemsSubtotal / allPeopleSubtotal : 0;
-            const personTax = Math.round(tax * proportion * 100) / 100;
-            const personTip = Math.round(tip * proportion * 100) / 100;
-            const personTotal = Math.round((itemsSubtotal + personTax + personTip) * 100) / 100;
+            const itemShares: ItemShare[] = pt.items.map(item => ({
+              itemId: item.item_id,
+              weight: item.weight,
+              shareAmount: item.share_amount
+            }));
 
             return {
-              id: person.id,
-              name: person.name,
+              id: pt.person_id,
+              name: pt.name,
               items: personItemIds,
               itemShares,
-              total: personTotal
+              total: pt.total
             };
           });
-
-          // Reconcile pennies: ensure person totals sum to grand total
-          const grandTotal = subtotal + tax + tip;
-          const personTotalsSum = people.reduce((sum, p) => sum + p.total, 0);
-          const pennyDiff = Math.round((grandTotal - personTotalsSum) * 100);
-          if (pennyDiff !== 0 && people.length > 0) {
-            const sortedIndices = people
-              .map((_, i) => i)
-              .sort((a, b) => people[b].total - people[a].total);
-            const penniesPerPerson = Math.floor(Math.abs(pennyDiff) / people.length);
-            const remainder = Math.abs(pennyDiff) % people.length;
-            const sign = pennyDiff > 0 ? 1 : -1;
-
-            sortedIndices.forEach((idx, i) => {
-              const extraPennies = penniesPerPerson + (i < remainder ? 1 : 0);
-              people[idx].total = Math.round((people[idx].total + (sign * extraPennies * 0.01)) * 100) / 100;
-            });
-          }
         }
 
         const receiptData: ReceiptData = {

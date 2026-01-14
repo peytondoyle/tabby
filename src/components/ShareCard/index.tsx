@@ -4,6 +4,7 @@ import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient'
 import { logServer } from '@/lib/errorLogger'
 import { SkeletonText, TextWithTooltip } from '@/components/design-system'
 import { Card } from '@/components/design-system'
+import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare as ComputeItemShare } from '../../lib/computeTotals'
 
 interface ShareCardProps {
   billToken: string
@@ -138,80 +139,61 @@ export const ShareCard: React.FC<ShareCardProps> = ({
         })
         if (sharesError) throw sharesError
 
-        // Calculate share_amount from weights with penny reconciliation
-        // Group shares by item to compute total weight per item
-        const itemWeightTotals = new Map<string, number>()
-        sharesData.forEach((share: { item_id: string; weight: number }) => {
-          const current = itemWeightTotals.get(share.item_id) || 0
-          itemWeightTotals.set(share.item_id, current + share.weight)
-        })
+        // Use centralized computeTotals for accurate calculations with penny reconciliation
+        const computeItems: ComputeItem[] = itemsData.map((item: Item) => ({
+          id: item.id,
+          label: item.label,
+          price: item.price * (item.quantity || 1),
+          quantity: item.quantity || 1,
+          unit_price: item.price,
+          emoji: item.emoji
+        }))
 
-        // Group shares by item_id for penny reconciliation
-        const sharesByItem = new Map<string, Array<{ item_id: string; person_id: string; weight: number }>>()
-        sharesData.forEach((share: { item_id: string; person_id: string; weight: number }) => {
-          const existing = sharesByItem.get(share.item_id) || []
-          existing.push(share)
-          sharesByItem.set(share.item_id, existing)
-        })
+        const computePeople: ComputePerson[] = peopleData.map((person: Person) => ({
+          id: person.id,
+          name: person.name,
+          is_paid: false
+        }))
 
-        // Calculate shares with penny reconciliation (largest remainder method)
-        const sharesWithAmounts: ItemShare[] = []
-        sharesByItem.forEach((itemShares, itemId) => {
-          const item = itemsData.find((i: Item) => i.id === itemId)
-          if (!item) return
+        const computeShares: ComputeItemShare[] = (sharesData || []).map((share: { item_id: string; person_id: string; weight: number }) => ({
+          item_id: share.item_id,
+          person_id: share.person_id,
+          weight: share.weight || 1
+        }))
 
-          const totalWeight = itemWeightTotals.get(itemId) || 1
+        // Calculate totals using the centralized computation engine
+        const billTotals = computeTotals(
+          computeItems,
+          computeShares,
+          computePeople,
+          billData.sales_tax || 0,
+          billData.tip || 0,
+          billData.discount || 0,
+          billData.service_fee || 0,
+          'proportional',
+          'proportional',
+          true
+        )
 
-          // Calculate raw shares and round down
-          const shares: Array<{ share: typeof itemShares[0]; rawShare: number; roundedShare: number }> = []
-          let totalRounded = 0
-
-          itemShares.forEach(share => {
-            const rawShare = (share.weight / totalWeight) * item.price
-            const roundedShare = Math.floor(rawShare * 100) / 100
-            totalRounded += roundedShare
-            shares.push({ share, rawShare, roundedShare })
-          })
-
-          // Distribute remaining pennies to highest fractional parts
-          const remainingCents = Math.round((item.price - totalRounded) * 100)
-          if (remainingCents > 0) {
-            const sortedByFraction = [...shares].sort((a, b) => {
-              const fracA = (a.rawShare * 100) % 1
-              const fracB = (b.rawShare * 100) % 1
-              return fracB - fracA
-            })
-            for (let i = 0; i < remainingCents && i < sortedByFraction.length; i++) {
-              sortedByFraction[i].roundedShare += 0.01
-            }
-          }
-
-          // Add to final array
-          shares.forEach(({ share, roundedShare }) => {
-            sharesWithAmounts.push({
-              ...share,
-              share_amount: Math.round(roundedShare * 100) / 100
-            })
-          })
-        })
+        // Transform to component's expected format
+        const sharesWithAmounts: ItemShare[] = billTotals.person_totals.flatMap(pt =>
+          pt.items.map(item => ({
+            item_id: item.item_id,
+            person_id: pt.person_id,
+            weight: item.weight,
+            share_amount: item.share_amount
+          }))
+        )
         setItemShares(sharesWithAmounts)
 
-        // Calculate person totals with proper rounding
-        const totals = peopleData.map((person: Person) => {
-          const personShares = sharesWithAmounts.filter((share: ItemShare) => share.person_id === person.id)
-          const subtotal = Math.round(personShares.reduce((sum: number, share: ItemShare) => sum + share.share_amount, 0) * 100) / 100
-          const taxShare = billData.subtotal > 0 ? Math.round(((subtotal / billData.subtotal) * billData.sales_tax) * 100) / 100 : 0
-          const tipShare = billData.subtotal > 0 ? Math.round(((subtotal / billData.subtotal) * billData.tip) * 100) / 100 : 0
-          const total = Math.round((subtotal + taxShare + tipShare) * 100) / 100
-
-          return {
-            person_id: person.id,
-            subtotal,
-            tax_share: taxShare,
-            tip_share: tipShare,
-            total
-          }
-        })
+        // Transform person totals to component's expected format
+        const totals = billTotals.person_totals.map(pt => ({
+          person_id: pt.person_id,
+          subtotal: pt.subtotal,
+          tax_share: pt.tax_share,
+          tip_share: pt.tip_share,
+          total: pt.total
+        }))
         setPersonTotals(totals)
 
         setLoading(false)

@@ -10,6 +10,7 @@ import { HomeButton } from '../components/HomeButton';
 import { fetchReceiptByToken, updateReceiptMetadata, updateReceiptAssignments } from '../lib/receipts';
 import { trackPersonName, getQuickAddSuggestions, getUserIdentity, setUserIdentity } from '../lib/peopleHistory';
 import { UnifiedEditModal } from '../components/UnifiedEditModal';
+import { useBillTotals, getPersonTotal, getPersonBreakdown } from '../lib/useBillTotals';
 import './TabbySimple.css';
 
 interface Item {
@@ -146,6 +147,17 @@ export const TabbySimple: React.FC = () => {
   const persistTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPersistingRef = useRef<boolean>(false);
   const pendingPersistRef = useRef<{ token: string | null, people: Person[], items: Item[] } | null>(null);
+
+  // SINGLE SOURCE OF TRUTH: Computed bill totals with penny reconciliation
+  // This hook automatically recalculates person totals when items/people/fees change
+  const billTotals = useBillTotals({
+    items,
+    people,
+    tax,
+    tip,
+    discount,
+    serviceFee
+  });
 
   // Debounced version of persistPeopleAndShares to prevent rapid concurrent API calls
   // Returns a promise for error handling
@@ -325,36 +337,14 @@ export const TabbySimple: React.FC = () => {
               setItems(updatedItems);
 
               // Recalculate person totals with actual item prices
-              const peopleWithTotals = billData.people.map((person: Person) => {
-                const personItems = updatedItems.filter(item => person.items.includes(item.id));
-                let itemsSubtotal = 0;
+              // Set people - totals will be computed by useBillTotals hook
+              const peopleWithItems = billData.people.map((person: Person) => ({
+                ...person,
+                total: 0 // Will be computed by billTotals hook after state update
+              }));
 
-                personItems.forEach(item => {
-                  if (item.splitBetween && item.splitBetween.length > 0) {
-                    itemsSubtotal += item.price / item.splitBetween.length;
-                  } else {
-                    itemsSubtotal += item.price;
-                  }
-                });
-
-                const receiptSubtotal = Number(receiptData.subtotal || 0);
-                const receiptDiscount = Number(receiptData.discount || 0);
-                const receiptServiceFee = Number(receiptData.service_fee || 0);
-                const proportion = receiptSubtotal > 0 ? itemsSubtotal / receiptSubtotal : 0;
-                const personDiscount = receiptDiscount * proportion;
-                const personServiceFee = receiptServiceFee * proportion;
-                const personTax = Number(receiptData.sales_tax || 0) * proportion;
-                const personTip = Number(receiptData.tip || 0) * proportion;
-                const total = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
-
-                return {
-                  ...person,
-                  total
-                };
-              });
-
-              setPeople(peopleWithTotals);
-              console.log('[TabbySimple] Recalculated people totals:', peopleWithTotals);
+              setPeople(peopleWithItems);
+              console.log('[TabbySimple] Loaded people from API (totals computed by hook):', peopleWithItems);
             } else {
               // Fallback to localStorage if no people in API response
               const localShareData = localStorage.getItem(`bill-share-${urlToken}`);
@@ -556,25 +546,12 @@ export const TabbySimple: React.FC = () => {
     const newSubtotal = newItems.reduce((sum, item) => sum + item.price, 0);
     setSubtotal(newSubtotal);
 
-    // Recalculate total (must include discount and serviceFee)
+    // Recalculate bill total (must include discount and serviceFee)
     const newTotal = newSubtotal - discount + serviceFee + tax + tip;
     setTotal(newTotal);
 
-    // Recalculate all person totals
-    setPeople(people.map(person => {
-      const personItems = newItems.filter(item => person.items.includes(item.id));
-      const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
-      const proportion = newSubtotal > 0 ? itemsSubtotal / newSubtotal : 0;
-      const personDiscount = discount * proportion;
-      const personServiceFee = serviceFee * proportion;
-      const personTax = tax * proportion;
-      const personTip = tip * proportion;
-      const total = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
-      return {
-        ...person,
-        total
-      };
-    }));
+    // Note: Person totals are automatically computed by useBillTotals hook
+    // No manual recalculation needed - the hook reacts to items/people state changes
   };
 
   const handleUnifiedBillTotalsSave = async (data: { subtotal: number; tax: number; tip: number }) => {
@@ -601,21 +578,8 @@ export const TabbySimple: React.FC = () => {
       }
     }
 
-    // Recalculate all person totals with new tax/tip
-    setPeople(people.map(person => {
-      const personItems = items.filter(item => person.items.includes(item.id));
-      const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
-      const proportion = newSubtotal > 0 ? itemsSubtotal / newSubtotal : 0;
-      const personDiscount = discount * proportion;
-      const personServiceFee = serviceFee * proportion;
-      const personTax = newTax * proportion;
-      const personTip = newTip * proportion;
-      const total = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
-      return {
-        ...person,
-        total
-      };
-    }));
+    // Note: Person totals are automatically computed by useBillTotals hook
+    // No manual recalculation needed - the hook reacts to tax/tip state changes
   };
 
   const handleUnifiedPersonRemove = async (personId: string) => {
@@ -670,21 +634,8 @@ export const TabbySimple: React.FC = () => {
       }
     }
 
-    // Recalculate all person totals
-    setPeople(people.map(person => {
-      const personItems = items.filter(item => person.items.includes(item.id));
-      const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
-      const proportion = newSubtotal > 0 ? itemsSubtotal / newSubtotal : 0;
-      const personDiscount = discount * proportion;
-      const personServiceFee = serviceFee * proportion;
-      const personTax = newTax * proportion;
-      const personTip = newTip * proportion;
-      const total = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
-      return {
-        ...person,
-        total
-      };
-    }));
+    // Note: Person totals are automatically computed by useBillTotals hook
+    // No manual recalculation needed - the hook reacts to tax/tip state changes
   };
 
   const handleDragStart = (itemId: string) => {
@@ -721,16 +672,8 @@ export const TabbySimple: React.FC = () => {
     setDragOverPerson(null);
   };
 
-  const calculatePersonTotal = (personItems: Item[]) => {
-    const itemsSubtotal = personItems.reduce((sum, item) => sum + item.price, 0);
-    // Calculate proportional shares of all fees, taxes, and adjustments
-    const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
-    const personDiscount = discount * proportion;  // Discount is stored as positive, so subtract it
-    const personServiceFee = serviceFee * proportion;
-    const personTax = tax * proportion;
-    const personTip = tip * proportion;
-    return itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
-  };
+  // NOTE: calculatePersonTotal has been removed - use getPersonTotal(billTotals, personId) instead
+  // The useBillTotals hook at line ~153 is the SINGLE SOURCE OF TRUTH for all calculations
 
   const assignItemToPerson = async (itemId: string, personId: string) => {
     // 🚀 OPTIMISTIC UPDATE - Update UI immediately for instant feedback
@@ -742,27 +685,22 @@ export const TabbySimple: React.FC = () => {
     );
     setItems(updatedItems);
 
+    // Update people's items arrays - totals are computed by useBillTotals hook
     const updatedPeople = people.map(person => {
       if (person.id === personId) {
-        const assignedItems = updatedItems.filter(i =>
-          i.id === itemId || person.items.includes(i.id)
-        );
-        const total = calculatePersonTotal(assignedItems);
+        // Add item to this person
         return {
           ...person,
           items: [...new Set([...person.items, itemId])],
-          total
+          total: 0 // Will be computed by billTotals hook
         };
       }
       // Remove from other people
       if (person.items.includes(itemId)) {
-        const remainingItems = person.items.filter(id => id !== itemId);
-        const remainingItemsData = updatedItems.filter(i => remainingItems.includes(i.id));
-        const total = calculatePersonTotal(remainingItemsData);
         return {
           ...person,
-          items: remainingItems,
-          total
+          items: person.items.filter(id => id !== itemId),
+          total: 0 // Will be computed by billTotals hook
         };
       }
       return person;
@@ -1437,7 +1375,7 @@ export const TabbySimple: React.FC = () => {
                     name: person.name,
                     items: person.items,
                     itemShares,
-                    total: person.total
+                    total: getPersonTotal(billTotals, person.id) // Use computed total from hook
                   };
                 });
 
@@ -1678,22 +1616,13 @@ export const TabbySimple: React.FC = () => {
                 // Get all items for this person based on their items array
                 const personItems = items.filter(item => person.items.includes(item.id));
 
-                // Calculate subtotal considering split items
-                let itemsSubtotal = 0;
-                personItems.forEach(item => {
-                  if (item.splitBetween && item.splitBetween.length > 0) {
-                    // Divide price by number of people splitting
-                    itemsSubtotal += item.price / item.splitBetween.length;
-                  } else {
-                    itemsSubtotal += item.price;
-                  }
-                });
-
-                const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
-                const personDiscount = discount * proportion;
-                const personServiceFee = serviceFee * proportion;
-                const personTax = tax * proportion;
-                const personTip = tip * proportion;
+                // Get computed breakdown from billTotals (single source of truth)
+                const breakdown = getPersonBreakdown(billTotals, person.id);
+                const itemsSubtotal = breakdown?.subtotal ?? 0;
+                const personDiscount = breakdown?.discount_share ?? 0;
+                const personServiceFee = breakdown?.service_fee_share ?? 0;
+                const personTax = breakdown?.tax_share ?? 0;
+                const personTip = breakdown?.tip_share ?? 0;
 
                 return (
                   <div
@@ -1707,7 +1636,7 @@ export const TabbySimple: React.FC = () => {
                   >
                     <div className="person-header">
                       <span className="person-name-large">{person.name}</span>
-                      <span className="person-total">${person.total.toFixed(2)}</span>
+                      <span className="person-total">${getPersonTotal(billTotals, person.id).toFixed(2)}</span>
                     </div>
                     <div className="person-items">
                       {personItems.length === 0 ? (
@@ -1777,7 +1706,8 @@ export const TabbySimple: React.FC = () => {
                                     }
                                   });
                                   const newProportion = subtotal > 0 ? newSubtotal / subtotal : 0;
-                                  const newTotal = newSubtotal + (tax * newProportion) + (tip * newProportion);
+                                  // Include discount and serviceFee, and round to avoid floating-point errors
+                                  const newTotal = Math.round((newSubtotal - (discount * newProportion) + (serviceFee * newProportion) + (tax * newProportion) + (tip * newProportion)) * 100) / 100;
 
                                   return {
                                     ...p,
@@ -1994,43 +1924,14 @@ export const TabbySimple: React.FC = () => {
                     );
                     setItems(updatedItems);
 
-                    // Add item to all selected people with recalculated totals
+                    // Add item to all selected people - totals computed by useBillTotals hook
                     const updatedPeople = people.map(person => {
                       if (splitPeople.includes(person.id)) {
                         const newItems = [...new Set([...person.items, selectedItem.id])];
-                        // Get all items for this person
-                        const personItemsData = items
-                          .filter(i => newItems.includes(i.id) || i.id === selectedItem.id)
-                          .map(i => {
-                            // If this is the item being split, update it with splitBetween
-                            if (i.id === selectedItem.id) {
-                              return { ...i, splitBetween: splitPeople };
-                            }
-                            return i;
-                          });
-
-                        // Calculate subtotal considering split items
-                        let itemsSubtotal = 0;
-                        personItemsData.forEach(item => {
-                          if (item.splitBetween && item.splitBetween.length > 0) {
-                            // Divide price by number of people splitting
-                            itemsSubtotal += item.price / item.splitBetween.length;
-                          } else {
-                            itemsSubtotal += item.price;
-                          }
-                        });
-
-                        const proportion = subtotal > 0 ? itemsSubtotal / subtotal : 0;
-                        const personDiscount = discount * proportion;
-                        const personServiceFee = serviceFee * proportion;
-                        const personTax = tax * proportion;
-                        const personTip = tip * proportion;
-                        const total = itemsSubtotal - personDiscount + personServiceFee + personTax + personTip;
-
                         return {
                           ...person,
                           items: newItems,
-                          total
+                          total: 0 // Will be computed by billTotals hook
                         };
                       }
                       return person;
@@ -2423,7 +2324,7 @@ export const TabbySimple: React.FC = () => {
                     </div>
                     <span>{person.name}</span>
                   </div>
-                  <span style={{ fontWeight: '600' }}>${person.total.toFixed(2)}</span>
+                  <span style={{ fontWeight: '600' }}>${getPersonTotal(billTotals, person.id).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -2582,7 +2483,7 @@ export const TabbySimple: React.FC = () => {
                           id: person.id,
                           name: person.name,
                           items: person.items,
-                          total: person.total
+                          total: getPersonTotal(billTotals, person.id) // Use computed total from hook
                         })),
                         assignments: items.reduce((acc, item) => {
                           if (item.assignedTo) {
