@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { parseReceipt, createReceiptFromReceipt, type ParseResult } from '../lib/receiptScanning';
 import { LazyShareReceiptModal as ShareReceiptModal } from '../components/ShareReceiptModal/LazyShareReceiptModal';
 import { FoodIcon } from '../lib/foodIcons';
@@ -11,6 +12,7 @@ import { fetchReceiptByToken, updateReceiptMetadata, updateReceiptAssignments } 
 import { trackPersonName, getQuickAddSuggestions, getUserIdentity, setUserIdentity } from '../lib/peopleHistory';
 import { UnifiedEditModal } from '../components/UnifiedEditModal';
 import { useBillTotals, getPersonTotal, getPersonBreakdown } from '../lib/useBillTotals';
+import { ProgressSteps } from '../components/design-system/ProgressSteps';
 import './TabbySimple.css';
 
 interface Item {
@@ -29,18 +31,18 @@ interface Person {
   total: number;
 }
 
-// Dark, unique color palette for person avatars (inspired by Tabby)
+// Vibrant color palette for person avatars — pops on dark backgrounds
 const PERSON_COLORS = [
-  '#2C5F7D', // Deep blue
-  '#4A6741', // Forest green
-  '#6B4C7C', // Deep purple
-  '#7C4A44', // Terracotta
-  '#5C5C3D', // Olive
-  '#4D6B73', // Teal
-  '#6B4462', // Plum
-  '#5D5C42', // Bronze
-  '#3D5A6B', // Steel blue
-  '#5B4848', // Brown
+  '#FF6B6B', // Coral
+  '#4ECDC4', // Teal
+  '#FFE66D', // Gold
+  '#A78BFA', // Violet
+  '#F97316', // Orange
+  '#06B6D4', // Cyan
+  '#F472B6', // Pink
+  '#34D399', // Emerald
+  '#60A5FA', // Blue
+  '#FBBF24', // Amber
 ];
 
 const getPersonColor = (index: number): string => {
@@ -141,6 +143,9 @@ export const TabbySimple: React.FC = () => {
   const [editableTax, setEditableTax] = useState('0');
   const [editableTip, setEditableTip] = useState('0');
   const [showDragTooltip, setShowDragTooltip] = useState(false);
+  const [toasts, setToasts] = useState<{id: string, emoji: string, item: string, person: string, color: string}[]>([]);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const prevAllAssignedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Debounce timer for database persistence (prevents race conditions)
@@ -638,6 +643,25 @@ export const TabbySimple: React.FC = () => {
     // No manual recalculation needed - the hook reacts to tax/tip state changes
   };
 
+  // Toast notification helper
+  const addToast = useCallback((emoji: string, itemName: string, personName: string, color: string) => {
+    const id = `toast-${Date.now()}-${Math.random()}`;
+    setToasts(prev => [...prev.slice(-2), { id, emoji, item: itemName, person: personName, color }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 1500);
+  }, []);
+
+  // Celebration trigger: detect transition from not-all-assigned → all-assigned
+  useEffect(() => {
+    const allAssigned = items.length > 0 && items.every(item => item.assignedTo);
+    if (allAssigned && !prevAllAssignedRef.current) {
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 2000);
+    }
+    prevAllAssignedRef.current = allAssigned;
+  }, [items]);
+
   const handleDragStart = (itemId: string) => {
     setDraggedItem(itemId);
     // Hide tooltip after first drag
@@ -679,6 +703,14 @@ export const TabbySimple: React.FC = () => {
     // 🚀 OPTIMISTIC UPDATE - Update UI immediately for instant feedback
     const previousItems = items;
     const previousPeople = people;
+
+    // Show toast notification
+    const assignedItem = items.find(i => i.id === itemId);
+    const assignedPerson = people.find(p => p.id === personId);
+    const personIndex = people.findIndex(p => p.id === personId);
+    if (assignedItem && assignedPerson) {
+      addToast(assignedItem.emoji, assignedItem.name, assignedPerson.name, getPersonColor(personIndex));
+    }
 
     const updatedItems = items.map(item =>
       item.id === itemId ? { ...item, assignedTo: personId, splitBetween: undefined } : item
@@ -1210,6 +1242,14 @@ export const TabbySimple: React.FC = () => {
           </div>
         </div>
 
+        {/* Progress Steps */}
+        <div style={{ padding: '12px 20px 0' }}>
+          <ProgressSteps
+            current={1}
+            labels={['Scan', 'People', 'Assign', 'Done']}
+          />
+        </div>
+
         <div className="people-step-container">
           <div className="people-circles">
             {people.map((person, index) => (
@@ -1551,6 +1591,14 @@ export const TabbySimple: React.FC = () => {
         </div>
       </div>
 
+      {/* Progress Steps */}
+      <div style={{ padding: '12px 20px 0' }}>
+        <ProgressSteps
+          current={allItemsAssigned ? 3 : 2}
+          labels={['Scan', 'People', 'Assign', 'Done']}
+        />
+      </div>
+
       {/* Main Content */}
       <div className="main-content">
         {/* Combined Items and People View */}
@@ -1659,6 +1707,7 @@ export const TabbySimple: React.FC = () => {
                           <div
                             key={item.id}
                             className={`person-item ${draggedItem === item.id ? 'dragging' : ''}`}
+                            style={{ borderLeft: `3px solid ${getPersonColor(personIndex)}` }}
                             draggable
                             onDragStart={() => handleDragStart(item.id)}
                             onDragEnd={handleDragEnd}
@@ -1770,7 +1819,7 @@ export const TabbySimple: React.FC = () => {
 
           {allItemsAssigned && items.length > 0 && (
             <div className="all-assigned">
-              🎉 Your bill has been split! 🎊
+              All items assigned — ready to share!
             </div>
           )}
         </div>
@@ -1795,6 +1844,96 @@ export const TabbySimple: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Toast Notifications */}
+      <div className="toast-container">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              className="toast"
+              initial={{ opacity: 0, y: 40, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              style={{ borderLeft: `3px solid ${toast.color}` }}
+            >
+              <span>{toast.emoji}</span>
+              <span className="toast-text">{toast.item}</span>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>&rarr;</span>
+              <span style={{ color: toast.color, fontWeight: 600 }}>{toast.person}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Celebration Animation */}
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div
+            className="celebration-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {/* Background pulse */}
+            <motion.div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: '#fff',
+                pointerEvents: 'none',
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 0.05, 0] }}
+              transition={{ duration: 0.6 }}
+            />
+            {/* Particle burst */}
+            {Array.from({ length: 30 }).map((_, i) => {
+              const angle = (i / 30) * Math.PI * 2;
+              const distance = 80 + Math.random() * 120;
+              const size = 4 + Math.random() * 8;
+              return (
+                <motion.div
+                  key={i}
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    width: size,
+                    height: size,
+                    borderRadius: '50%',
+                    background: PERSON_COLORS[i % PERSON_COLORS.length],
+                  }}
+                  initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                  animate={{
+                    x: Math.cos(angle) * distance,
+                    y: Math.sin(angle) * distance,
+                    opacity: 0,
+                    scale: 0,
+                  }}
+                  transition={{ duration: 0.8 + Math.random() * 0.4, delay: Math.random() * 0.15 }}
+                />
+              );
+            })}
+            {/* Celebration text */}
+            <motion.div
+              style={{
+                position: 'relative',
+                fontSize: '24px',
+                fontWeight: 700,
+                color: '#fff',
+                textAlign: 'center',
+              }}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 15, delay: 0.1 }}
+            >
+              Bill split!
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Navigation */}
       <div className="bottom-nav">

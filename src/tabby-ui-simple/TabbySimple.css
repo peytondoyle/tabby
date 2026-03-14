@@ -448,13 +448,13 @@
   gap: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-  padding: 2px;
+  padding: 4px 4px 4px 8px;
   margin: -2px;
   border-radius: 6px;
 }
 
 .person-item:hover {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.1);
 }
 
 .person-item.dragging {
@@ -917,4 +917,46 @@
   font-family: 'Courier New', 'Courier', monospace;
   letter-spacing: 0.5px;
   font-weight: 600;
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(12px);
+  border-radius: 10px;
+  font-size: 14px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.toast-text {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Celebration Overlay */
+.celebration-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+  pointer-events: none;
 }
