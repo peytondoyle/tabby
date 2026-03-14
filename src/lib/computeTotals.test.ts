@@ -1,5 +1,5 @@
 import { computeTotals, reconcilePennies, validateBillTotals, buildSharesFromPeopleItems } from './computeTotals'
-import type { Item, Person, ItemShare, PersonTotal } from './computeTotals'
+import type { Item, Person, ItemShare, PersonTotal, BillTotals } from './computeTotals'
 
 describe('computeTotals', () => {
   const mockItems: Item[] = [
@@ -506,5 +506,253 @@ describe('buildSharesFromPeopleItems', () => {
     expect(shares[0]).toEqual({ item_id: '1', person_id: 'p1', weight: 1 })
     expect(shares[1]).toEqual({ item_id: '2', person_id: 'p1', weight: 1 })
     expect(shares[2]).toEqual({ item_id: '3', person_id: 'p2', weight: 1 })
+  })
+})
+
+describe('computeTotals edge cases', () => {
+  const mockPeople: Person[] = [
+    { id: 'p1', name: 'Alice', is_paid: false },
+    { id: 'p2', name: 'Bob', is_paid: false },
+    { id: 'p3', name: 'Charlie', is_paid: false }
+  ]
+
+  it('should reject negative tax', () => {
+    expect(() => computeTotals([], [], mockPeople, -1, 0)).toThrow('Tax cannot be negative')
+  })
+
+  it('should reject negative tip', () => {
+    expect(() => computeTotals([], [], mockPeople, 0, -1)).toThrow('Tip cannot be negative')
+  })
+
+  it('should reject negative discount', () => {
+    expect(() => computeTotals([], [], mockPeople, 0, 0, -5)).toThrow('Discount cannot be negative')
+  })
+
+  it('should reject negative service fee', () => {
+    expect(() => computeTotals([], [], mockPeople, 0, 0, 0, -3)).toThrow('Service fee cannot be negative')
+  })
+
+  it('should handle zero subtotal with nonzero charges via even distribution', () => {
+    // No items, but there's tax and tip
+    const result = computeTotals(
+      [], // no items
+      [], // no shares
+      mockPeople,
+      6.00, // tax
+      9.00, // tip
+      0, 0,
+      'proportional', 'proportional', true
+    )
+
+    expect(result.subtotal).toBe(0)
+    expect(result.grand_total).toBe(15.00)
+
+    // Tax and tip should be distributed evenly among 3 people
+    for (const person of result.person_totals) {
+      expect(person.tax_share).toBe(2.00)
+      expect(person.tip_share).toBe(3.00)
+      expect(person.total).toBe(5.00)
+    }
+
+    const sumOfTotals = result.person_totals.reduce((sum, p) => sum + p.total, 0)
+    expect(sumOfTotals).toBe(result.grand_total)
+  })
+
+  it('should handle empty shares array with items', () => {
+    const items: Item[] = [
+      { id: '1', emoji: '🍕', label: 'Pizza', price: 20.00, quantity: 1, unit_price: 20.00 }
+    ]
+
+    const result = computeTotals(
+      items,
+      [], // no shares - nobody claimed the item
+      mockPeople,
+      2.00, 3.00, 0, 0,
+      'proportional', 'proportional', true
+    )
+
+    // Subtotal reflects items, but nobody has any shares
+    expect(result.subtotal).toBe(20.00)
+    // All person subtotals should be 0
+    for (const person of result.person_totals) {
+      expect(person.subtotal).toBe(0)
+    }
+  })
+
+  it('should handle single person bill', () => {
+    const singlePerson: Person[] = [{ id: 'p1', name: 'Alice', is_paid: false }]
+    const items: Item[] = [
+      { id: '1', label: 'Burger', price: 15.00, quantity: 1, unit_price: 15.00 }
+    ]
+    const shares: ItemShare[] = [{ item_id: '1', person_id: 'p1', weight: 1 }]
+
+    const result = computeTotals(
+      items, shares, singlePerson,
+      1.50, 3.00, 2.00, 1.00,
+      'proportional', 'proportional', true
+    )
+
+    expect(result.grand_total).toBe(15.00 - 2.00 + 1.00 + 1.50 + 3.00) // 18.50
+    expect(result.person_totals[0].total).toBe(18.50)
+  })
+
+  it('should handle discount greater than subtotal', () => {
+    const items: Item[] = [
+      { id: '1', label: 'Salad', price: 10.00, quantity: 1, unit_price: 10.00 }
+    ]
+    const shares: ItemShare[] = [{ item_id: '1', person_id: 'p1', weight: 1 }]
+
+    const result = computeTotals(
+      items, shares, mockPeople,
+      0, 0,
+      15.00, // discount > subtotal
+      0,
+      'proportional', 'proportional', true
+    )
+
+    // Grand total can be negative (overpaid discount)
+    expect(result.grand_total).toBe(-5.00)
+  })
+
+  it('should handle large bill with many items and penny-perfect totals', () => {
+    // 100 items at $9.99 each
+    const items: Item[] = Array.from({ length: 100 }, (_, i) => ({
+      id: `item-${i}`,
+      label: `Item ${i}`,
+      price: 9.99,
+      quantity: 1,
+      unit_price: 9.99
+    }))
+
+    // Split evenly among 3 people (each person gets ~33 items)
+    const shares: ItemShare[] = items.map((item, i) => ({
+      item_id: item.id,
+      person_id: mockPeople[i % 3].id,
+      weight: 1
+    }))
+
+    const result = computeTotals(
+      items, shares, mockPeople,
+      79.92, // 8% tax
+      149.85, // 15% tip
+      0, 0,
+      'proportional', 'proportional', true
+    )
+
+    // Verify penny-perfect reconciliation
+    const sumOfTotals = result.person_totals.reduce((sum, p) => sum + p.total, 0)
+    expect(Math.round(sumOfTotals * 100) / 100).toBe(Math.round(result.grand_total * 100) / 100)
+
+    const validation = validateBillTotals(result)
+    expect(validation.valid).toBe(true)
+  })
+
+  it('should distribute pennies deterministically with tied amounts', () => {
+    // Two people with exactly the same totals
+    const personTotals: PersonTotal[] = [
+      { person_id: 'p2', name: 'Bob', subtotal: 10.00, discount_share: 0, service_fee_share: 0, tax_share: 0, tip_share: 0, total: 10.00, items: [] },
+      { person_id: 'p1', name: 'Alice', subtotal: 10.00, discount_share: 0, service_fee_share: 0, tax_share: 0, tip_share: 0, total: 10.00, items: [] }
+    ]
+
+    const result = reconcilePennies(personTotals, 20.01)
+
+    // With deterministic tiebreaker (localeCompare), p1 (Alice) comes before p2 (Bob)
+    // So Alice gets the penny
+    const alice = result.find(p => p.person_id === 'p1')!
+    const bob = result.find(p => p.person_id === 'p2')!
+    expect(alice.total).toBe(10.01)
+    expect(bob.total).toBe(10.00)
+
+    // Verify it's deterministic by running again
+    const result2 = reconcilePennies(personTotals, 20.01)
+    const alice2 = result2.find(p => p.person_id === 'p1')!
+    expect(alice2.total).toBe(10.01)
+  })
+
+  it('should support even discount split mode', () => {
+    const items: Item[] = [
+      { id: '1', label: 'Pizza', price: 30.00, quantity: 1, unit_price: 30.00 },
+      { id: '2', label: 'Salad', price: 10.00, quantity: 1, unit_price: 10.00 }
+    ]
+    const twoPeople: Person[] = [
+      { id: 'p1', name: 'Alice', is_paid: false },
+      { id: 'p2', name: 'Bob', is_paid: false }
+    ]
+    const shares: ItemShare[] = [
+      { item_id: '1', person_id: 'p1', weight: 1 },
+      { item_id: '2', person_id: 'p2', weight: 1 }
+    ]
+
+    const result = computeTotals(
+      items, shares, twoPeople,
+      0, 0, 10.00, 0,
+      'proportional', 'proportional', true,
+      'even', 'proportional' // even discount split
+    )
+
+    // Even discount: $10 / 2 = $5 each
+    expect(result.person_totals[0].discount_share).toBe(5.00)
+    expect(result.person_totals[1].discount_share).toBe(5.00)
+    expect(result.person_totals[0].total).toBe(25.00) // 30 - 5
+    expect(result.person_totals[1].total).toBe(5.00) // 10 - 5
+  })
+
+  it('should support even service fee split mode', () => {
+    const items: Item[] = [
+      { id: '1', label: 'Pizza', price: 30.00, quantity: 1, unit_price: 30.00 },
+      { id: '2', label: 'Salad', price: 10.00, quantity: 1, unit_price: 10.00 }
+    ]
+    const twoPeople: Person[] = [
+      { id: 'p1', name: 'Alice', is_paid: false },
+      { id: 'p2', name: 'Bob', is_paid: false }
+    ]
+    const shares: ItemShare[] = [
+      { item_id: '1', person_id: 'p1', weight: 1 },
+      { item_id: '2', person_id: 'p2', weight: 1 }
+    ]
+
+    const result = computeTotals(
+      items, shares, twoPeople,
+      0, 0, 0, 6.00,
+      'proportional', 'proportional', true,
+      'proportional', 'even' // even service fee split
+    )
+
+    // Even service fee: $6 / 2 = $3 each
+    expect(result.person_totals[0].service_fee_share).toBe(3.00)
+    expect(result.person_totals[1].service_fee_share).toBe(3.00)
+    expect(result.person_totals[0].total).toBe(33.00) // 30 + 3
+    expect(result.person_totals[1].total).toBe(13.00) // 10 + 3
+  })
+
+  it('should handle mixed even+proportional tax/tip', () => {
+    const items: Item[] = [
+      { id: '1', label: 'Pizza', price: 20.00, quantity: 1, unit_price: 20.00 },
+      { id: '2', label: 'Beer', price: 10.00, quantity: 1, unit_price: 10.00 }
+    ]
+    const twoPeople: Person[] = [
+      { id: 'p1', name: 'Alice', is_paid: false },
+      { id: 'p2', name: 'Bob', is_paid: false }
+    ]
+    const shares: ItemShare[] = [
+      { item_id: '1', person_id: 'p1', weight: 1 },
+      { item_id: '2', person_id: 'p2', weight: 1 }
+    ]
+
+    const result = computeTotals(
+      items, shares, twoPeople,
+      3.00, 6.00, 0, 0,
+      'even',         // tax split evenly
+      'proportional', // tip split by subtotal
+      true
+    )
+
+    // Tax: $3 / 2 = $1.50 each
+    expect(result.person_totals[0].tax_share).toBe(1.50)
+    expect(result.person_totals[1].tax_share).toBe(1.50)
+
+    // Tip: proportional - Alice 20/30 * 6 = $4, Bob 10/30 * 6 = $2
+    expect(result.person_totals[0].tip_share).toBe(4.00)
+    expect(result.person_totals[1].tip_share).toBe(2.00)
   })
 })

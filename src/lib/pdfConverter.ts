@@ -11,7 +11,7 @@ import { logServer } from './errorLogger'
  */
 export async function convertPdfToImage(pdfFile: File): Promise<File> {
   try {
-    console.log('[pdf_convert] Starting PDF conversion:', pdfFile.name)
+    if (process.env.NODE_ENV !== 'production') console.log('[pdf_convert] Starting PDF conversion:', pdfFile.name)
 
     // Dynamically import pdf.js (only load when needed)
     const pdfjsLib = await import('pdfjs-dist')
@@ -20,7 +20,7 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
     const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
     pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker.default
 
-    console.log('[pdf_convert] PDF.js loaded, worker URL:', pdfjsLib.GlobalWorkerOptions.workerSrc)
+    if (process.env.NODE_ENV !== 'production') console.log('[pdf_convert] PDF.js loaded, worker URL:', pdfjsLib.GlobalWorkerOptions.workerSrc)
 
     // Read PDF file as array buffer
     const arrayBuffer = await pdfFile.arrayBuffer()
@@ -29,7 +29,7 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer })
     const pdf = await loadingTask.promise
 
-    console.log('[pdf_convert] PDF loaded, pages:', pdf.numPages)
+    if (process.env.NODE_ENV !== 'production') console.log('[pdf_convert] PDF loaded, pages:', pdf.numPages)
 
     // Process all pages (limit to 5 pages to avoid huge images)
     const maxPages = Math.min(pdf.numPages, 5)
@@ -39,13 +39,13 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
 
     // Render each page
     for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
-      console.log(`[pdf_convert] Processing page ${pageNum}/${maxPages}`)
+      if (process.env.NODE_ENV !== 'production') console.log(`[pdf_convert] Processing page ${pageNum}/${maxPages}`)
 
       const page = await pdf.getPage(pageNum)
 
       // Calculate scale to get reasonable image size (768px width)
       const viewport = page.getViewport({ scale: 1.0 })
-      const scale = 768 / viewport.width
+      const scale = 1536 / viewport.width
       const scaledViewport = page.getViewport({ scale })
 
       // Create canvas for this page
@@ -106,7 +106,7 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
       }
     }
 
-    console.log('[pdf_convert] All pages rendered to combined canvas:', {
+    if (process.env.NODE_ENV !== 'production') console.log('[pdf_convert] All pages rendered to combined canvas:', {
       width: combinedCanvas.width,
       height: combinedCanvas.height,
       pages: pageCanvases.length
@@ -123,7 +123,7 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
           }
         },
         'image/jpeg',
-        0.70 // Matching image compression quality
+        0.92 // High quality for sharp OCR text edges
       )
     })
 
@@ -134,7 +134,7 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
       { type: 'image/jpeg' }
     )
 
-    console.log('[pdf_convert] PDF converted to image:', {
+    if (process.env.NODE_ENV !== 'production') console.log('[pdf_convert] PDF converted to image:', {
       originalSize: pdfFile.size,
       imageSize: imageFile.size,
       filename: imageFile.name,

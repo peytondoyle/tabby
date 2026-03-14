@@ -265,12 +265,12 @@ export function generateId(): string {
 
 // Configuration for service charge/fee detection
 const SERVICE_CHARGE_CONFIG = {
-  keywords: ['service charge', 'service fee', 'delivery fee', 'processing fee', 'convenience fee']
+  keywords: ['service charge', 'service fee', 'delivery fee', 'processing fee', 'convenience fee', 'platform fee', 'surcharge', 'credit card fee', 'cc surcharge', 'svc charge', 'svc chg']
 } as const
 
 // Configuration for tip detection
 const TIP_CONFIG = {
-  keywords: ['tip', 'gratuity', 'tips']
+  keywords: ['tip', 'gratuity', 'tips', 'grat', 'auto gratuity', 'auto grat']
 } as const
 
 // Check if an item is a service charge/fee
@@ -305,7 +305,7 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
   quantity: number
   unit_price: number
 }> {
-  console.log(`[process_items] Processing ${rawItems.length} raw items`)
+  if (process.env.NODE_ENV !== 'production') console.log(`[process_items] Processing ${rawItems.length} raw items`)
 
   // Step 1: Normalize and filter items
   const normalizedItems = rawItems
@@ -326,25 +326,29 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
       }
     })
     .filter(item => {
-      // Filter out empty labels and zero-price items (unless they're discounts)
+      // Filter out items with no label AND zero price
+      // Keep labeled zero-price items (e.g., complimentary "Comp Water $0.00")
       const isEmpty = !item.label || item.label.length === 0
       const isZeroPrice = Math.abs(item.price) < 0.01
-      const isDiscountItem = isDiscount(item.label)
-      
+
+      if (isEmpty && isZeroPrice) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[process_items] Filtered out empty item: ${JSON.stringify(item)}`)
+        }
+        return false
+      }
+
       if (isEmpty) {
-        console.log(`[process_items] Filtered out empty item: ${JSON.stringify(item)}`)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[process_items] Filtered out empty-label item: ${JSON.stringify(item)}`)
+        }
         return false
       }
-      
-      if (isZeroPrice && !isDiscountItem) {
-        console.log(`[process_items] Filtered out zero-price item: ${item.label}`)
-        return false
-      }
-      
+
       return true
     })
   
-  console.log(`[process_items] After filtering: ${normalizedItems.length} items`)
+  if (process.env.NODE_ENV !== 'production') console.log(`[process_items] After filtering: ${normalizedItems.length} items`)
   
   // Step 2: Filter special items (fees, tips) and process discounts
   // NOTE: We no longer coalesce duplicates because server already expanded quantity items
@@ -361,7 +365,7 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
   for (const item of normalizedItems) {
     // Skip service charges and tips - they'll be handled separately
     if (isServiceCharge(item.label) || isTip(item.label)) {
-      console.log(`[process_items] Skipping fee/tip item: ${item.label} - $${item.price}`)
+      if (process.env.NODE_ENV !== 'production') console.log(`[process_items] Skipping fee/tip item: ${item.label} - $${item.price}`)
       continue
     }
 
@@ -370,14 +374,14 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
       // Make discount negative
       item.price = -Math.abs(item.price)
       item.unit_price = item.price
-      console.log(`[process_items] Discount item: ${item.label} - $${item.price}`)
+      if (process.env.NODE_ENV !== 'production') console.log(`[process_items] Discount item: ${item.label} - $${item.price}`)
     }
 
     // Add item as-is (no coalescing - keep expanded items separate for splitting)
     processedItems.push(item)
   }
 
-  console.log(`[process_items] After processing: ${processedItems.length} items`)
+  if (process.env.NODE_ENV !== 'production') console.log(`[process_items] After processing: ${processedItems.length} items`)
 
   return processedItems
 }
@@ -842,25 +846,45 @@ function mergeReceiptResults(results: ParseResult[]): ParseResult {
   const place = results.find(r => r.place)?.place || null
   const date = results.find(r => r.date)?.date || null
 
-  // Collect all items, deduplicating by label+price
-  const itemMap = new Map<string, ParseResult['items'][0]>()
-  const seenKeys = new Set<string>()
+  // Collect all items, keeping the MAX count of each label+price seen in any single image
+  // This preserves legitimate duplicates (e.g., two people ordered the same beer)
+  // while still deduplicating across multi-image scans of the same receipt
 
-  for (const result of results) {
+  // Step 1: Count occurrences per key per image
+  const perImageCounts: Map<string, number>[] = results.map(result => {
+    const counts = new Map<string, number>()
     for (const item of result.items) {
-      // Create a key for deduplication (normalize label, round price)
       const key = `${item.label.toLowerCase().trim()}-${item.price.toFixed(2)}`
+      counts.set(key, (counts.get(key) || 0) + 1)
+    }
+    return counts
+  })
 
-      if (!seenKeys.has(key)) {
-        seenKeys.add(key)
-        itemMap.set(item.id, item)
-      } else {
-        console.log(`[multi_scan] Skipping duplicate item: ${item.label} ($${item.price})`)
-      }
+  // Step 2: Find max count for each key across all images
+  const maxCounts = new Map<string, number>()
+  for (const counts of perImageCounts) {
+    for (const [key, count] of counts) {
+      maxCounts.set(key, Math.max(maxCounts.get(key) || 0, count))
     }
   }
 
-  const items = Array.from(itemMap.values())
+  // Step 3: Collect items up to the max count per key
+  const usedCounts = new Map<string, number>()
+  const items: ParseResult['items'] = []
+
+  // Use first image's items first to preserve ordering
+  for (const result of results) {
+    for (const item of result.items) {
+      const key = `${item.label.toLowerCase().trim()}-${item.price.toFixed(2)}`
+      const used = usedCounts.get(key) || 0
+      const max = maxCounts.get(key) || 0
+
+      if (used < max) {
+        items.push(item)
+        usedCounts.set(key, used + 1)
+      }
+    }
+  }
   console.info(`[multi_scan] Merged ${items.length} unique items from ${results.reduce((sum, r) => sum + r.items.length, 0)} total`)
 
   // For totals: prefer the result that has the most complete data

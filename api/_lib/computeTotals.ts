@@ -29,7 +29,7 @@ export interface Person {
 export interface ItemShare {
   item_id: string
   person_id: string
-  weight: number // 0.0 to 1.0, e.g., 0.5 for 50/50 split
+  weight: number // must be > 0, relative weight (e.g., 1 for equal share, 0.5 for half)
 }
 
 export type PersonTotal = {
@@ -68,6 +68,8 @@ export interface BillTotals {
 
 export type TaxMode = 'proportional' | 'even'
 export type TipMode = 'proportional' | 'even'
+export type DiscountMode = 'proportional' | 'even'
+export type ServiceFeeMode = 'proportional' | 'even'
 
 /**
  * Validates that a weight is greater than 0
@@ -89,16 +91,16 @@ export function validateWeight(weight: number): void {
  * @throws Error if all weights would sum to 0
  */
 export function validateItemWeights(
-  itemId: string, 
-  shares: ItemShare[], 
-  newWeight: number, 
+  itemId: string,
+  shares: ItemShare[],
+  newWeight: number,
   personId: string
 ): void {
   const itemShares = shares.filter(share => share.item_id === itemId)
   const otherWeights = itemShares
     .filter(share => share.person_id !== personId)
     .reduce((sum, share) => sum + share.weight, 0)
-  
+
   if (otherWeights + newWeight <= 0) {
     throw new Error('Each item needs at least one person with weight > 0')
   }
@@ -112,11 +114,11 @@ export function validateItemWeights(
  * @returns The existing share if found, null otherwise
  */
 export function findExistingShare(
-  shares: ItemShare[], 
-  itemId: string, 
+  shares: ItemShare[],
+  itemId: string,
   personId: string
 ): ItemShare | null {
-  return shares.find(share => 
+  return shares.find(share =>
     share.item_id === itemId && share.person_id === personId
   ) || null
 }
@@ -170,8 +172,16 @@ export function computeTotals(
   service_fee: number = 0,
   taxMode: TaxMode = 'proportional',
   tipMode: TipMode = 'proportional',
-  includeZeroPeople: boolean = true
+  includeZeroPeople: boolean = true,
+  discountMode: DiscountMode = 'proportional',
+  serviceFeeMode: ServiceFeeMode = 'proportional'
 ): BillTotals {
+  // Input validation: reject negative charges
+  if (tax < 0) throw new Error('Tax cannot be negative')
+  if (tip < 0) throw new Error('Tip cannot be negative')
+  if (discount < 0) throw new Error('Discount cannot be negative')
+  if (service_fee < 0) throw new Error('Service fee cannot be negative')
+
   // 1. Calculate subtotal from items
   const subtotal = items.reduce((sum, item) => sum + item.price, 0)
   // Discount is positive and subtracted, service_fee/tax/tip are added
@@ -179,7 +189,7 @@ export function computeTotals(
 
   // 2. Build lookup maps for quick access
   const itemMap = new Map(items.map(item => [item.id, item]))
-  
+
   // 3. Initialize person totals
   const personTotals: PersonTotal[] = people.map(person => ({
     person_id: person.id,
@@ -192,30 +202,30 @@ export function computeTotals(
     total: 0,
     items: []
   }))
-  
+
   const personTotalMap = new Map(personTotals.map(pt => [pt.person_id, pt]))
-  
+
   // 4. Calculate total weight for each item (for shared items)
   const itemWeightTotals = new Map<string, number>()
   for (const share of shares) {
     const current = itemWeightTotals.get(share.item_id) || 0
     itemWeightTotals.set(share.item_id, current + share.weight)
   }
-  
+
   // 5. Distribute items to people based on shares
   for (const share of shares) {
     const item = itemMap.get(share.item_id)
     const personTotal = personTotalMap.get(share.person_id)
-    
+
     if (!item || !personTotal) continue
-    
+
     const totalWeight = itemWeightTotals.get(share.item_id) || 1
     const shareRatio = share.weight / totalWeight
     const shareAmount = item.price * shareRatio
-    
+
     // Add to person's subtotal
     personTotal.subtotal += shareAmount
-    
+
     // Add item to person's items list
     personTotal.items.push({
       item_id: share.item_id,
@@ -227,20 +237,50 @@ export function computeTotals(
       share_amount: shareAmount
     })
   }
-  
-  // 6. Calculate discount shares (proportional to subtotal)
-  // Discounts are always applied proportionally
-  for (const personTotal of personTotals) {
-    if (subtotal > 0) {
-      personTotal.discount_share = (personTotal.subtotal / subtotal) * discount
+
+  // 6. Calculate discount shares
+  if (discountMode === 'proportional') {
+    for (const personTotal of personTotals) {
+      if (subtotal > 0) {
+        personTotal.discount_share = (personTotal.subtotal / subtotal) * discount
+      } else if (people.length > 0 && discount > 0) {
+        // Zero subtotal fallback: distribute evenly
+        personTotal.discount_share = discount / people.length
+      }
+    }
+  } else {
+    // Even split for discount
+    const relevantPeople = includeZeroPeople
+      ? personTotals
+      : personTotals.filter(p => p.subtotal > 0)
+    if (relevantPeople.length > 0) {
+      const discountPerPerson = discount / relevantPeople.length
+      for (const personTotal of relevantPeople) {
+        personTotal.discount_share = discountPerPerson
+      }
     }
   }
 
-  // 7. Calculate service fee shares (proportional to subtotal)
-  // Service fees are always applied proportionally
-  for (const personTotal of personTotals) {
-    if (subtotal > 0) {
-      personTotal.service_fee_share = (personTotal.subtotal / subtotal) * service_fee
+  // 7. Calculate service fee shares
+  if (serviceFeeMode === 'proportional') {
+    for (const personTotal of personTotals) {
+      if (subtotal > 0) {
+        personTotal.service_fee_share = (personTotal.subtotal / subtotal) * service_fee
+      } else if (people.length > 0 && service_fee > 0) {
+        // Zero subtotal fallback: distribute evenly
+        personTotal.service_fee_share = service_fee / people.length
+      }
+    }
+  } else {
+    // Even split for service fee
+    const relevantPeople = includeZeroPeople
+      ? personTotals
+      : personTotals.filter(p => p.subtotal > 0)
+    if (relevantPeople.length > 0) {
+      const feePerPerson = service_fee / relevantPeople.length
+      for (const personTotal of relevantPeople) {
+        personTotal.service_fee_share = feePerPerson
+      }
     }
   }
 
@@ -250,6 +290,9 @@ export function computeTotals(
     for (const personTotal of personTotals) {
       if (subtotal > 0) {
         personTotal.tax_share = (personTotal.subtotal / subtotal) * tax
+      } else if (people.length > 0 && tax > 0) {
+        // Zero subtotal fallback: distribute evenly
+        personTotal.tax_share = tax / people.length
       }
     }
   } else {
@@ -265,13 +308,16 @@ export function computeTotals(
       }
     }
   }
-  
+
   // 9. Calculate tip shares
   if (tipMode === 'proportional') {
     // Split tip proportionally based on each person's subtotal
     for (const personTotal of personTotals) {
       if (subtotal > 0) {
         personTotal.tip_share = (personTotal.subtotal / subtotal) * tip
+      } else if (people.length > 0 && tip > 0) {
+        // Zero subtotal fallback: distribute evenly
+        personTotal.tip_share = tip / people.length
       }
     }
   } else {
@@ -292,7 +338,7 @@ export function computeTotals(
   for (const personTotal of personTotals) {
     personTotal.total = personTotal.subtotal - personTotal.discount_share + personTotal.service_fee_share + personTotal.tax_share + personTotal.tip_share
   }
-  
+
   // 11. Round totals to cents and reconcile pennies
   const reconciledTotals = reconcilePennies(personTotals, grand_total)
 
@@ -337,37 +383,38 @@ export function reconcilePennies(
       share_amount: Math.round(item.share_amount * 100) / 100
     }))
   }))
-  
+
   // 2. Calculate current total after rounding
   const currentTotal = roundedTotals.reduce((sum, person) => sum + person.total, 0)
-  
+
   // 3. Find the difference (in cents)
   const differenceCents = Math.round((targetTotal - currentTotal) * 100)
-  
+
   // 4. If no difference, return as is
   if (differenceCents === 0) {
     return roundedTotals
   }
-  
+
   // 5. Sort people by their total (descending) to distribute to largest first
-  const sortedTotals = [...roundedTotals].sort((a, b) => b.total - a.total)
-  
+  // Use person_id as deterministic tiebreaker to prevent same person always getting the extra penny
+  const sortedTotals = [...roundedTotals].sort((a, b) => b.total - a.total || a.person_id.localeCompare(b.person_id))
+
   // 6. Distribute pennies one at a time
   const pennyValue = differenceCents > 0 ? 0.01 : -0.01
   let remaining = Math.abs(differenceCents)
-  
+
   for (let i = 0; remaining > 0 && i < sortedTotals.length; i++) {
     // Distribute one penny to this person
     sortedTotals[i].total += pennyValue
     sortedTotals[i].total = Math.round(sortedTotals[i].total * 100) / 100
     remaining--
-    
+
     // If we still have pennies and we've gone through everyone, loop back
     if (remaining > 0 && i === sortedTotals.length - 1) {
       i = -1 // Will be incremented to 0 on next iteration
     }
   }
-  
+
   // 7. Return the totals in original order
   const resultMap = new Map(sortedTotals.map(p => [p.person_id, p]))
   return personTotals.map(p => resultMap.get(p.person_id)!)
@@ -385,35 +432,35 @@ export function deriveAssignedMap(
 ): Record<string, AssignedLine[]> {
   // Build Map(item_id -> item) for quick lookup
   const itemMap = new Map(items.map(item => [item.id, item]))
-  
+
   // Group shares by person_id
   const sharesByPerson = new Map<string, ItemShare[]>()
-  
+
   for (const share of shares) {
     if (!sharesByPerson.has(share.person_id)) {
       sharesByPerson.set(share.person_id, [])
     }
     sharesByPerson.get(share.person_id)!.push(share)
   }
-  
+
   // Compute assigned items for each person
   const result: Record<string, AssignedLine[]> = {}
-  
+
   for (const [personId, personShares] of sharesByPerson) {
     const assignedItems: AssignedLine[] = []
-    
+
     for (const share of personShares) {
       const item = itemMap.get(share.item_id)
       if (!item) continue // Skip if item not found
-      
+
       // Calculate total weight for this item across all shares
       const totalWeight = shares
         .filter(s => s.item_id === share.item_id)
         .reduce((sum, s) => sum + s.weight, 0)
-      
+
       // Calculate share price based on weight proportion
       const sharePrice = (item.price * share.weight) / totalWeight
-      
+
       assignedItems.push({
         item_id: share.item_id,
         emoji: item.emoji || '📦',
@@ -424,7 +471,7 @@ export function deriveAssignedMap(
         share_amount: sharePrice
       })
     }
-    
+
     result[personId] = assignedItems
   }
 

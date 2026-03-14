@@ -6,7 +6,7 @@ import { applyCors } from '../_utils/cors.js'
 import { createRequestContext, checkRequestSize, sendErrorResponse, sendSuccessResponse, logRequestCompletion } from '../_utils/request.js'
 import { checkRateLimit, addRateLimitHeaders } from '../_utils/rateLimit.js'
 import { FILE_LIMITS } from '../_utils/schemas.js'
-import { processWithMultipleProviders } from './ocr-providers.js'
+import { processWithMultipleProviders, enhanceOCRResult } from './ocr-providers.js'
 
 // Smart emoji mapping - fast and fun!
 const EMOJI_MAP: Record<string, string> = {
@@ -90,10 +90,12 @@ function expandQuantityItems(items: Array<{ label: string; price: number; emoji?
       const quantity = parseInt(quantityMatch[1], 10)
       const itemName = quantityMatch[2]
 
-      // Only expand if quantity > 1 and <= 20 (sanity check)
-      if (quantity > 1 && quantity <= 20) {
+      // Only expand if quantity > 1 and <= 50 (sanity check - supports catering/large parties)
+      if (quantity > 1 && quantity <= 50) {
         const unitPrice = Math.round((item.price / quantity) * 100) / 100 // Round to 2 decimal places
-        console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
+        }
 
         // Create individual items
         for (let i = 0; i < quantity; i++) {
@@ -113,9 +115,57 @@ function expandQuantityItems(items: Array<{ label: string; price: number; emoji?
       const itemName = xMatch[1].trim()
       const quantity = parseInt(xMatch[2], 10)
 
-      if (quantity > 1 && quantity <= 20) {
+      if (quantity > 1 && quantity <= 50) {
         const unitPrice = Math.round((item.price / quantity) * 100) / 100
-        console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
+        }
+
+        for (let i = 0; i < quantity; i++) {
+          expanded.push({
+            label: itemName,
+            price: unitPrice,
+            emoji: item.emoji
+          })
+        }
+        continue
+      }
+    }
+
+    // Pattern 3: "@" notation like "2 @ $45.00 Gameplay"
+    const atMatch = item.label.match(/^(\d+)\s*@\s*\$?[\d.]+\s+(.+)$/)
+    if (atMatch) {
+      const quantity = parseInt(atMatch[1], 10)
+      const itemName = atMatch[2].trim()
+
+      if (quantity > 1 && quantity <= 50) {
+        const unitPrice = Math.round((item.price / quantity) * 100) / 100
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
+        }
+
+        for (let i = 0; i < quantity; i++) {
+          expanded.push({
+            label: itemName,
+            price: unitPrice,
+            emoji: item.emoji
+          })
+        }
+        continue
+      }
+    }
+
+    // Pattern 4: "Qty" prefix like "Qty: 3 Beer" or "Quantity 2 Salad"
+    const qtyMatch = item.label.match(/^(?:qty|quantity)[:\s]*(\d+)\s+(.+)$/i)
+    if (qtyMatch) {
+      const quantity = parseInt(qtyMatch[1], 10)
+      const itemName = qtyMatch[2].trim()
+
+      if (quantity > 1 && quantity <= 50) {
+        const unitPrice = Math.round((item.price / quantity) * 100) / 100
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
+        }
 
         for (let i = 0; i < quantity; i++) {
           expanded.push({
@@ -340,7 +390,7 @@ export default async function handler(
       return
     }
 
-    console.log('[scan_api] Starting receipt processing...')
+    if (process.env.NODE_ENV !== 'production') console.log('[scan_api] Starting receipt processing...')
 
     // Parse multipart form data
     const formData = await parseFormData(req)
@@ -365,51 +415,65 @@ export default async function handler(
       return
     }
 
-    console.log(`[scan_api] Processing image file: ${file.originalFilename} (${file.size} bytes, ${file.mimetype})`)
+    if (process.env.NODE_ENV !== 'production') console.log(`[scan_api] Processing image file: ${file.originalFilename} (${file.size} bytes, ${file.mimetype})`)
     
     // Note: supabaseAdmin can be used here for server-side database operations
     // Example: await supabaseAdmin?.from('receipts').insert({ ... })
 
     // Check if OpenAI is configured
     const openaiConfigured = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim() !== ''
-    console.log('[scan_api] OpenAI configured:', openaiConfigured, 'Key present:', !!process.env.OPENAI_API_KEY, 'Key length:', process.env.OPENAI_API_KEY?.length || 0)
 
     let result: ScanReceiptResponse
 
     if (openaiConfigured) {
       // Use OCR processing with fallback
-      console.log('[scan_api] Using OCR processing')
+      if (process.env.NODE_ENV !== 'production') console.log('[scan_api] Using OCR processing')
       try {
         // Read file as buffer for OCR processing
         const imageBuffer = await fs.readFile(file.filepath)
-        console.log(`[scan_api] File read successfully, size: ${imageBuffer.length} bytes`)
+        if (process.env.NODE_ENV !== 'production') console.log(`[scan_api] File read successfully, size: ${imageBuffer.length} bytes`)
 
         // Process with OCR providers (parallel processing for speed)
-        const ocrResult = await processWithMultipleProviders(imageBuffer, file.mimetype, 30000)
-        console.log(`[scan_api] OCR processing completed - ${ocrResult.items.length} items extracted in ${ocrResult.processingTime}ms`)
+        let ocrResult = await processWithMultipleProviders(imageBuffer, file.mimetype, 30000)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[scan_api] OCR processing completed - ${ocrResult.items.length} items extracted in ${ocrResult.processingTime}ms`)
+        }
+
+        // Re-extract low-confidence fields for better accuracy
+        if (ocrResult.confidence !== undefined && ocrResult.confidence < 0.75) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.log(`[scan_api] Low confidence (${ocrResult.confidence.toFixed(2)}), enhancing OCR result...`)
+          }
+          ocrResult = await enhanceOCRResult(ocrResult, imageBuffer, file.mimetype)
+          if (process.env.NODE_ENV !== 'production') {
+            console.log(`[scan_api] Enhanced OCR confidence: ${ocrResult.confidence?.toFixed(2) || 'N/A'}`)
+          }
+        }
 
         // First, expand quantity items (e.g., "3 Cold Beverage" -> 3 separate items)
-        console.log('[scan_api] Expanding quantity items...')
+        if (process.env.NODE_ENV !== 'production') console.log('[scan_api] Expanding quantity items...')
         const expandedItems = expandQuantityItems(ocrResult.items)
-        console.log(`[scan_api] Expanded ${ocrResult.items.length} items to ${expandedItems.length} items`)
+        if (process.env.NODE_ENV !== 'production') console.log(`[scan_api] Expanded ${ocrResult.items.length} items to ${expandedItems.length} items`)
 
         // Smart emoji mapping instead of slow DALL-E icon generation
-        console.log('[scan_api] Applying smart emoji mapping...')
+        if (process.env.NODE_ENV !== 'production') console.log('[scan_api] Applying smart emoji mapping...')
         const itemsWithEmojis = expandedItems.map(item => ({
           ...item,
           emoji: item.emoji || getSmartEmoji(item.label)
         }))
-        console.log(`[scan_api] Emoji mapping completed for ${itemsWithEmojis.length} items`)
+        if (process.env.NODE_ENV !== 'production') console.log(`[scan_api] Emoji mapping completed for ${itemsWithEmojis.length} items`)
 
         // Log any warnings or suggestions
-        if (ocrResult.validation?.warnings?.length) {
-          console.log(`[scan_api] OCR Warnings: ${ocrResult.validation.warnings.join('; ')}`)
-        }
-        if (ocrResult.suggestedCorrections?.length) {
-          console.log(`[scan_api] Suggested corrections: ${JSON.stringify(ocrResult.suggestedCorrections)}`)
-        }
-        if (ocrResult.handwrittenFields?.length) {
-          console.log(`[scan_api] Handwritten fields detected: ${ocrResult.handwrittenFields.join(', ')}`)
+        if (process.env.NODE_ENV !== 'production') {
+          if (ocrResult.validation?.warnings?.length) {
+            console.log(`[scan_api] OCR Warnings: ${ocrResult.validation.warnings.join('; ')}`)
+          }
+          if (ocrResult.suggestedCorrections?.length) {
+            console.log(`[scan_api] Suggested corrections: ${JSON.stringify(ocrResult.suggestedCorrections)}`)
+          }
+          if (ocrResult.handwrittenFields?.length) {
+            console.log(`[scan_api] Handwritten fields detected: ${ocrResult.handwrittenFields.join(', ')}`)
+          }
         }
 
         result = {
@@ -445,7 +509,7 @@ export default async function handler(
         // Fall back to dev data if OCR fails and we're in development
         const isDevelopment = process.env.NODE_ENV !== 'production' || process.env.VITE_ALLOW_DEV_FALLBACK === '1'
         if (isDevelopment) {
-          console.log('[scan_api] Using DEV fallback after OCR error')
+          if (process.env.NODE_ENV !== 'production') console.log('[scan_api] Using DEV fallback after OCR error')
           result = getDEVFallback()
         } else {
           // In production, throw the error to be handled by outer catch block
@@ -454,7 +518,7 @@ export default async function handler(
       }
     } else {
       // DEV fallback
-      console.log('[scan_api] Using DEV fallback (OpenAI not configured)')
+      if (process.env.NODE_ENV !== 'production') console.log('[scan_api] Using DEV fallback (OpenAI not configured)')
       result = getDEVFallback()
     }
 

@@ -18,10 +18,11 @@ const ALLOWED_ORIGINS = new Set([
 export function applyCors(req: IncomingMessage & { method?: string; headers: any }, res: ServerResponse) {
   const origin = (req.headers?.origin as string) || "";
 
-  // Check if origin is in allowed list or matches Vercel deployment patterns
-  const isVercelDeployment = origin.includes('.vercel.app') || origin.includes('vercel.app');
+  // Check if origin is in allowed list or matches Tabby Vercel deployment patterns
+  const isVercelDeployment = /^https:\/\/tabby[\w-]*\.vercel\.app$/.test(origin);
   const allowlisted = ALLOWED_ORIGINS.has(origin) || isVercelDeployment;
-  const allowOrigin = allowlisted ? origin : origin || "*";
+  // Non-allowlisted origins get the first allowlisted origin (not their own origin echoed back)
+  const allowOrigin = allowlisted ? origin : ALLOWED_ORIGINS.values().next().value!;
 
   res.setHeader("Access-Control-Allow-Origin", allowOrigin);
   res.setHeader("Vary", "Origin");

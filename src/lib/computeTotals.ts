@@ -29,7 +29,7 @@ export interface Person {
 export interface ItemShare {
   item_id: string
   person_id: string
-  weight: number // 0.0 to 1.0, e.g., 0.5 for 50/50 split
+  weight: number // must be > 0, relative weight (e.g., 1 for equal share, 0.5 for half)
 }
 
 export type PersonTotal = {
@@ -68,6 +68,8 @@ export interface BillTotals {
 
 export type TaxMode = 'proportional' | 'even'
 export type TipMode = 'proportional' | 'even'
+export type DiscountMode = 'proportional' | 'even'
+export type ServiceFeeMode = 'proportional' | 'even'
 
 /**
  * Validates that a weight is greater than 0
@@ -170,8 +172,16 @@ export function computeTotals(
   service_fee: number = 0,
   taxMode: TaxMode = 'proportional',
   tipMode: TipMode = 'proportional',
-  includeZeroPeople: boolean = true
+  includeZeroPeople: boolean = true,
+  discountMode: DiscountMode = 'proportional',
+  serviceFeeMode: ServiceFeeMode = 'proportional'
 ): BillTotals {
+  // Input validation: reject negative charges
+  if (tax < 0) throw new Error('Tax cannot be negative')
+  if (tip < 0) throw new Error('Tip cannot be negative')
+  if (discount < 0) throw new Error('Discount cannot be negative')
+  if (service_fee < 0) throw new Error('Service fee cannot be negative')
+
   // 1. Calculate subtotal from items
   const subtotal = items.reduce((sum, item) => sum + item.price, 0)
   // Discount is positive and subtracted, service_fee/tax/tip are added
@@ -228,19 +238,49 @@ export function computeTotals(
     })
   }
   
-  // 6. Calculate discount shares (proportional to subtotal)
-  // Discounts are always applied proportionally
-  for (const personTotal of personTotals) {
-    if (subtotal > 0) {
-      personTotal.discount_share = (personTotal.subtotal / subtotal) * discount
+  // 6. Calculate discount shares
+  if (discountMode === 'proportional') {
+    for (const personTotal of personTotals) {
+      if (subtotal > 0) {
+        personTotal.discount_share = (personTotal.subtotal / subtotal) * discount
+      } else if (people.length > 0 && discount > 0) {
+        // Zero subtotal fallback: distribute evenly
+        personTotal.discount_share = discount / people.length
+      }
+    }
+  } else {
+    // Even split for discount
+    const relevantPeople = includeZeroPeople
+      ? personTotals
+      : personTotals.filter(p => p.subtotal > 0)
+    if (relevantPeople.length > 0) {
+      const discountPerPerson = discount / relevantPeople.length
+      for (const personTotal of relevantPeople) {
+        personTotal.discount_share = discountPerPerson
+      }
     }
   }
 
-  // 7. Calculate service fee shares (proportional to subtotal)
-  // Service fees are always applied proportionally
-  for (const personTotal of personTotals) {
-    if (subtotal > 0) {
-      personTotal.service_fee_share = (personTotal.subtotal / subtotal) * service_fee
+  // 7. Calculate service fee shares
+  if (serviceFeeMode === 'proportional') {
+    for (const personTotal of personTotals) {
+      if (subtotal > 0) {
+        personTotal.service_fee_share = (personTotal.subtotal / subtotal) * service_fee
+      } else if (people.length > 0 && service_fee > 0) {
+        // Zero subtotal fallback: distribute evenly
+        personTotal.service_fee_share = service_fee / people.length
+      }
+    }
+  } else {
+    // Even split for service fee
+    const relevantPeople = includeZeroPeople
+      ? personTotals
+      : personTotals.filter(p => p.subtotal > 0)
+    if (relevantPeople.length > 0) {
+      const feePerPerson = service_fee / relevantPeople.length
+      for (const personTotal of relevantPeople) {
+        personTotal.service_fee_share = feePerPerson
+      }
     }
   }
 
@@ -250,6 +290,9 @@ export function computeTotals(
     for (const personTotal of personTotals) {
       if (subtotal > 0) {
         personTotal.tax_share = (personTotal.subtotal / subtotal) * tax
+      } else if (people.length > 0 && tax > 0) {
+        // Zero subtotal fallback: distribute evenly
+        personTotal.tax_share = tax / people.length
       }
     }
   } else {
@@ -272,6 +315,9 @@ export function computeTotals(
     for (const personTotal of personTotals) {
       if (subtotal > 0) {
         personTotal.tip_share = (personTotal.subtotal / subtotal) * tip
+      } else if (people.length > 0 && tip > 0) {
+        // Zero subtotal fallback: distribute evenly
+        personTotal.tip_share = tip / people.length
       }
     }
   } else {
@@ -350,7 +396,8 @@ export function reconcilePennies(
   }
   
   // 5. Sort people by their total (descending) to distribute to largest first
-  const sortedTotals = [...roundedTotals].sort((a, b) => b.total - a.total)
+  // Use person_id as deterministic tiebreaker to prevent same person always getting the extra penny
+  const sortedTotals = [...roundedTotals].sort((a, b) => b.total - a.total || a.person_id.localeCompare(b.person_id))
   
   // 6. Distribute pennies one at a time
   const pennyValue = differenceCents > 0 ? 0.01 : -0.01

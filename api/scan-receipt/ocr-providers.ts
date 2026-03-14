@@ -76,9 +76,11 @@ class OpenAIProvider implements OCRProvider {
     }
 
     const startTime = Date.now();
-    console.log(`[openai_ocr] Starting OpenAI processing, image size: ${imageBuffer.length} bytes`);
-    if (promptModification) {
-      console.log(`[openai_ocr] Using prompt modification from A/B test`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[openai_ocr] Starting OpenAI processing, image size: ${imageBuffer.length} bytes`);
+      if (promptModification) {
+        console.log(`[openai_ocr] Using prompt modification from A/B test`);
+      }
     }
     const base64Image = imageBuffer.toString('base64');
     const imageUrl = `data:${mimeType};base64,${base64Image}`;
@@ -87,7 +89,7 @@ class OpenAIProvider implements OCRProvider {
     const basePromptIntro = `You are an expert receipt analyzer. Extract ALL data from this receipt image with high precision.`;
     const abTestSection = promptModification ? `\n\n${promptModification}\n` : '';
 
-    console.log(`[openai_ocr] Calling GPT-4o vision API...`);
+    if (process.env.NODE_ENV !== 'production') console.log(`[openai_ocr] Calling GPT-4o vision API...`);
     const response = await this.client.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -258,13 +260,13 @@ Extract ACTUAL VALUES from this receipt image.`
     });
 
     const elapsed = Date.now() - startTime;
-    console.log(`[openai_ocr] GPT-4o responded in ${elapsed}ms`);
+    if (process.env.NODE_ENV !== 'production') console.log(`[openai_ocr] GPT-4o responded in ${elapsed}ms`);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
       throw new Error('No content in OpenAI response');
     }
-    console.log(`[openai_ocr] Response content length: ${content.length} chars`);
+    if (process.env.NODE_ENV !== 'production') console.log(`[openai_ocr] Response content length: ${content.length} chars`);
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -290,7 +292,7 @@ Extract ACTUAL VALUES from this receipt image.`
     const getToleranceForAmount = (amount: number): number => {
       if (amount <= 20) return 0.25;      // Small receipts: ±$0.25
       if (amount <= 100) return 1.00;     // Medium receipts: ±$1.00
-      return amount * 0.02;               // Large receipts: ±2%
+      return Math.min(amount * 0.02, 5.00); // Large receipts: ±2% capped at $5
     };
 
     const subtotalTolerance = getToleranceForAmount(subtotal);
@@ -357,8 +359,8 @@ Extract ACTUAL VALUES from this receipt image.`
     // #4: TAX RATE SANITY CHECK
     if (subtotal > 0 && tax > 0) {
       const taxRate = (tax / subtotal) * 100;
-      if (taxRate > 15) {
-        warnings.push(`Tax rate ${taxRate.toFixed(1)}% seems unusually high (expected 5-12%)`);
+      if (taxRate > 30) {
+        warnings.push(`Tax rate ${taxRate.toFixed(1)}% seems unusually high (expected 5-27%)`);
       } else if (taxRate < 3 && taxRate > 0) {
         warnings.push(`Tax rate ${taxRate.toFixed(1)}% seems unusually low (expected 5-12%)`);
       }
@@ -429,12 +431,12 @@ Extract ACTUAL VALUES from this receipt image.`
     else if (hasMediumConfidence) overallConfidence = 0.8;
     // Degrade confidence for warnings
     if (criticalWarnings.length > 0) overallConfidence -= 0.2 * criticalWarnings.length;
-    if (warnings.length > 0) overallConfidence -= 0.05 * warnings.length;
+    if (warnings.length > 0) overallConfidence -= 0.03 * warnings.length;
     // Degrade for handwritten fields
     if (handwrittenFields.length > 0) overallConfidence -= 0.1;
     overallConfidence = Math.max(0.2, overallConfidence);
 
-    console.log(`[openai_ocr] Validation: items=${itemsMatchSubtotal}, totals=${totalsMatch}, warnings=${allWarnings.length}, confidence=${overallConfidence.toFixed(2)}`);
+    if (process.env.NODE_ENV !== 'production') console.log(`[openai_ocr] Validation: items=${itemsMatchSubtotal}, totals=${totalsMatch}, warnings=${allWarnings.length}, confidence=${overallConfidence.toFixed(2)}`);
 
     return {
       place: parsed.place || null,
@@ -566,7 +568,7 @@ export async function processWithMultipleProviders(
     throw new Error('No OCR providers configured - please set OPENAI_API_KEY');
   }
 
-  console.log(`[ocr_providers] Processing with ${configuredProviders.length} provider(s): ${configuredProviders.map(p => p.name).join(', ')}`);
+  if (process.env.NODE_ENV !== 'production') console.log(`[ocr_providers] Processing with ${configuredProviders.length} provider(s): ${configuredProviders.map(p => p.name).join(', ')}`);
 
   // Use primary provider (OpenAI) with retries
   const primaryProvider = configuredProviders[0];
