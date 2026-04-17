@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Camera Usage Description -->
+    <key>NSCameraUsageDescription</key>
+    <string>Tabby needs camera access to scan receipts</string>
+
+    <!-- URL Types for Deep Links -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.tabby.app</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>tabby</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- Associated Domains Entitlement (configured in .entitlements file) -->
+    <!-- Add applinks:tabby.vercel.app to Associated Domains in Xcode -->
+
+    <!-- Allowed URL Schemes to Query -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>venmo</string>
+    </array>
+</dict>
+</plist>

@@ -44,3 +44,12 @@ service-account.json
 .env.legacy
 .vercel
 .env.backup
+
+# iOS / Xcode build artifacts
+ios/**/.build/
+ios/**/.swiftpm/
+ios/**/*.xcworkspace/xcuserdata/
+ios/**/*.xcodeproj/xcuserdata/
+ios/**/*.xcodeproj/project.xcworkspace/xcuserdata/
+**/DerivedData/
+*.xcuserstate
