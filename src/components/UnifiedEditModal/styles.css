@@ -22,8 +22,8 @@
 }
 
 .unified-edit-modal {
-  background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(140deg, var(--tb-surface-2) 0%, var(--tb-bg) 100%);
+  border: 2px solid var(--tb-surface-2);
   border-radius: 20px;
   max-width: 600px;
   width: 100%;
@@ -50,14 +50,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 24px 24px 20px;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 2px solid var(--tb-surface-2);
+  background: var(--tb-surface-1);
 }
 
 .unified-back-btn {
   background: transparent;
   border: none;
-  color: #007AFF;
+  color: var(--tb-accent);
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -71,9 +71,11 @@
 }
 
 .unified-edit-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #fff;
+  font-family: var(--tb-font-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--tb-ink-strong);
   margin: 0;
   flex: 1;
   text-align: center;
@@ -82,7 +84,7 @@
 .unified-close-btn {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--tb-ink-muted);
   font-size: 24px;
   cursor: pointer;
   padding: 8px;
@@ -92,7 +94,7 @@
 }
 
 .unified-close-btn:hover {
-  color: #fff;
+  color: var(--tb-ink);
 }
 
 .unified-edit-content {
@@ -109,15 +111,15 @@
 }
 
 .unified-section {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--tb-surface-1);
+  border: 1px solid var(--tb-surface-2);
   border-radius: 12px;
   padding: 20px;
   transition: background 0.2s;
 }
 
 .unified-section:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--tb-surface-2);
 }
 
 .unified-section-header {
@@ -130,7 +132,7 @@
 .unified-section-title {
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--tb-ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0 0 4px 0;
@@ -139,23 +141,23 @@
 .unified-section-value {
   font-size: 20px;
   font-weight: 600;
-  color: #fff;
+  color: var(--tb-ink);
   margin: 0;
 }
 
 .unified-section-label {
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--tb-ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0 0 12px 0;
 }
 
 .unified-edit-btn {
-  background: rgba(0, 122, 255, 0.15);
-  border: 1px solid rgba(0, 122, 255, 0.3);
-  color: #007AFF;
+  background: var(--tb-accent-tint);
+  border: 1px solid var(--tb-accent-glow);
+  color: var(--tb-accent);
   font-size: 14px;
   font-weight: 600;
   padding: 8px 16px;
@@ -165,7 +167,7 @@
 }
 
 .unified-edit-btn:hover {
-  background: rgba(0, 122, 255, 0.25);
+  background: var(--tb-accent-tint);
   transform: translateY(-1px);
 }
 
@@ -174,8 +176,8 @@
   display: flex;
   gap: 8px;
   padding: 12px;
-  background: rgba(0, 122, 255, 0.1);
-  border: 1px solid rgba(0, 122, 255, 0.3);
+  background: var(--tb-accent-tint);
+  border: 1px solid var(--tb-accent-glow);
   border-radius: 8px;
   margin-bottom: 8px;
 }
@@ -184,9 +186,9 @@
   flex: 1;
   background: transparent;
   border: none;
-  color: #007AFF;
+  color: var(--tb-accent);
   font-size: 13px;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: var(--tb-font-mono);
   outline: none;
   cursor: text;
 }
@@ -194,7 +196,7 @@
 .unified-copy-btn {
   background: transparent;
   border: none;
-  color: #007AFF;
+  color: var(--tb-accent);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -209,7 +211,7 @@
 
 .unified-help-text {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--tb-ink-muted);
   margin: 0;
 }
 
@@ -225,13 +227,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--tb-surface-1);
   border-radius: 8px;
   transition: background 0.2s;
 }
 
 .unified-person-row:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--tb-surface-2);
 }
 
 .unified-person-info {
@@ -249,12 +251,12 @@
   justify-content: center;
   font-size: 16px;
   font-weight: 600;
-  color: #fff;
+  color: var(--tb-ink);
 }
 
 .unified-person-total {
   font-weight: 600;
-  color: #fff;
+  color: var(--tb-ink);
 }
 
 /* Items Preview */
@@ -269,26 +271,26 @@
   align-items: center;
   gap: 12px;
   padding: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--tb-surface-1);
   border-radius: 6px;
 }
 
 .unified-item-name {
   flex: 1;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--tb-ink);
 }
 
 .unified-item-price {
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
-  font-family: 'Courier New', 'Courier', monospace;
+  color: var(--tb-ink);
+  font-family: var(--tb-font-mono);
 }
 
 .unified-more-text {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--tb-ink-muted);
   margin: 4px 0 0 0;
   text-align: center;
 }
@@ -305,15 +307,17 @@
   justify-content: space-between;
   align-items: center;
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--tb-ink);
 }
 
 .unified-total-final {
   padding-top: 12px;
-  border-top: 2px solid rgba(255, 255, 255, 0.1);
-  font-weight: 600;
-  font-size: 17px;
-  color: #fff;
+  border-top: 2px solid var(--tb-border);
+  font-family: var(--tb-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--tb-butter);
   margin-top: 4px;
 }
 
@@ -333,16 +337,16 @@
 .unified-label {
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--tb-ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .unified-input {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--tb-surface-2);
+  border: 1px solid var(--tb-border-strong);
   border-radius: 8px;
-  color: #fff;
+  color: var(--tb-ink);
   font-size: 16px;
   padding: 12px 16px;
   outline: none;
@@ -350,17 +354,17 @@
 }
 
 .unified-input:focus {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: #007AFF;
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  background: var(--tb-surface-2);
+  border-color: var(--tb-accent);
+  box-shadow: 0 0 0 3px var(--tb-accent-tint);
 }
 
 .unified-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--tb-ink-dim);
 }
 
 .unified-money-input {
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: var(--tb-font-mono);
   text-align: right;
 }
 
@@ -375,8 +379,8 @@
 }
 
 .unified-item-edit-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--tb-surface-2);
+  border: 1px solid var(--tb-border);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -402,14 +406,14 @@
 
 .unified-price-input {
   width: 100px;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: var(--tb-font-mono);
   text-align: right;
 }
 
 .unified-remove-btn {
-  background: rgba(255, 59, 48, 0.15);
-  border: 1px solid rgba(255, 59, 48, 0.3);
-  color: #FF3B30;
+  background: var(--tb-danger-tint);
+  border: 1px solid rgba(229, 72, 77, 0.3);
+  color: var(--tb-danger);
   font-size: 13px;
   font-weight: 600;
   padding: 8px;
@@ -419,13 +423,13 @@
 }
 
 .unified-remove-btn:hover {
-  background: rgba(255, 59, 48, 0.25);
+  background: rgba(229, 72, 77, 0.25);
 }
 
 .unified-add-item-btn {
-  background: rgba(0, 122, 255, 0.15);
-  border: 1px dashed rgba(0, 122, 255, 0.4);
-  color: #007AFF;
+  background: var(--tb-accent-tint);
+  border: 1px dashed var(--tb-accent-glow);
+  color: var(--tb-accent);
   font-size: 15px;
   font-weight: 600;
   padding: 12px;
@@ -435,7 +439,7 @@
 }
 
 .unified-add-item-btn:hover {
-  background: rgba(0, 122, 255, 0.25);
+  background: var(--tb-accent-tint);
   border-style: solid;
 }
 
@@ -455,32 +459,32 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--tb-surface-2);
+  border: 1px solid var(--tb-border);
   border-radius: 12px;
   transition: background 0.2s;
 }
 
 .unified-person-manage-row:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--tb-surface-2);
 }
 
 .unified-person-name {
   font-size: 16px;
   font-weight: 600;
-  color: #fff;
+  color: var(--tb-ink);
 }
 
 .unified-person-items-count {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--tb-ink-muted);
   margin-top: 2px;
 }
 
 .unified-remove-person-btn {
-  background: rgba(255, 59, 48, 0.15);
-  border: 1px solid rgba(255, 59, 48, 0.3);
-  color: #FF3B30;
+  background: var(--tb-danger-tint);
+  border: 1px solid rgba(229, 72, 77, 0.3);
+  color: var(--tb-danger);
   font-size: 14px;
   font-weight: 600;
   padding: 8px 16px;
@@ -490,13 +494,13 @@
 }
 
 .unified-remove-person-btn:hover {
-  background: rgba(255, 59, 48, 0.25);
+  background: rgba(229, 72, 77, 0.25);
 }
 
 .unified-add-person-section {
   padding: 20px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--tb-surface-1);
+  border: 1px solid var(--tb-surface-2);
   border-radius: 12px;
 }
 
@@ -519,17 +523,17 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: rgba(0, 122, 255, 0.1);
-  border: 2px solid rgba(0, 122, 255, 0.3);
+  background: var(--tb-accent-tint);
+  border: 2px solid var(--tb-accent-glow);
   border-radius: 12px;
   font-size: 18px;
   font-weight: 600;
-  color: #007AFF;
+  color: var(--tb-accent);
 }
 
 .unified-total-amount {
   font-size: 24px;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: var(--tb-font-mono);
 }
 
 /* Action Buttons */
@@ -557,24 +561,24 @@
 }
 
 .unified-btn-primary {
-  background: #007AFF;
-  color: #fff;
+  background: var(--tb-accent);
+  color: var(--tb-ink);
 }
 
 .unified-btn-primary:hover:not(:disabled) {
-  background: #0066DD;
+  background: var(--tb-accent-press);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  box-shadow: 0 4px 12px var(--tb-accent-glow);
 }
 
 .unified-btn-secondary {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #fff;
+  background: var(--tb-surface-2);
+  border: 1px solid var(--tb-border-strong);
+  color: var(--tb-ink);
 }
 
 .unified-btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--tb-surface-2);
 }
 
 /* Scrollbar Styling */
@@ -587,21 +591,21 @@
 .unified-edit-content::-webkit-scrollbar-track,
 .unified-items-list::-webkit-scrollbar-track,
 .unified-people-manage::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--tb-surface-2);
   border-radius: 4px;
 }
 
 .unified-edit-content::-webkit-scrollbar-thumb,
 .unified-items-list::-webkit-scrollbar-thumb,
 .unified-people-manage::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--tb-border-strong);
   border-radius: 4px;
 }
 
 .unified-edit-content::-webkit-scrollbar-thumb:hover,
 .unified-items-list::-webkit-scrollbar-thumb:hover,
 .unified-people-manage::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--tb-ink-dim);
 }
 
 /* Mobile Responsive */

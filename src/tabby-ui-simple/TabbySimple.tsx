@@ -12,6 +12,7 @@ import { fetchReceiptByToken, updateReceiptMetadata, updateReceiptAssignments } 
 import { trackPersonName, getQuickAddSuggestions, getUserIdentity, setUserIdentity } from '../lib/peopleHistory';
 import { UnifiedEditModal } from '../components/UnifiedEditModal';
 import { useBillTotals, getPersonTotal, getPersonBreakdown } from '../lib/useBillTotals';
+import { openVenmoRequest, buildVenmoChargeUrl } from '../lib/venmo';
 import { ProgressSteps } from '../components/design-system/ProgressSteps';
 import './TabbySimple.css';
 
@@ -29,6 +30,7 @@ interface Person {
   name: string;
   items: string[];
   total: number;
+  venmo_handle?: string | null;
 }
 
 // Vibrant color palette for person avatars — pops on dark backgrounds
@@ -69,7 +71,7 @@ async function persistPeopleAndShares(
       id: p.id,
       name: p.name,
       avatar_url: null,
-      venmo_handle: null
+      venmo_handle: p.venmo_handle ?? null
     }));
 
     // Build shares array - we'll update it with Supabase UUIDs after the API call
@@ -91,7 +93,8 @@ async function persistPeopleAndShares(
         id: apiPerson.id, // Supabase UUID
         name: apiPerson.name,
         items: originalPerson?.items || [],
-        total: originalPerson?.total || 0
+        total: originalPerson?.total || 0,
+        venmo_handle: apiPerson.venmo_handle ?? originalPerson?.venmo_handle ?? null
       };
     });
 
@@ -118,6 +121,7 @@ export const TabbySimple: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [splitPeople, setSplitPeople] = useState<string[]>([]);
   const [newPersonName, setNewPersonName] = useState('');
+  const [newVenmoHandle, setNewVenmoHandle] = useState('');
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverPerson, setDragOverPerson] = useState<string | null>(null);
   const [restaurantName, setRestaurantName] = useState('');
@@ -515,16 +519,19 @@ export const TabbySimple: React.FC = () => {
     // Ensure name is a string before calling trim()
     const nameStr = typeof name === 'string' ? name.trim() : newPersonName.trim();
     if (nameStr) {
+      const venmoStr = newVenmoHandle.trim().replace(/^@/, '');
       const newPerson: Person = {
         id: `person-${Date.now()}`,
         name: nameStr,
         items: [],
         total: 0,
+        venmo_handle: venmoStr || null,
       };
       const updatedPeople = [...people, newPerson];
       setPeople(updatedPeople);
       trackPersonName(nameStr); // Track for future suggestions
       setNewPersonName('');
+      setNewVenmoHandle('');
       setShowAddPerson(false);
 
       // Persist to database (debounced to prevent race conditions)
@@ -1380,7 +1387,7 @@ export const TabbySimple: React.FC = () => {
 
         {/* Add Person Modal */}
         {showAddPerson && (
-          <div className="modal-overlay" onClick={() => setShowAddPerson(false)}>
+          <div className="modal-overlay" onClick={() => { setShowAddPerson(false); setNewVenmoHandle(''); }}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
               <h3>Add People</h3>
               <input
@@ -1390,6 +1397,16 @@ export const TabbySimple: React.FC = () => {
                 onChange={(e) => setNewPersonName(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleAddPerson()}
                 autoFocus
+              />
+              <input
+                type="text"
+                placeholder="Venmo handle (optional)"
+                value={newVenmoHandle}
+                onChange={(e) => setNewVenmoHandle(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddPerson()}
+                inputMode="text"
+                autoCapitalize="off"
+                autoCorrect="off"
               />
               <div className="modal-actions">
                 <button onClick={handleAddPerson} disabled={!newPersonName.trim()}>
@@ -1612,6 +1629,22 @@ export const TabbySimple: React.FC = () => {
                     <div className="person-header">
                       <span className="person-name-large">{person.name}</span>
                       <span className="person-total">${getPersonTotal(billTotals, person.id).toFixed(2)}</span>
+                      {person.venmo_handle && getPersonTotal(billTotals, person.id) > 0 && (
+                        <button
+                          className="venmo-request-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openVenmoRequest({
+                              handle: person.venmo_handle!,
+                              amount: getPersonTotal(billTotals, person.id),
+                              note: `${restaurantName || 'Tabby'} split`
+                            });
+                          }}
+                          aria-label={`Request ${getPersonTotal(billTotals, person.id).toFixed(2)} dollars from ${person.name} via Venmo`}
+                        >
+                          💸 Request
+                        </button>
+                      )}
                     </div>
                     <div className="person-items">
                       {personItems.length === 0 ? (
@@ -1873,9 +1906,10 @@ export const TabbySimple: React.FC = () => {
         </div>
 
         <button
-          className="share-btn"
+          className={`share-btn ${allItemsAssigned && people.length > 0 ? 'share-ready' : ''}`}
           disabled={!allItemsAssigned || people.length === 0}
           onClick={() => setShowShareReceipt(true)}
+          aria-label="Share bill"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M8.68 13.34L15.32 9.66M8.68 10.66L15.32 14.34M21 5C21 6.65685 19.6569 8 18 8C16.3431 8 15 6.65685 15 5C15 3.34315 16.3431 2 18 2C19.6569 2 21 3.34315 21 5ZM9 12C9 13.6569 7.65685 15 6 15C4.34315 15 3 13.6569 3 12C3 10.3431 4.34315 9 6 9C7.65685 9 9 10.3431 9 12ZM21 19C21 20.6569 19.6569 22 18 22C16.3431 22 15 20.6569 15 19C15 17.3431 16.3431 16 18 16C19.6569 16 21 17.3431 21 19Z"
@@ -1886,7 +1920,7 @@ export const TabbySimple: React.FC = () => {
 
       {/* Add Person Modal */}
       {showAddPerson && (
-        <div className="modal-overlay" onClick={() => setShowAddPerson(false)}>
+        <div className="modal-overlay" onClick={() => { setShowAddPerson(false); setNewVenmoHandle(''); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>Add People</h3>
 
@@ -1929,6 +1963,16 @@ export const TabbySimple: React.FC = () => {
               onChange={(e) => setNewPersonName(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleAddPerson()}
               autoFocus
+            />
+            <input
+              type="text"
+              placeholder="Venmo handle (optional)"
+              value={newVenmoHandle}
+              onChange={(e) => setNewVenmoHandle(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleAddPerson()}
+              inputMode="text"
+              autoCapitalize="off"
+              autoCorrect="off"
             />
             <div className="modal-actions">
               <button onClick={handleAddPerson} disabled={!newPersonName.trim()}>

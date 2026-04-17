@@ -1,0 +1,102 @@
+/*
+ * Tabby brand tokens — "Warm Receipt"
+ *
+ * Dark, warm, paper-adjacent. Coral as the hot accent, butter as a secondary
+ * highlight, ink-tone whites for body text (never pure white — we're not a
+ * spreadsheet). Three type voices: display serif for titles, system for chrome,
+ * Courier Prime for money.
+ */
+
+:root {
+  /* Surfaces */
+  --tb-bg: #0E0B0A;              /* warm black, not pure */
+  --tb-surface-1: #1A1513;       /* card / elevated surface */
+  --tb-surface-2: #241C18;       /* hover / sub-card */
+  --tb-surface-3: #2E2420;       /* active / pressed */
+  --tb-surface-glass: rgba(26, 21, 19, 0.8);
+
+  /* Ink (text) */
+  --tb-ink: #FFF8ED;             /* primary text — warm white */
+  --tb-ink-strong: #FFFFFF;      /* high-contrast text (numerals, totals) */
+  --tb-ink-muted: #B8A89A;       /* secondary text — still passes AA on surface-1 */
+  --tb-ink-dim: #8A7A6E;         /* tertiary / disabled */
+
+  /* Accent: coral primary */
+  --tb-accent: #FF5A5F;          /* primary CTA, totals, active */
+  --tb-accent-hover: #FF7377;
+  --tb-accent-press: #E04248;
+  --tb-accent-tint: rgba(255, 90, 95, 0.14);
+  --tb-accent-glow: rgba(255, 90, 95, 0.32);
+
+  /* Accent: butter secondary (highlights, "paid" state, celebratory) */
+  --tb-butter: #FFCB47;
+  --tb-butter-tint: rgba(255, 203, 71, 0.14);
+
+  /* Semantic */
+  --tb-success: #5CC689;
+  --tb-warning: #FFCB47;
+  --tb-danger: #E5484D;
+  --tb-danger-tint: rgba(229, 72, 77, 0.15);
+
+  /* Borders — warm, low-contrast */
+  --tb-border: rgba(255, 248, 237, 0.08);
+  --tb-border-strong: rgba(255, 248, 237, 0.16);
+
+  /* Shadows — warm tint, not pure black */
+  --tb-shadow-sm: 0 1px 2px rgba(14, 11, 10, 0.6);
+  --tb-shadow-md: 0 4px 14px rgba(14, 11, 10, 0.55);
+  --tb-shadow-lg: 0 14px 40px rgba(14, 11, 10, 0.6);
+  --tb-shadow-accent: 0 4px 18px var(--tb-accent-glow);
+
+  /* Radii */
+  --tb-r-sm: 8px;
+  --tb-r-md: 12px;
+  --tb-r-lg: 18px;
+  --tb-r-xl: 24px;
+  --tb-r-pill: 999px;
+
+  /* Typography */
+  --tb-font-display: 'Fraunces', 'Iowan Old Style', 'Georgia', serif;
+  --tb-font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+  --tb-font-mono: 'Courier Prime', 'Courier New', 'Courier', monospace;
+
+  /* Motion */
+  --tb-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --tb-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --tb-fast: 120ms;
+  --tb-base: 200ms;
+  --tb-slow: 360ms;
+}
+
+/* Global focus ring — keyboard only, coral */
+*:focus {
+  outline: none;
+}
+*:focus-visible {
+  outline: 2px solid var(--tb-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Body type voice */
+body {
+  font-family: var(--tb-font-body);
+  color: var(--tb-ink);
+  background: var(--tb-bg);
+}
+
+/* Receipt-style numerals get the money font automatically */
+.receipt-text,
+.tb-money {
+  font-family: var(--tb-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  letter-spacing: 0.02em;
+}
+
+/* Display serif utility for restaurant names / big totals */
+.tb-display {
+  font-family: var(--tb-font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
