@@ -1,7 +1,15 @@
-/* Tabby Simple - One screen to rule them all */
+/* Tabby Simple - One screen to rule them all.
+ *
+ * Subtle warm radial gradient from the top-right adds atmosphere to what
+ * would otherwise be a flat black. The coral glow is ~3% — enough to feel,
+ * not enough to read as "tinted."
+ */
 .tabby-simple {
   min-height: 100vh;
-  background: var(--tb-bg);
+  background:
+    radial-gradient(1200px 700px at 90% -10%, rgba(255, 90, 95, 0.07), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(255, 203, 71, 0.04), transparent 55%),
+    var(--tb-bg);
   color: var(--tb-ink);
   display: flex;
   flex-direction: column;
@@ -43,26 +51,56 @@
   letter-spacing: -0.01em;
 }
 
+/* Upload area — cream-paper aesthetic against the warm dark bg.
+ * Layered: soft cream surface, coral dashed border that curls on hover,
+ * and a subtle "corner lift" shadow underneath that suggests an actual
+ * receipt sitting on the page.
+ */
 .upload-area {
-  width: min(280px, 80vw);
+  position: relative;
+  width: min(300px, 84vw);
   aspect-ratio: 1;
-  border: 2px dashed var(--tb-border-strong);
-  border-radius: var(--tb-r-xl);
+  border: 2px dashed color-mix(in srgb, var(--tb-accent) 55%, var(--tb-border-strong));
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 14px;
   cursor: pointer;
-  transition: all var(--tb-base) var(--tb-ease-out);
-  background: var(--tb-surface-1);
+  transition: border-color var(--tb-base) var(--tb-ease-out),
+              transform var(--tb-base) var(--tb-ease-out),
+              box-shadow var(--tb-base) var(--tb-ease-out),
+              background var(--tb-base) var(--tb-ease-out);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 90, 95, 0.06), transparent 60%),
+    linear-gradient(180deg, var(--tb-surface-2), var(--tb-surface-1));
+  box-shadow: var(--tb-shadow-md);
+}
+
+/* Drop-shadow "paper corner" peek behind the card. */
+.upload-area::after {
+  content: '';
+  position: absolute;
+  inset: auto 10% -6px 10%;
+  height: 16px;
+  background: radial-gradient(50% 100% at 50% 0%, rgba(14, 11, 10, 0.5), transparent 70%);
+  z-index: -1;
+  filter: blur(4px);
 }
 
 .upload-area:hover {
   border-color: var(--tb-accent);
-  background: var(--tb-accent-tint);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 90, 95, 0.12), transparent 60%),
+    linear-gradient(180deg, var(--tb-surface-3), var(--tb-surface-2));
   transform: translateY(-2px);
-  box-shadow: var(--tb-shadow-accent);
+  box-shadow: var(--tb-shadow-accent), var(--tb-shadow-lg);
+}
+
+.upload-area:active {
+  transform: translateY(0);
+  box-shadow: var(--tb-shadow-md);
 }
 
 .upload-area input {
@@ -70,13 +108,30 @@
 }
 
 .upload-icon {
-  font-size: 64px;
+  font-size: 56px;
+  filter: drop-shadow(0 2px 10px var(--tb-accent-glow));
+  animation: uploadIconFloat 4s var(--tb-ease-out) infinite;
+}
+
+@keyframes uploadIconFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
 }
 
 .upload-text {
-  font-size: 18px;
-  color: var(--tb-ink);
-  font-weight: 500;
+  font-size: 17px;
+  color: var(--tb-ink-strong);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: var(--tb-ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-top: -4px;
 }
 
 /* Scan Failed Screen */
@@ -189,32 +244,35 @@
   50% { box-shadow: 0 0 0 8px var(--tb-accent-glow); }
 }
 
-/* Main Assignment Screen */
+/* Main Assignment Screen — restaurant name is the anchor. */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 20px 12px 64px;
-  background: var(--tb-surface-1);
+  padding: 16px 20px 14px 64px;
+  background:
+    linear-gradient(180deg, var(--tb-surface-1), transparent);
   border-bottom: 1px solid var(--tb-border);
 }
 
 .header h1 {
   font-family: var(--tb-font-display);
-  font-size: clamp(22px, 5vw, 28px);
+  font-size: clamp(24px, 5.5vw, 30px);
   font-weight: 600;
-  letter-spacing: -0.02em;
+  font-variation-settings: 'opsz' 72;
+  letter-spacing: -0.025em;
   margin: 0;
   color: var(--tb-ink-strong);
   line-height: 1;
 }
 
 .header .date {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--tb-ink-muted);
-  margin: 4px 0 0 0;
-  letter-spacing: 0.02em;
+  margin: 6px 0 0 0;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  font-weight: 700;
 }
 
 .header-buttons {
@@ -511,36 +569,72 @@
   padding-bottom: 60px;
 }
 
+/* Person card — receipt-paper layout with a colored "name tape" top band.
+ * The per-person hue comes from --person-color (set inline from PERSON_COLORS).
+ * A 4px band rides the top at full saturation; the card body gets a very
+ * subtle tint so the color reads as "this is Peyton's" without becoming loud.
+ */
 .person-section {
-  /* background will be set via inline styles with unique colors (opacity 33 = 20%) */
-  border-radius: 16px;
-  padding: 14px;
-  box-shadow: 0 2px 8px rgba(14, 11, 10, 0.45);
-  max-width: 180px;
+  position: relative;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--person-color, transparent) 12%, var(--tb-surface-1)), var(--tb-surface-1) 40%);
+  border: 1px solid var(--tb-border);
+  border-radius: var(--tb-r-lg);
+  padding: 18px 14px 12px;
+  box-shadow: var(--tb-shadow-sm);
+  max-width: 220px;
+  overflow: hidden;
+  transition: border-color var(--tb-base) var(--tb-ease-out),
+              box-shadow var(--tb-base) var(--tb-ease-out),
+              transform var(--tb-fast) var(--tb-ease-out);
+}
+
+.person-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--person-color, var(--tb-accent));
+  opacity: 0.95;
+}
+
+.person-section.drag-over-section {
+  border-color: var(--tb-accent);
+  box-shadow: 0 0 0 3px var(--tb-accent-tint), var(--tb-shadow-md);
+  transform: translateY(-2px);
 }
 
 .person-header {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin-bottom: 12px;
-  gap: 8px;
+  margin-bottom: 10px;
+  gap: 2px;
 }
 
 .person-name-large {
-  font-size: 16px;
+  font-family: var(--tb-font-display);
+  font-size: 18px;
   font-weight: 600;
+  font-variation-settings: 'opsz' 48;
+  letter-spacing: -0.02em;
+  color: var(--tb-ink-strong);
+  line-height: 1;
 }
 
+/* The money IS the point of this card — make it dominant. */
 .person-total {
-  font-size: 15px;
+  font-size: 28px;
   font-weight: 700;
-  color: var(--tb-ink-strong);
-  align-self: flex-end;
-  margin-top: -24px;
+  color: var(--tb-butter);
+  align-self: flex-start;
+  margin-top: 4px;
   font-family: var(--tb-font-mono);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
+  line-height: 1;
 }
 
 .person-items {

@@ -895,7 +895,8 @@ export const TabbySimple: React.FC = () => {
               }}
             />
             <span className="upload-icon">📸</span>
-            <span className="upload-text">Tap to scan receipt</span>
+            <span className="upload-text">Snap your receipt</span>
+            <span className="upload-hint">Photo · PDF · Screenshot</span>
           </label>
 
           <div style={{
@@ -1752,7 +1753,9 @@ export const TabbySimple: React.FC = () => {
                   <div
                     key={person.id}
                     className={`person-section ${dragOverPerson === person.id ? 'drag-over-section' : ''}`}
-                    style={{ background: `${getPersonColor(personIndex)}33` }}
+                    style={{
+                      ['--person-color' as string]: getPersonColor(personIndex),
+                    }}
                     onDragOver={handleDragOver}
                     onDragEnter={() => handleDragEnter(person.id)}
                     onDragLeave={handleDragLeave}
