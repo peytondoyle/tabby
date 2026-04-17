@@ -671,16 +671,15 @@ export async function parseReceipt(
 
     performanceMonitor.end(false)
 
-    // Don't use dev fallback if we're in production-like mode
-    const allowDevFallback = import.meta.env.VITE_ALLOW_DEV_FALLBACK !== '0'
+    // Dev-only fake data path. DEFAULT: OFF. Prod leaks of the demo receipt
+    // ("Margherita Pizza, Caesar Salad") used to surface because the env var
+    // was opt-OUT. Opt-IN now — only returns the stub when explicitly enabled.
+    const allowDevFallback = import.meta.env.VITE_ALLOW_DEV_FALLBACK === '1'
 
     if (!allowDevFallback) {
-      // Re-throw the error for proper error handling
       throw error
     }
 
-    // Return deterministic fallback on network/parsing error
-    // NOTE: This will NOT be cached (see caching logic above)
     const fallbackResult = getDEVFallback()
     console.info(`[scan_ok] Using dev fallback due to network error - ${fallbackResult.items.length} items (NOT cached)`)
     return fallbackResult

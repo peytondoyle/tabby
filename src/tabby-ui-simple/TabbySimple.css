@@ -79,6 +79,81 @@
   font-weight: 500;
 }
 
+/* Scan Failed Screen */
+.scan-failed {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 40px 24px calc(40px + env(safe-area-inset-bottom));
+  text-align: center;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.scan-failed-icon {
+  font-size: 56px;
+  opacity: 0.85;
+  filter: grayscale(0.2);
+}
+
+.scan-failed-title {
+  font-family: var(--tb-font-display);
+  font-size: clamp(24px, 6vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--tb-ink-strong);
+  margin: 0;
+}
+
+.scan-failed-message {
+  color: var(--tb-ink-muted);
+  font-size: 15px;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 32ch;
+}
+
+.scan-failed-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.scan-failed-actions .continue-btn,
+.scan-failed-actions .contacts-btn {
+  width: 100%;
+  min-height: 48px;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--tb-r-md);
+  cursor: pointer;
+  transition: transform var(--tb-fast) var(--tb-ease-out),
+              background var(--tb-base) var(--tb-ease-out);
+}
+
+.scan-failed-actions .contacts-btn {
+  background: var(--tb-surface-1);
+  border: 1px solid var(--tb-border-strong);
+  color: var(--tb-ink);
+}
+
+.scan-failed-actions .contacts-btn:hover {
+  background: var(--tb-surface-2);
+  border-color: var(--tb-accent);
+  color: var(--tb-accent);
+}
+
+.scan-failed-actions .continue-btn:active,
+.scan-failed-actions .contacts-btn:active {
+  transform: scale(0.98);
+}
+
 /* Scanning Screen */
 .scanning-container {
   flex: 1;
@@ -1105,4 +1180,110 @@
   justify-content: center;
   z-index: 99;
   pointer-events: none;
+}
+
+/* ============================================================
+ * Mobile sweep
+ * ============================================================
+ * The app is primarily used on phones; most screens look OK on desktop
+ * but cramp or overflow on smaller viewports. These breakpoints:
+ *  - give touch targets ≥44px (Apple HIG / WCAG)
+ *  - drop the desktop 180px people-grid max so phones get single-column
+ *  - shrink header / chrome on narrow widths
+ *  - respect iOS safe-area-inset at the bottom bar
+ */
+
+/* Bottom nav now respects the iPhone home indicator. */
+.bottom-nav {
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 12px 14px 10px 56px;
+  }
+  .header h1 {
+    font-size: 20px;
+  }
+
+  .combined-view {
+    padding: 8px 10px;
+  }
+
+  /* People grid: phones get a single-column rail that uses the full width
+   * instead of the desktop 180px cap. */
+  .people-items-section {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding-bottom: 72px;
+  }
+  .person-section {
+    max-width: 100%;
+  }
+
+  .person-avatar,
+  .add-person-btn {
+    width: 52px;
+    height: 52px;
+  }
+
+  /* Small action buttons still need to be tappable. */
+  .credit-btn,
+  .venmo-request-btn {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  /* Chrome buttons at 40px were too small to tap reliably. */
+  .receipt-btn,
+  .menu-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .item-card {
+    padding: 10px 14px;
+  }
+
+  .modal {
+    padding: 20px 18px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+  }
+
+  .modal h3 {
+    font-size: 22px;
+    margin-bottom: 18px;
+  }
+}
+
+@media (max-width: 400px) {
+  .logo {
+    letter-spacing: -0.03em;
+  }
+  .subtitle {
+    font-size: 16px;
+    margin-bottom: 36px;
+  }
+
+  /* Stack per-person action buttons when they're about to overflow. */
+  .person-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* Hover styles don't belong on touch — scale:1.02 hovers trigger on tap-hold
+ * and feel broken. Disable the transform-based hovers on coarse pointers. */
+@media (hover: none) and (pointer: coarse) {
+  .item-card:hover {
+    transform: none;
+    background: var(--tb-surface-1);
+  }
+  .continue-btn:hover:not(:disabled),
+  .continue-to-assign-btn:not(:disabled):hover,
+  .share-btn:not(:disabled):hover {
+    transform: none;
+  }
 }

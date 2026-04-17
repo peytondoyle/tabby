@@ -116,7 +116,9 @@ export const TabbySimple: React.FC = () => {
   const location = useLocation();
   const { token: urlToken } = useParams<{ token: string }>();
   const { user, signOut } = useAuth();
-  const [step, setStep] = useState<'upload' | 'scanning' | 'editName' | 'people' | 'assign'>('upload');
+  const [step, setStep] = useState<'upload' | 'scanning' | 'scanFailed' | 'editName' | 'people' | 'assign'>('upload');
+  const [scanError, setScanError] = useState<string>('');
+  const lastFileRef = useRef<File | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [showAddPerson, setShowAddPerson] = useState(false);
@@ -411,6 +413,8 @@ export const TabbySimple: React.FC = () => {
   }, [user, step]);
 
   const handleFileSelect = async (file: File) => {
+    // Keep a reference for retry from the scan-failed screen.
+    lastFileRef.current = file;
     // Set step to people immediately, show scan progress there
     setStep('people');
     setScanProgress('Scanning receipt...');
@@ -531,8 +535,36 @@ export const TabbySimple: React.FC = () => {
       }
     } catch (error) {
       console.error('Scan failed:', error);
-      setStep('upload');
+      const msg = error instanceof Error ? error.message : 'Something went wrong while reading your receipt.';
+      setScanError(msg);
+      setStep('scanFailed');
       setScanProgress('');
+    }
+  };
+
+  // Start a blank bill the user can build manually — used from the failure
+  // screen when the scanner can't read the photo.
+  const startManualBill = () => {
+    const nowDate = new Date().toISOString().split('T')[0];
+    setItems([]);
+    setRestaurantName('');
+    setTax(0); setTip(0); setDiscount(0); setServiceFee(0);
+    setScanError('');
+    setIsEditingRestaurantName(true);
+    setEditableRestaurantName('');
+    setStep('editName');
+    // Clear URL token since this is a fresh bill, not loaded from server
+    setBillToken(null);
+    void nowDate; // placeholder — we might record this later
+  };
+
+  const retryScan = () => {
+    setScanError('');
+    setScanProgress('');
+    if (lastFileRef.current) {
+      void handleFileSelect(lastFileRef.current);
+    } else {
+      setStep('upload');
     }
   };
 
@@ -950,6 +982,42 @@ export const TabbySimple: React.FC = () => {
             localStorage.setItem('tabby-auth-seen', 'true');
           }}
         />
+      </div>
+    );
+  }
+
+  if (step === 'scanFailed') {
+    return (
+      <div className="tabby-simple">
+        <HomeButton />
+        <div className="scan-failed">
+          <div className="scan-failed-icon">🧾</div>
+          <h2 className="scan-failed-title">Couldn't read that receipt</h2>
+          <p className="scan-failed-message">
+            {scanError || 'The scanner had trouble with this one. Try a clearer photo, or enter items manually.'}
+          </p>
+          <div className="scan-failed-actions">
+            <button className="continue-btn" onClick={retryScan}>
+              {lastFileRef.current ? 'Try Again' : 'Scan Another Photo'}
+            </button>
+            <button className="contacts-btn" onClick={() => fileInputRef.current?.click()}>
+              Pick Different Photo
+            </button>
+            <button className="contacts-btn" onClick={startManualBill}>
+              Enter Manually
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileSelect(file);
+              }}
+            />
+          </div>
+        </div>
       </div>
     );
   }
@@ -1613,7 +1681,7 @@ export const TabbySimple: React.FC = () => {
                 margin: '-4px 4px 12px 4px',
                 fontWeight: '400'
               }}>
-                Double-tap to split between multiple people
+                Drag to a person, or tap to choose who (and split)
               </p>
               <div className="items-grid">
                 {unassignedItems.map((item, index) => (
@@ -1629,7 +1697,10 @@ export const TabbySimple: React.FC = () => {
                       setSplitPeople([]);
                       setShowSplitItem(true);
                     }}
-                    onDoubleClick={() => {
+                    onClick={() => {
+                      // Desktop: drag suppresses click when the user actually drags.
+                      // Touch: tap opens the assign/split picker since HTML5 DnD
+                      // doesn't exist on touch.
                       setSelectedItem(item);
                       setSplitPeople([]);
                       setShowSplitItem(true);
