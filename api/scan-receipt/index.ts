@@ -77,112 +77,66 @@ const EMOJI_MAP: Record<string, string> = {
   'special': '⭐', 'combo': '🍱', 'platter': '🍽️', 'bowl': '🥣', 'plate': '🍽️',
 }
 
-// Expand quantity items (e.g., "3 Cold Beverage $10.50" -> 3x "Cold Beverage $3.50")
-function expandQuantityItems(items: Array<{ label: string; price: number; emoji?: string | null }>): Array<{ label: string; price: number; emoji?: string | null }> {
-  const expanded: Array<{ label: string; price: number; emoji?: string | null }> = []
+// Parse quantity out of a line label without splitting into N rows.
+//
+// Receipts commonly print "6 Peking Dumpling $9.12" as one line that's really
+// one *shared* item (a plate). Auto-expanding it to 6 rows pollutes the UI and
+// misleads users into assigning each piece individually when they meant to
+// split the plate. Keep one item per line and attach quantity metadata — the
+// UI can show "Peking Dumpling ×6 $9.12" and let the user split by weight if
+// they want finer granularity.
+//
+// Returns: { items, expandedAny } — expandedAny is kept only so callers can
+// log whether the parser touched anything (no behavioural use).
+type QuantityItem = { label: string; price: number; emoji?: string | null; quantity?: number; unit_price?: number }
+function parseQuantityItems(items: Array<{ label: string; price: number; emoji?: string | null }>): QuantityItem[] {
+  const out: QuantityItem[] = []
+
+  const patterns: Array<{ re: RegExp; qtyIdx: number; nameIdx: number }> = [
+    // "3 Cold Beverage", "6 Peking Dumpling (Steamed)"
+    { re: /^(\d+)\s+(.+)$/, qtyIdx: 1, nameIdx: 2 },
+    // "Cold Beverage x2" / "Cold Beverage ×2" / "Cold Beverage (2)"
+    { re: /^(.+?)\s*[x×]\s*(\d+)$/i, qtyIdx: 2, nameIdx: 1 },
+    { re: /^(.+?)\s*\((\d+)\)$/, qtyIdx: 2, nameIdx: 1 },
+    // "2 @ $45.00 Gameplay"
+    { re: /^(\d+)\s*@\s*\$?[\d.]+\s+(.+)$/, qtyIdx: 1, nameIdx: 2 },
+    // "Qty: 3 Beer" / "Quantity 2 Salad"
+    { re: /^(?:qty|quantity)[:\s]*(\d+)\s+(.+)$/i, qtyIdx: 1, nameIdx: 2 },
+  ]
 
   for (const item of items) {
-    // Pattern 1: starts with a number followed by space and item name
-    // Examples: "3 Cold Beverage", "2 Grey Goose", "4 Rudolph's Red-Nosed Punch"
-    const quantityMatch = item.label.match(/^(\d+)\s+(.+)$/)
+    let matched = false
 
-    if (quantityMatch) {
-      const quantity = parseInt(quantityMatch[1], 10)
-      const itemName = quantityMatch[2]
+    for (const { re, qtyIdx, nameIdx } of patterns) {
+      const m = item.label.match(re)
+      if (!m) continue
 
-      // Only expand if quantity > 1 and <= 50 (sanity check - supports catering/large parties)
-      if (quantity > 1 && quantity <= 50) {
-        const unitPrice = Math.round((item.price / quantity) * 100) / 100 // Round to 2 decimal places
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
-        }
+      const quantity = parseInt(m[qtyIdx], 10)
+      const itemName = m[nameIdx].trim()
 
-        // Create individual items
-        for (let i = 0; i < quantity; i++) {
-          expanded.push({
-            label: itemName,
-            price: unitPrice,
-            emoji: item.emoji
-          })
-        }
-        continue
-      }
-    }
-
-    // Pattern 2: Check for "x" notation like "Cold Beverage x2" or "Cold Beverage (2)"
-    const xMatch = item.label.match(/^(.+?)\s*[x×]\s*(\d+)$/i) || item.label.match(/^(.+?)\s*\((\d+)\)$/)
-    if (xMatch) {
-      const itemName = xMatch[1].trim()
-      const quantity = parseInt(xMatch[2], 10)
-
-      if (quantity > 1 && quantity <= 50) {
+      if (quantity > 1 && quantity <= 50 && itemName.length > 0) {
         const unitPrice = Math.round((item.price / quantity) * 100) / 100
         if (process.env.NODE_ENV !== 'production') {
-          console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
+          console.log(`[scan_api] Parsed quantity "${item.label}" ($${item.price}) -> "${itemName}" x${quantity} @ $${unitPrice}`)
         }
-
-        for (let i = 0; i < quantity; i++) {
-          expanded.push({
-            label: itemName,
-            price: unitPrice,
-            emoji: item.emoji
-          })
-        }
-        continue
+        out.push({
+          label: itemName,
+          price: item.price,      // keep line total as the item's price
+          emoji: item.emoji,
+          quantity,
+          unit_price: unitPrice
+        })
+        matched = true
+        break
       }
     }
 
-    // Pattern 3: "@" notation like "2 @ $45.00 Gameplay"
-    const atMatch = item.label.match(/^(\d+)\s*@\s*\$?[\d.]+\s+(.+)$/)
-    if (atMatch) {
-      const quantity = parseInt(atMatch[1], 10)
-      const itemName = atMatch[2].trim()
-
-      if (quantity > 1 && quantity <= 50) {
-        const unitPrice = Math.round((item.price / quantity) * 100) / 100
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
-        }
-
-        for (let i = 0; i < quantity; i++) {
-          expanded.push({
-            label: itemName,
-            price: unitPrice,
-            emoji: item.emoji
-          })
-        }
-        continue
-      }
+    if (!matched) {
+      out.push({ ...item, quantity: 1, unit_price: item.price })
     }
-
-    // Pattern 4: "Qty" prefix like "Qty: 3 Beer" or "Quantity 2 Salad"
-    const qtyMatch = item.label.match(/^(?:qty|quantity)[:\s]*(\d+)\s+(.+)$/i)
-    if (qtyMatch) {
-      const quantity = parseInt(qtyMatch[1], 10)
-      const itemName = qtyMatch[2].trim()
-
-      if (quantity > 1 && quantity <= 50) {
-        const unitPrice = Math.round((item.price / quantity) * 100) / 100
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[scan_api] Expanding "${item.label}" ($${item.price}) -> ${quantity}x "${itemName}" ($${unitPrice} each)`)
-        }
-
-        for (let i = 0; i < quantity; i++) {
-          expanded.push({
-            label: itemName,
-            price: unitPrice,
-            emoji: item.emoji
-          })
-        }
-        continue
-      }
-    }
-
-    // No quantity prefix or quantity is 1, keep as-is
-    expanded.push(item)
   }
 
-  return expanded
+  return out
 }
 
 function getSmartEmoji(label: string): string {
@@ -450,14 +404,14 @@ export default async function handler(
           }
         }
 
-        // First, expand quantity items (e.g., "3 Cold Beverage" -> 3 separate items)
-        if (process.env.NODE_ENV !== 'production') console.log('[scan_api] Expanding quantity items...')
-        const expandedItems = expandQuantityItems(ocrResult.items)
-        if (process.env.NODE_ENV !== 'production') console.log(`[scan_api] Expanded ${ocrResult.items.length} items to ${expandedItems.length} items`)
+        // Parse quantity metadata without splitting into N rows — "6 Peking
+        // Dumpling $9.12" stays one item with quantity=6 and unit_price=1.52.
+        if (process.env.NODE_ENV !== 'production') console.log('[scan_api] Parsing quantity metadata...')
+        const parsedItems = parseQuantityItems(ocrResult.items)
 
         // Smart emoji mapping instead of slow DALL-E icon generation
         if (process.env.NODE_ENV !== 'production') console.log('[scan_api] Applying smart emoji mapping...')
-        const itemsWithEmojis = expandedItems.map(item => ({
+        const itemsWithEmojis = parsedItems.map(item => ({
           ...item,
           emoji: item.emoji || getSmartEmoji(item.label)
         }))

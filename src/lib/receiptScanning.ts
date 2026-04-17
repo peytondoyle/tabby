@@ -310,19 +310,27 @@ type ProcessedItem = {
 // Process and normalize items. Returns filtered items plus any discount amount
 // pulled out of discount line-items, so the caller can avoid double-counting it
 // against a separate OCR-reported `discount` field.
-function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?: string | null }>): {
+function processItems(
+  rawItems: Array<{ label?: string; price?: unknown; emoji?: string | null; quantity?: unknown; unit_price?: unknown }>
+): {
   items: ProcessedItem[]
   lineItemDiscount: number
 } {
   if (process.env.NODE_ENV !== 'production') console.log(`[process_items] Processing ${rawItems.length} raw items`)
 
-  // Step 1: Normalize and filter items
+  // Step 1: Normalize and filter items. Quantity metadata comes from the server's
+  // parseQuantityItems — never expand into N rows, that's what caused users to
+  // see seven identical "Peking Dumpling" chips.
   const normalizedItems = rawItems
     .map((item, _index) => {
       const label = String(item.label || '').trim()
       const price = normalizeNumber(item.price)
+      const quantity = Math.max(1, Math.round(normalizeNumber(item.quantity) || 1))
+      const unitPriceRaw = normalizeNumber(item.unit_price)
+      const unit_price = unitPriceRaw > 0
+        ? unitPriceRaw
+        : (quantity > 0 ? Math.round((price / quantity) * 100) / 100 : price)
 
-      // Use smart emoji matching
       const emoji = getSmartEmoji(label)
 
       return {
@@ -330,8 +338,8 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
         label,
         price,
         emoji,
-        quantity: 1,
-        unit_price: price
+        quantity,
+        unit_price
       }
     })
     .filter(item => {
@@ -566,7 +574,7 @@ export async function parseReceipt(
     }
 
     // Process items with filtering, coalescing, and special handling
-    const { items: processedItems, lineItemDiscount } = processItems(rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null }))
+    const { items: processedItems, lineItemDiscount } = processItems(rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null; quantity?: unknown; unit_price?: unknown }))
 
     // Get service_fee from API response first (if available)
     const apiServiceFee = normalizeNumber((responseData as any).service_fee)

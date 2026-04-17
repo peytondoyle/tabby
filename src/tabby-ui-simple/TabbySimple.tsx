@@ -19,8 +19,10 @@ import './TabbySimple.css';
 interface Item {
   id: string;
   emoji: string;
-  name: string;  // Display name (maps to 'label' in database)
-  price: number;
+  name: string;        // Display name (maps to 'label' in database)
+  price: number;       // LINE TOTAL (unit_price * quantity)
+  quantity?: number;   // Pieces on this line — 6 for "6 Peking Dumplings $9.12"
+  unit_price?: number; // Per-piece price, only meaningful when quantity > 1
   assignedTo?: string;
   splitBetween?: string[]; // Array of person IDs sharing this item
 }
@@ -300,14 +302,21 @@ export const TabbySimple: React.FC = () => {
               return Number.isFinite(n) ? n : 0;
             };
 
-            const loadedItems: Item[] = (billData.items || []).map((item: any) => ({
-              id: item.id,
-              emoji: item.emoji || '🍽️',
-              name: item.label || item.name || 'Item',
-              price: safeNum(item.price ?? item.unit_price),
-              assignedTo: undefined,
-              splitBetween: undefined
-            }));
+            const loadedItems: Item[] = (billData.items || []).map((item: any) => {
+              const quantity = Math.max(1, Math.round(safeNum(item.quantity) || 1));
+              const unit_price = safeNum(item.unit_price);
+              const price = safeNum(item.price ?? (unit_price * quantity));
+              return {
+                id: item.id,
+                emoji: item.emoji || '🍽️',
+                name: item.label || item.name || 'Item',
+                price,
+                quantity,
+                unit_price: unit_price || (quantity > 0 ? price / quantity : price),
+                assignedTo: undefined,
+                splitBetween: undefined
+              };
+            });
 
             setItems(loadedItems);
             setRestaurantName(receiptData.place || receiptData.title || 'Restaurant');
@@ -409,12 +418,15 @@ export const TabbySimple: React.FC = () => {
         setScanProgress(progress);
       });
 
-      // Convert to our item format
+      // Convert to our item format (quantity metadata comes from the server's
+      // parseQuantityItems — one row per receipt line, never N copies).
       const scannedItems: Item[] = result.items.map(item => ({
         id: item.id,
         emoji: item.emoji || '🍽️',
         name: item.label,
         price: item.price,
+        quantity: item.quantity ?? 1,
+        unit_price: item.unit_price ?? item.price,
       }));
 
       setItems(scannedItems);
@@ -1589,7 +1601,12 @@ export const TabbySimple: React.FC = () => {
                       <FoodIcon itemName={item.name} emoji={item.emoji} size={24} />
                     </span>
                     <div className="item-details">
-                      <span className="item-name">{item.name}</span>
+                      <span className="item-name">
+                        {item.name}
+                        {item.quantity && item.quantity > 1 && (
+                          <span className="item-qty">×{item.quantity}</span>
+                        )}
+                      </span>
                       <span className="item-price">${item.price.toFixed(2)}</span>
                     </div>
                   </div>
@@ -1738,6 +1755,9 @@ export const TabbySimple: React.FC = () => {
                             </span>
                             <span className="item-name-small">
                               {isSplit && `1/${splitCount} `}{item.name}
+                              {item.quantity && item.quantity > 1 && (
+                                <span className="item-qty"> ×{item.quantity}</span>
+                              )}
                             </span>
                             <span className="item-price-small">${displayPrice.toFixed(2)}</span>
                           </div>

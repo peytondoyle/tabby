@@ -390,6 +390,19 @@
   font-weight: 500;
 }
 
+.item-qty {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--tb-r-pill);
+  background: var(--tb-surface-3);
+  color: var(--tb-butter);
+  font-family: var(--tb-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .item-price {
   font-size: 13px;
   font-weight: 700;
