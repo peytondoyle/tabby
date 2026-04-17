@@ -14,7 +14,13 @@ import {
  */
 interface UseBillTotalsInput {
   items: { id: string; label?: string; name?: string; price: number; emoji?: string }[]
-  people: { id: string; name: string; items?: (string | { id: string })[] }[]
+  people: {
+    id: string
+    name: string
+    items?: (string | { id: string })[]
+    personal_credit?: number
+    credit_note?: string
+  }[]
   tax: number
   tip: number
   discount: number
@@ -60,7 +66,9 @@ export function useBillTotals(input: UseBillTotalsInput): BillTotals | null {
     const normalizedPeople: ComputePerson[] = people.map(p => ({
       id: p.id,
       name: p.name,
-      is_paid: false
+      is_paid: false,
+      personal_credit: p.personal_credit,
+      credit_note: p.credit_note
     }))
 
     const result = computeTotals(

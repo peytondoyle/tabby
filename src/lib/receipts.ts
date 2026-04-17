@@ -191,7 +191,7 @@ export async function fetchReceipts(_client?: SupabaseClient): Promise<ReceiptSu
 export function buildCreatePayload(scan: {
   place?: string | null;
   total?: number | string | null;
-  items: Array<{ id?: string; label?: string; name?: string; title?: string; price?: number | string; cost?: number | string; icon?: string; emoji?: string | null }>;
+  items: Array<{ id?: string; label?: string; name?: string; title?: string; price?: number | string; cost?: number | string; icon?: string; emoji?: string | null; quantity?: number | string }>;
   subtotal?: number | string | null;
   tax?: number | string | null;
   tip?: number | string | null;
@@ -208,11 +208,15 @@ export function buildCreatePayload(scan: {
       console.log(`[emoji] Generated emoji for "${itemName}": ${icon}`);
     }
 
+    const qtyRaw = Number(i.quantity);
+    const quantity = Number.isFinite(qtyRaw) && qtyRaw >= 1 ? Math.round(qtyRaw) : 1;
+
     return {
       id: String(i.id ?? `it_${idx}`),
       name: itemName,
       price: toMoney(i.price ?? i.cost ?? 0),
       icon: icon || '🍽️',
+      quantity,
     };
   });
   const total = scan.total == null ? null : toMoney(scan.total);

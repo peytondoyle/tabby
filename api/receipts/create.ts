@@ -109,14 +109,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Calculate subtotal from items
     const subtotal = items.reduce((sum, item) => sum + item.price, 0);
 
-    // Transform items to consistent schema
-    const receiptItems = items.map((item, index) => ({
-      id: item.id || `item_${Date.now()}_${index}`,
-      label: item.name,
-      price: item.price,
-      emoji: item.icon || '🍽️',
-      quantity: 1
-    }));
+    // Transform items to consistent schema. quantity comes from the payload
+    // (parsed out of "6 Peking Dumpling $9.12" style lines); default 1.
+    const receiptItems = items.map((item, index) => {
+      const q = Number((item as { quantity?: number }).quantity);
+      const quantity = Number.isFinite(q) && q >= 1 ? Math.round(q) : 1;
+      return {
+        id: item.id || `item_${Date.now()}_${index}`,
+        label: item.name,
+        price: item.price,
+        emoji: item.icon || '🍽️',
+        quantity
+      };
+    });
 
     let receiptId = editorToken;
 

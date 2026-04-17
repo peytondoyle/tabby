@@ -26,6 +26,11 @@ export interface Person {
   avatar_url?: string
   venmo_handle?: string
   is_paid: boolean
+  // Personal credit (e.g. Amex dinner credit, gift card, promo code) that only
+  // reduces THIS person's amount due, never the shared bill. A positive number
+  // gets subtracted from their share after tax/tip/fees are applied.
+  personal_credit?: number
+  credit_note?: string
 }
 
 export interface ItemShare {
@@ -42,6 +47,9 @@ export type PersonTotal = {
   service_fee_share: number
   tax_share: number
   tip_share: number
+  personal_credit: number
+  credit_note?: string
+  gross_share: number
   total: number
   items: Array<{
     item_id: string
@@ -60,7 +68,9 @@ export interface BillTotals {
   service_fee: number
   tax: number
   tip: number
+  receipt_total: number
   grand_total: number
+  total_personal_credits: number
   person_totals: PersonTotal[]
   penny_reconciliation: {
     distributed: number
@@ -189,7 +199,9 @@ export function computeTotals(
   // into grand_total and forces spurious penny reconciliation.
   const rawSubtotal = items.reduce((sum, item) => sum + item.price, 0)
   const subtotal = Math.round(rawSubtotal * 100) / 100
-  const grand_total = Math.round((subtotal - discount + service_fee + tax + tip) * 100) / 100
+  const receipt_total = Math.round((subtotal - discount + service_fee + tax + tip) * 100) / 100
+  // total_personal_credits + grand_total computed after per-person credit capping
+  // (see step 10b) so they reflect only what actually got applied.
 
   // 2. Build lookup maps for quick access
   const itemMap = new Map(items.map(item => [item.id, item]))
@@ -203,6 +215,9 @@ export function computeTotals(
     service_fee_share: 0,
     tax_share: 0,
     tip_share: 0,
+    personal_credit: Math.max(0, person.personal_credit ?? 0),
+    credit_note: person.credit_note,
+    gross_share: 0,
     total: 0,
     items: []
   }))
@@ -338,10 +353,27 @@ export function computeTotals(
     }
   }
 
-  // 10. Calculate raw totals for each person (discount is subtracted, others added)
+  // 10. Calculate raw totals for each person. Gross share = their portion of
+  // the receipt. Personal credit (Amex-only credit, gift card, etc.) is
+  // subtracted after to yield the final amount owed. Clamped so totals
+  // never go negative — excess credit is ignored.
   for (const personTotal of personTotals) {
-    personTotal.total = personTotal.subtotal - personTotal.discount_share + personTotal.service_fee_share + personTotal.tax_share + personTotal.tip_share
+    personTotal.gross_share =
+      personTotal.subtotal -
+      personTotal.discount_share +
+      personTotal.service_fee_share +
+      personTotal.tax_share +
+      personTotal.tip_share
+    const creditApplied = Math.min(personTotal.personal_credit, Math.max(0, personTotal.gross_share))
+    personTotal.personal_credit = creditApplied
+    personTotal.total = personTotal.gross_share - creditApplied
   }
+
+  // 10b. Post-clamp credit totals + effective grand_total.
+  const total_personal_credits = Math.round(
+    personTotals.reduce((sum, p) => sum + p.personal_credit, 0) * 100
+  ) / 100
+  const grand_total = Math.round((receipt_total - total_personal_credits) * 100) / 100
 
   // 11. Round totals to cents and reconcile pennies
   const reconciledTotals = reconcilePennies(personTotals, grand_total)
@@ -364,6 +396,8 @@ export function computeTotals(
     service_fee,
     tax,
     tip,
+    receipt_total,
+    total_personal_credits,
     grand_total,
     person_totals: reconciledTotals,
     penny_reconciliation: {

@@ -950,11 +950,58 @@
   color: var(--tb-ink);
 }
 
+/* Personal credit chip — visible summary line "−$15.00 Amex" */
+.credit-chip {
+  align-self: flex-end;
+  margin-top: 2px;
+  padding: 3px 9px;
+  border-radius: var(--tb-r-pill);
+  background: var(--tb-butter-tint);
+  color: var(--tb-butter);
+  font-family: var(--tb-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.person-actions {
+  align-self: flex-end;
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.credit-btn {
+  padding: 5px 10px;
+  background: var(--tb-surface-2);
+  border: 1px solid var(--tb-border);
+  border-radius: var(--tb-r-pill);
+  color: var(--tb-ink);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background var(--tb-fast) var(--tb-ease-out),
+              border-color var(--tb-fast) var(--tb-ease-out);
+}
+
+.credit-btn:hover {
+  background: var(--tb-butter-tint);
+  border-color: var(--tb-butter);
+  color: var(--tb-butter);
+}
+
+.credit-btn:active {
+  transform: scale(0.96);
+}
+
 /* Venmo request button */
 .venmo-request-btn {
-  align-self: flex-end;
-  margin-top: 6px;
-  padding: 6px 12px;
+  padding: 5px 11px;
   background: #3D95CE; /* Venmo blue */
   color: var(--tb-ink);
   border: none;

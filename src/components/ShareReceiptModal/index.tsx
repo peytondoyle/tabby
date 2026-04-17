@@ -222,6 +222,9 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         personServiceFee: pt.service_fee_share,
         personTax: pt.tax_share,
         personTip: pt.tip_share,
+        personalCredit: pt.personal_credit,
+        creditNote: pt.credit_note,
+        personGrossShare: pt.gross_share,
         personTotal: pt.total
       };
     }).filter((x): x is NonNullable<typeof x> => x !== null);
@@ -236,6 +239,8 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
       personServiceFee,
       personTax,
       personTip,
+      personalCredit,
+      creditNote,
       personTotal
     } = personData;
 
@@ -301,11 +306,15 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         <div className="modern-person-total-section">
           <span className="modern-total-label">Amount Due</span>
           <span className="modern-total-amount">${personTotal.toFixed(2)}</span>
+          {personalCredit > 0.005 && (
+            <span className="modern-credit-applied">
+              −${personalCredit.toFixed(2)} {creditNote || 'credit'} applied
+            </span>
+          )}
         </div>
 
         {/* Footer */}
         <div className="modern-footer">
-          <span className="modern-footer-icon">📋</span>
           <span className="modern-footer-text">Split with Tabby</span>
         </div>
       </div>
@@ -345,7 +354,6 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
 
         {/* Footer */}
         <div className="modern-footer">
-          <span className="modern-footer-icon">📋</span>
           <span className="modern-footer-text">Split with Tabby</span>
         </div>
       </div>

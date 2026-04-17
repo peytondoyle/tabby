@@ -270,6 +270,8 @@ describe('computeTotals', () => {
           service_fee_share: 0,
           tax_share: 1.111,
           tip_share: 2.222,
+          personal_credit: 0,
+          gross_share: 13.666,
           total: 13.666,
           items: []
         },
@@ -281,6 +283,8 @@ describe('computeTotals', () => {
           service_fee_share: 0,
           tax_share: 1.111,
           tip_share: 2.222,
+          personal_credit: 0,
+          gross_share: 13.666,
           total: 13.666,
           items: []
         },
@@ -292,6 +296,8 @@ describe('computeTotals', () => {
           service_fee_share: 0,
           tax_share: 1.111,
           tip_share: 2.223,
+          personal_credit: 0,
+          gross_share: 13.668,
           total: 13.668,
           items: []
         }
@@ -320,6 +326,8 @@ describe('computeTotals', () => {
           service_fee_share: 0,
           tax_share: 2.00,
           tip_share: 3.00,
+          personal_credit: 0,
+          gross_share: 25.00,
           total: 25.00,
           items: []
         },
@@ -331,6 +339,8 @@ describe('computeTotals', () => {
           service_fee_share: 0,
           tax_share: 1.00,
           tip_share: 1.50,
+          personal_credit: 0,
+          gross_share: 12.50,
           total: 12.50,
           items: []
         }
@@ -670,8 +680,8 @@ describe('computeTotals edge cases', () => {
   it('should distribute pennies deterministically with tied amounts', () => {
     // Two people with exactly the same totals
     const personTotals: PersonTotal[] = [
-      { person_id: 'p2', name: 'Bob', subtotal: 10.00, discount_share: 0, service_fee_share: 0, tax_share: 0, tip_share: 0, total: 10.00, items: [] },
-      { person_id: 'p1', name: 'Alice', subtotal: 10.00, discount_share: 0, service_fee_share: 0, tax_share: 0, tip_share: 0, total: 10.00, items: [] }
+      { person_id: 'p2', name: 'Bob', subtotal: 10.00, discount_share: 0, service_fee_share: 0, tax_share: 0, tip_share: 0, personal_credit: 0, gross_share: 10.00, total: 10.00, items: [] },
+      { person_id: 'p1', name: 'Alice', subtotal: 10.00, discount_share: 0, service_fee_share: 0, tax_share: 0, tip_share: 0, personal_credit: 0, gross_share: 10.00, total: 10.00, items: [] }
     ]
 
     const result = reconcilePennies(personTotals, 20.01)
@@ -743,6 +753,49 @@ describe('computeTotals edge cases', () => {
     expect(result.person_totals[1].service_fee_share).toBe(3.00)
     expect(result.person_totals[0].total).toBe(33.00) // 30 + 3
     expect(result.person_totals[1].total).toBe(13.00) // 10 + 3
+  })
+
+  it('should apply personal credit to one person only', () => {
+    // Amex dinner credit: $15 reduction applies ONLY to Peyton, not split.
+    const items: Item[] = [
+      { id: '1', label: 'Entree A', price: 20.00, quantity: 1, unit_price: 20.00 },
+      { id: '2', label: 'Entree B', price: 20.00, quantity: 1, unit_price: 20.00 }
+    ]
+    const pair: Person[] = [
+      { id: 'p1', name: 'Peyton', is_paid: false, personal_credit: 15, credit_note: 'Amex' },
+      { id: 'p2', name: 'Louton', is_paid: false }
+    ]
+    const shares: ItemShare[] = [
+      { item_id: '1', person_id: 'p1', weight: 1 },
+      { item_id: '2', person_id: 'p2', weight: 1 }
+    ]
+
+    const result = computeTotals(items, shares, pair, 4.00, 6.00, 0, 0)
+
+    expect(result.receipt_total).toBe(50.00)           // $40 + tax + tip
+    expect(result.total_personal_credits).toBe(15.00)
+    expect(result.grand_total).toBe(35.00)             // what's owed after credit
+    expect(result.person_totals[0].personal_credit).toBe(15.00)
+    expect(result.person_totals[0].gross_share).toBe(25.00)
+    expect(result.person_totals[0].total).toBe(10.00)  // 25 - 15
+    expect(result.person_totals[1].personal_credit).toBe(0)
+    expect(result.person_totals[1].total).toBe(25.00)  // unaffected
+  })
+
+  it('should clamp personal credit to gross share so total never goes negative', () => {
+    const items: Item[] = [
+      { id: '1', label: 'Small', price: 5.00, quantity: 1, unit_price: 5.00 }
+    ]
+    const pair: Person[] = [
+      { id: 'p1', name: 'Peyton', is_paid: false, personal_credit: 50 }
+    ]
+    const shares: ItemShare[] = [{ item_id: '1', person_id: 'p1', weight: 1 }]
+
+    const result = computeTotals(items, shares, pair, 0, 0, 0, 0)
+
+    expect(result.person_totals[0].gross_share).toBe(5.00)
+    expect(result.person_totals[0].personal_credit).toBe(5.00) // capped
+    expect(result.person_totals[0].total).toBe(0)
   })
 
   it('should handle mixed even+proportional tax/tip', () => {

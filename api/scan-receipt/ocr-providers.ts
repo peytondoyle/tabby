@@ -211,7 +211,32 @@ If a price seems wrong for the item category, RE-READ IT carefully!
   - If math doesn't work, re-check all values
 
 **DISCOUNT**: Sum ALL discounts/promos/benefits as POSITIVE number
-**SERVICE_FEE**: Sum ALL fees (delivery, service, platform, etc.)
+  - Examples: "Promo", "Coupon", "Uber One savings", "Membership Benefit",
+    "Delivery Discount", "Loyalty", "Comp", "Credit applied"
+  - Add them ALL and return the sum as a positive number
+
+**SERVICE_FEE**: Sum ALL non-tax/non-tip fee lines as one number.
+  Third-party delivery receipts (Uber Eats, DoorDash, Grubhub, etc.) often
+  split fees across MANY named lines — you MUST include every one of them.
+  Typical line names to add together:
+    • Service Fee / Svc Charge / Svc Chg
+    • Delivery Fee
+    • Priority Delivery / Priority Delivery Fee / Express
+    • Small Order Fee / Small Cart Fee / Regulatory Fee
+    • Platform Fee / Convenience Fee / Processing Fee
+    • Booking Fee / Restaurant Fee
+    • Credit Card Surcharge / CC Surcharge
+  Example:
+    Receipt shows:
+      Delivery Fee        $0.49
+      Priority Delivery   $3.99
+      Service Fee        $14.36
+    → service_fee = 0.49 + 3.99 + 14.36 = 18.84
+
+  If the receipt's grand TOTAL doesn't match
+    subtotal - discount + service_fee + tax + tip
+  within $0.02, you are almost certainly missing a fee line. Re-scan the
+  receipt's totals block and add in any fees you missed before returning.
 
 ═══════════════════════════════════════════════════════════════
 🧮 VALIDATION - MUST DO BEFORE RETURNING!
@@ -283,7 +308,7 @@ Extract ACTUAL VALUES from this receipt image.`
     const tax = parsed.tax || 0;
     let tip = parsed.tip || 0;
     const discount = parsed.discount || 0;
-    const serviceFee = parsed.service_fee || 0;
+    let serviceFee = parsed.service_fee || 0;
     const total = parsed.total || 0;
     const handwrittenFields: string[] = parsed.handwrittenFields || [];
     const fieldConfidence = { ...parsed.fieldConfidence } || {};
@@ -298,8 +323,26 @@ Extract ACTUAL VALUES from this receipt image.`
     const subtotalTolerance = getToleranceForAmount(subtotal);
     const totalTolerance = getToleranceForAmount(total);
 
-    // Expected total calculation
-    const calculatedTotal = subtotal - discount + serviceFee + tax + tip;
+    // Expected total calculation.
+    //
+    // Uber-style receipts split fees across many lines (Delivery Fee, Priority
+    // Delivery, Service Fee). The OCR is instructed to sum them into service_fee
+    // but sometimes misses one — e.g. $0.49 delivery + $3.99 priority + $14.36
+    // service → model returns only $14.36, leaving a ~$4.48 hole. When the gap
+    // is positive (calculated < actual) and small-to-moderate (≤25% of total),
+    // patch it into service_fee so downstream totals reconcile. A warning is
+    // added so the user can verify.
+    let calculatedTotal = subtotal - discount + serviceFee + tax + tip;
+    const feeGap = total - calculatedTotal;
+    const feePatchCap = Math.max(5, total * 0.25);
+    if (total > 0 && feeGap > Math.max(0.05, totalTolerance) && feeGap <= feePatchCap) {
+      const patched = Math.round((serviceFee + feeGap) * 100) / 100;
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[openai_ocr] Patching missing fees into service_fee: $${serviceFee.toFixed(2)} + $${feeGap.toFixed(2)} = $${patched.toFixed(2)}`);
+      }
+      serviceFee = patched;
+      calculatedTotal = subtotal - discount + serviceFee + tax + tip;
+    }
     const itemsDiff = Math.abs(calculatedSubtotal - subtotal);
     const totalsDiff = Math.abs(calculatedTotal - total);
     const itemsMatchSubtotal = itemsDiff <= subtotalTolerance;
@@ -445,7 +488,7 @@ Extract ACTUAL VALUES from this receipt image.`
       tax: parsed.tax || null,
       tip: parsed.tip || null,
       discount: parsed.discount || null,
-      service_fee: parsed.service_fee || null,
+      service_fee: serviceFee > 0 ? serviceFee : null,
       total: parsed.total || null,
       rawText: parsed.rawText || content,
       items: parsed.items || [],

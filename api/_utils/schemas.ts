@@ -20,7 +20,8 @@ export const CreateReceiptRequestSchema = z.object({
     id: z.string().optional(),
     name: z.string().min(1, "Item name is required"),
     price: z.number().positive("Price must be positive"),
-    icon: z.string().optional()
+    icon: z.string().optional(),
+    quantity: z.number().int().positive().default(1)
   })).min(1, "At least one item is required"),
   place: z.string().nullable().optional(),
   total: z.number().nullable().optional(),

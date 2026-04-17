@@ -7,8 +7,9 @@ import { z } from "zod";
 export const ReceiptItemSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  price: z.number().finite(),       // dollars; normalized to 2dp by caller
+  price: z.number().finite(),       // line total (unit_price * quantity), dollars
   icon: z.string().optional(),
+  quantity: z.number().int().positive().default(1),
 });
 
 export const PersonSchema = z.object({

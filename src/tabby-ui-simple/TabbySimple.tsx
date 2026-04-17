@@ -33,6 +33,8 @@ interface Person {
   items: string[];
   total: number;
   venmo_handle?: string | null;
+  personal_credit?: number;
+  credit_note?: string;
 }
 
 // Vibrant color palette for person avatars — pops on dark backgrounds
@@ -479,12 +481,19 @@ export const TabbySimple: React.FC = () => {
           const supabaseItems = JSON.parse(supabaseItemsJson);
           console.log('[TabbySimple] Loaded items with Supabase UUIDs:', supabaseItems);
           // Update items with Supabase UUIDs
-          const updatedItems: Item[] = supabaseItems.map((item: any) => ({
-            id: item.id, // Supabase UUID
-            emoji: item.emoji || '🍽️',
-            name: item.label || item.name || 'Item',
-            price: Number(item.price || item.unit_price || 0),
-          }));
+          const updatedItems: Item[] = supabaseItems.map((item: any) => {
+            const quantity = Math.max(1, Math.round(Number(item.quantity) || 1));
+            const unit_price = Number(item.unit_price) || 0;
+            const price = Number(item.price) || (unit_price * quantity) || 0;
+            return {
+              id: item.id, // Supabase UUID
+              emoji: item.emoji || '🍽️',
+              name: item.label || item.name || 'Item',
+              price,
+              quantity,
+              unit_price: unit_price || (quantity > 0 ? price / quantity : price),
+            };
+          });
           setItems(updatedItems);
         } catch (error) {
           console.error('[TabbySimple] Failed to load Supabase items:', error);
@@ -599,6 +608,41 @@ export const TabbySimple: React.FC = () => {
         throw error;
       }
     }
+  };
+
+  // Prompt-based credit editor. Enter nothing (or 0) to clear.
+  const handleEditCredit = (personId: string) => {
+    const person = people.find(p => p.id === personId);
+    if (!person) return;
+
+    const existing = person.personal_credit ?? 0;
+    const raw = window.prompt(
+      `Personal credit for ${person.name} (e.g. Amex dinner $15). Blank or 0 clears.`,
+      existing ? existing.toFixed(2) : ''
+    );
+    if (raw === null) return; // cancelled
+
+    const trimmed = raw.trim().replace(/^\$/, '');
+    const amount = trimmed === '' ? 0 : parseFloat(trimmed);
+    if (!Number.isFinite(amount) || amount < 0) return;
+
+    let note = person.credit_note;
+    if (amount > 0) {
+      const noteInput = window.prompt(
+        `Note for the credit (optional):`,
+        note ?? 'Credit'
+      );
+      if (noteInput !== null) note = noteInput.trim() || undefined;
+    } else {
+      note = undefined;
+    }
+
+    const updatedPeople = people.map(p =>
+      p.id === personId
+        ? { ...p, personal_credit: amount || undefined, credit_note: note }
+        : p
+    );
+    setPeople(updatedPeople);
   };
 
   const handleUnifiedPersonRemove = async (personId: string) => {
@@ -1646,22 +1690,36 @@ export const TabbySimple: React.FC = () => {
                     <div className="person-header">
                       <span className="person-name-large">{person.name}</span>
                       <span className="person-total">${getPersonTotal(billTotals, person.id).toFixed(2)}</span>
-                      {person.venmo_handle && getPersonTotal(billTotals, person.id) > 0 && (
-                        <button
-                          className="venmo-request-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openVenmoRequest({
-                              handle: person.venmo_handle!,
-                              amount: getPersonTotal(billTotals, person.id),
-                              note: `${restaurantName || 'Tabby'} split`
-                            });
-                          }}
-                          aria-label={`Request ${getPersonTotal(billTotals, person.id).toFixed(2)} dollars from ${person.name} via Venmo`}
-                        >
-                          💸 Request
-                        </button>
+                      {breakdown && breakdown.personal_credit > 0 && (
+                        <span className="credit-chip" title={breakdown.credit_note || 'Personal credit'}>
+                          −${breakdown.personal_credit.toFixed(2)} {breakdown.credit_note || 'credit'}
+                        </span>
                       )}
+                      <div className="person-actions">
+                        <button
+                          className="credit-btn"
+                          onClick={(e) => { e.stopPropagation(); handleEditCredit(person.id); }}
+                          aria-label={`${breakdown && breakdown.personal_credit > 0 ? 'Edit' : 'Add'} personal credit for ${person.name}`}
+                        >
+                          {breakdown && breakdown.personal_credit > 0 ? '✏️ Credit' : '+ Credit'}
+                        </button>
+                        {person.venmo_handle && getPersonTotal(billTotals, person.id) > 0 && (
+                          <button
+                            className="venmo-request-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openVenmoRequest({
+                                handle: person.venmo_handle!,
+                                amount: getPersonTotal(billTotals, person.id),
+                                note: `${restaurantName || 'Tabby'} split`
+                              });
+                            }}
+                            aria-label={`Request ${getPersonTotal(billTotals, person.id).toFixed(2)} dollars from ${person.name} via Venmo`}
+                          >
+                            💸 Request
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="person-items">
                       {personItems.length === 0 ? (
