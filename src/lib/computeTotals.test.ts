@@ -413,9 +413,12 @@ describe('computeTotals', () => {
 
   describe('validateBillTotals', () => {
     it('should return valid for correct totals', () => {
+      // All 3 items assigned — the third one (salad) can't be orphaned, or
+      // grand_total would legitimately exceed sum(person totals).
       const shares: ItemShare[] = [
         { item_id: '1', person_id: 'p1', weight: 1 },
-        { item_id: '2', person_id: 'p2', weight: 1 }
+        { item_id: '2', person_id: 'p2', weight: 1 },
+        { item_id: '3', person_id: 'p3', weight: 1 }
       ]
 
       const result = computeTotals(
@@ -753,6 +756,26 @@ describe('computeTotals edge cases', () => {
     expect(result.person_totals[1].service_fee_share).toBe(3.00)
     expect(result.person_totals[0].total).toBe(33.00) // 30 + 3
     expect(result.person_totals[1].total).toBe(13.00) // 10 + 3
+  })
+
+  it('should NOT distribute the full bill when no one has claimed items', () => {
+    // Regression: reconcilePennies used to see sum(person totals)=$0 and
+    // targetTotal=$109.30, treat the $109.30 as "rounding drift", and shove
+    // $54.65 into each person. That made fresh scans show phantom totals
+    // before anyone assigned anything.
+    const items: Item[] = [
+      { id: '1', label: 'Food', price: 79.75, quantity: 1, unit_price: 79.75 }
+    ]
+    const pair: Person[] = [
+      { id: 'p1', name: 'Peyton', is_paid: false },
+      { id: 'p2', name: 'Louton', is_paid: false }
+    ]
+    // No shares — nothing assigned to anyone.
+    const result = computeTotals(items, [], pair, 7.98, 10.00, 7.27, 18.84)
+
+    expect(result.receipt_total).toBeCloseTo(109.30, 2)
+    expect(result.person_totals[0].total).toBe(0)
+    expect(result.person_totals[1].total).toBe(0)
   })
 
   it('should apply personal credit to one person only', () => {

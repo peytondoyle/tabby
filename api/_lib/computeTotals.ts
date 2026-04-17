@@ -491,6 +491,21 @@ export function reconcilePennies(
     return roundedTotals
   }
 
+  // 4b. Only shuffle pennies when the gap is the size of actual rounding drift.
+  //     A bigger gap means nobody has claimed items yet (currentTotal≈0 but
+  //     grand_total is the whole bill) — distributing would fabricate per-
+  //     person totals the user never asked for. Leave them alone.
+  const maxRoundingDriftCents = Math.max(2, roundedTotals.length)
+  if (Math.abs(differenceCents) > maxRoundingDriftCents) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn(
+        `[reconcilePennies] Gap of ${differenceCents} cents is larger than ` +
+        `rounding drift (±${maxRoundingDriftCents}¢). Leaving totals unchanged.`
+      )
+    }
+    return roundedTotals
+  }
+
   // 5. Sort people by their total (descending) to distribute to largest first
   // Use person_id as deterministic tiebreaker to prevent same person always getting the extra penny
   const sortedTotals = [...roundedTotals].sort((a, b) => b.total - a.total || a.person_id.localeCompare(b.person_id))

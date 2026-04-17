@@ -492,15 +492,35 @@ export function reconcilePennies(
   
   // 2. Calculate current total after rounding
   const currentTotal = roundedTotals.reduce((sum, person) => sum + person.total, 0)
-  
+
   // 3. Find the difference (in cents)
   const differenceCents = Math.round((targetTotal - currentTotal) * 100)
-  
+
   // 4. If no difference, return as is
   if (differenceCents === 0) {
     return roundedTotals
   }
-  
+
+  // 4b. Guard: this function is meant to shuffle pennies (a few cents at most)
+  //     caused by independent-rounding drift, NOT to paper over unassigned
+  //     bill totals. If the gap is larger than what rounding can produce
+  //     (N people × 1 cent each), something upstream is structurally wrong —
+  //     most commonly: nobody has claimed any items yet, so currentTotal is 0
+  //     but targetTotal is the whole bill. Evenly distributing would fake a
+  //     "$54.65 each" that the user didn't agree to. Leave totals alone and
+  //     let the UI show $0 per person, which is correct: no one owes
+  //     anything until they claim something.
+  const maxRoundingDriftCents = Math.max(2, roundedTotals.length)
+  if (Math.abs(differenceCents) > maxRoundingDriftCents) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn(
+        `[reconcilePennies] Gap of ${differenceCents} cents is larger than ` +
+        `rounding drift (±${maxRoundingDriftCents}¢). Leaving totals unchanged.`
+      )
+    }
+    return roundedTotals
+  }
+
   // 5. Sort people by their total (descending) to distribute to largest first
   // Use person_id as deterministic tiebreaker to prevent same person always getting the extra penny
   const sortedTotals = [...roundedTotals].sort((a, b) => b.total - a.total || a.person_id.localeCompare(b.person_id))
