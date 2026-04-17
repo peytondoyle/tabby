@@ -122,6 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         quantity
       };
     });
+    console.log(`[receipt_create] Prepared ${receiptItems.length} items, subtotal=${subtotal.toFixed(2)}`);
 
     let receiptId = editorToken;
 
@@ -170,16 +171,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Client Item.price is LINE TOTAL (see computeTotals.ts Item comment);
           // DB unit_price + qty multiplies back to the same total via the generated
           // `price` column, so derive unit_price correctly from the line total.
+          // Round unit_price to 4dp to avoid `numeric` precision issues while
+          // still keeping the qty × unit_price round-trip within a cent.
           const itemsToInsert = receiptItems.map(item => {
-            const qty = Number(item.quantity) || 1
+            const qty = Math.max(1, Math.round(Number(item.quantity) || 1));
+            const linePrice = Number(item.price) || 0;
+            const unit_price = Math.round((linePrice / qty) * 10000) / 10000;
             return {
               receipt_id: receiptId,
               label: item.label,
-              unit_price: Number(item.price) / qty,
+              unit_price,
               emoji: item.emoji,
               qty
             }
           });
+          console.log(`[receipt_create] Inserting ${itemsToInsert.length} items:`, itemsToInsert.map(i => ({ label: i.label, qty: i.qty, unit_price: i.unit_price })));
 
           const { data: insertedItems, error: itemsError } = await supabaseAdmin
             .from('tabby_items')
@@ -187,7 +193,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .select('id');
 
           if (itemsError) {
-            console.error('[receipt_create] Supabase items error:', itemsError);
+            console.error('[receipt_create] Supabase items error:', {
+              message: itemsError.message,
+              details: itemsError.details,
+              hint: itemsError.hint,
+              code: itemsError.code,
+              payloadSample: itemsToInsert[0]
+            });
             throw itemsError;
           } else {
             console.log('[receipt_create] Items saved to Supabase');

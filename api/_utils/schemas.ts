@@ -19,9 +19,13 @@ export const CreateReceiptRequestSchema = z.object({
   items: z.array(z.object({
     id: z.string().optional(),
     name: z.string().min(1, "Item name is required"),
-    price: z.number().positive("Price must be positive"),
+    // Allow $0 comp/free items (they appear on real receipts as "Comp Water",
+    // "Bread", etc). Strict positive was causing validation-rejected scans.
+    price: z.number().finite().min(0, "Price cannot be negative"),
     icon: z.string().optional(),
-    quantity: z.number().int().positive().default(1)
+    // Quantity coerces so an OCR-side accidental float becomes the nearest
+    // int before the DB round-trip (qty × unit_price reconstructs line total).
+    quantity: z.coerce.number().int().positive().default(1)
   })).min(1, "At least one item is required"),
   place: z.string().nullable().optional(),
   total: z.number().nullable().optional(),

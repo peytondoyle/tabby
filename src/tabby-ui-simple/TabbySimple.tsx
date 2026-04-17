@@ -274,7 +274,10 @@ export const TabbySimple: React.FC = () => {
   useEffect(() => {
     if (step === 'assign' && items.length > 0 && people.length > 0) {
       const hasSeenHint = localStorage.getItem('tabby-drag-hint-seen');
-      const unassignedItems = items.filter(item => !item.assignedTo);
+      // Unassigned = neither solo-assigned nor split between anyone.
+      const unassignedItems = items.filter(item =>
+        !item.assignedTo && !(item.splitBetween && item.splitBetween.length > 0)
+      );
 
       if (!hasSeenHint && unassignedItems.length > 0) {
         // Show tooltip after 3 seconds of inactivity
@@ -825,7 +828,13 @@ export const TabbySimple: React.FC = () => {
     });
   };
 
-  const unassignedItems = items.filter(item => !item.assignedTo);
+  // An item is unassigned when NO ONE owns it — neither solo-assigned nor
+  // in anyone's splitBetween. Previously `!item.assignedTo` classified split
+  // items as unassigned, so every person's card showed their pre-split share
+  // even before the user touched anything.
+  const unassignedItems = items.filter(item =>
+    !item.assignedTo && !(item.splitBetween && item.splitBetween.length > 0)
+  );
   const allItemsAssigned = unassignedItems.length === 0;
 
   // Show loading state when loading bill from URL
