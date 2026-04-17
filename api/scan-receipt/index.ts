@@ -82,22 +82,31 @@ const EMOJI_MAP: Record<string, string> = {
 // Receipts commonly print "6 Peking Dumpling $9.12" as one line that's really
 // one *shared* item (a plate). Auto-expanding it to 6 rows pollutes the UI and
 // misleads users into assigning each piece individually when they meant to
-// split the plate. Keep one item per line and attach quantity metadata — the
-// UI can show "Peking Dumpling ×6 $9.12" and let the user split by weight if
-// they want finer granularity.
+// split the plate. Keep one item per line and attach quantity metadata.
 //
-// Returns: { items, expandedAny } — expandedAny is kept only so callers can
-// log whether the parser touched anything (no behavioural use).
+// Also handles visual cleanup:
+//   - "1 Chicken Lo Mein" → label "Chicken Lo Mein" (the leading "1 " is just
+//     "ordered one of", it's redundant noise).
+//   - "1 Peking Dumpling (Steamed) (6)" → label "Peking Dumpling (Steamed)",
+//     quantity 6. The leading "1" is the order multiplier; the trailing "(6)"
+//     is the piece count, which wins.
 type QuantityItem = { label: string; price: number; emoji?: string | null; quantity?: number; unit_price?: number }
 function parseQuantityItems(items: Array<{ label: string; price: number; emoji?: string | null }>): QuantityItem[] {
   const out: QuantityItem[] = []
 
+  // Strip a leading "1 " ordered-quantity prefix ("1 Chicken Lo Mein" is just
+  // "Chicken Lo Mein" — the 1 is the default). Preserves N > 1 so "6 Dumpling"
+  // still parses via the patterns below.
+  const stripOneOrder = (s: string) => s.replace(/^1\s+(?=\S)/, '')
+
   const patterns: Array<{ re: RegExp; qtyIdx: number; nameIdx: number }> = [
-    // "3 Cold Beverage", "6 Peking Dumpling (Steamed)"
-    { re: /^(\d+)\s+(.+)$/, qtyIdx: 1, nameIdx: 2 },
-    // "Cold Beverage x2" / "Cold Beverage ×2" / "Cold Beverage (2)"
+    // Trailing piece counts first — "Peking Dumpling (6)" / "Beer x2" — because
+    // these usually represent piece count on a shared plate, which is more
+    // informative than the order-count prefix.
     { re: /^(.+?)\s*[x×]\s*(\d+)$/i, qtyIdx: 2, nameIdx: 1 },
     { re: /^(.+?)\s*\((\d+)\)$/, qtyIdx: 2, nameIdx: 1 },
+    // Leading quantity — "3 Cold Beverage"
+    { re: /^(\d+)\s+(.+)$/, qtyIdx: 1, nameIdx: 2 },
     // "2 @ $45.00 Gameplay"
     { re: /^(\d+)\s*@\s*\$?[\d.]+\s+(.+)$/, qtyIdx: 1, nameIdx: 2 },
     // "Qty: 3 Beer" / "Quantity 2 Salad"
@@ -105,34 +114,55 @@ function parseQuantityItems(items: Array<{ label: string; price: number; emoji?:
   ]
 
   for (const item of items) {
-    let matched = false
+    // Normalize: drop the redundant "1 " prefix first so trailing patterns get
+    // a clean shot at a label like "Peking Dumpling (6)".
+    const cleanedLabel = stripOneOrder(item.label)
+    let handled = false
 
     for (const { re, qtyIdx, nameIdx } of patterns) {
-      const m = item.label.match(re)
+      const m = cleanedLabel.match(re)
       if (!m) continue
 
       const quantity = parseInt(m[qtyIdx], 10)
       const itemName = m[nameIdx].trim()
 
-      if (quantity > 1 && quantity <= 50 && itemName.length > 0) {
+      if (!itemName || quantity > 50) continue
+
+      if (quantity > 1) {
         const unitPrice = Math.round((item.price / quantity) * 100) / 100
         if (process.env.NODE_ENV !== 'production') {
           console.log(`[scan_api] Parsed quantity "${item.label}" ($${item.price}) -> "${itemName}" x${quantity} @ $${unitPrice}`)
         }
         out.push({
           label: itemName,
-          price: item.price,      // keep line total as the item's price
+          price: item.price,    // line total stays authoritative
           emoji: item.emoji,
           quantity,
           unit_price: unitPrice
         })
-        matched = true
+        handled = true
         break
       }
+      // quantity === 1: the label had a "1 X" or "X (1)" pattern — strip it
+      // but keep the clean name for display.
+      out.push({
+        label: itemName,
+        price: item.price,
+        emoji: item.emoji,
+        quantity: 1,
+        unit_price: item.price
+      })
+      handled = true
+      break
     }
 
-    if (!matched) {
-      out.push({ ...item, quantity: 1, unit_price: item.price })
+    if (!handled) {
+      out.push({
+        ...item,
+        label: cleanedLabel,    // "1 " stripped even if no quantity pattern matched
+        quantity: 1,
+        unit_price: item.price
+      })
     }
   }
 

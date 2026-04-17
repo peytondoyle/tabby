@@ -184,14 +184,20 @@ PRICE SANITY CHECKS (flag if outside these ranges):
 If a price seems wrong for the item category, RE-READ IT carefully!
 
 **QUANTITY HANDLING - CRITICAL:**
-- ALWAYS include quantity prefix when present in ANY format
+- Include quantity prefix ONLY when quantity > 1.
+- If the receipt shows "1 Chicken Lo Mein $14.89", DROP the "1 " — emit
+  {"label": "Chicken Lo Mein", "price": 14.89}. The "1" is the default
+  order multiplier, not part of the name, and cluttering every row with
+  "1 " makes the output ugly.
 - "3 Cold Beverage $10.50" → {"label": "3 Cold Beverage", "price": 10.50}
-- "Topgolf Gameplay x2 $90" → {"label": "2 Topgolf Gameplay", "price": 90}
-- "Beer (2) $16" → {"label": "2 Beer", "price": 16}
-- "2 @ $45.00 Gameplay $90" → {"label": "2 Gameplay", "price": 90}
-- Look for quantities shown as: "2 Item", "Item x2", "Item (2)", "2 @ price"
-- NORMALIZE quantity to START of label: "2 ItemName"
-- Keep TOTAL price, DO NOT divide prices
+- "Topgolf Gameplay x2 $90"  → {"label": "2 Topgolf Gameplay", "price": 90}
+- "Beer (2) $16"             → {"label": "2 Beer", "price": 16}
+- "2 @ $45.00 Gameplay $90"  → {"label": "2 Gameplay", "price": 90}
+- "1 Peking Dumpling (Steamed) (6) $9.14" → the trailing "(6)" means
+  the plate contains 6 pieces; preserve it:
+    {"label": "Peking Dumpling (Steamed) (6)", "price": 9.14}
+- NORMALIZE any >1 quantity to START of label: "2 ItemName"
+- Keep TOTAL price for the line, DO NOT divide prices
 
 ═══════════════════════════════════════════════════════════════
 💰 FINANCIAL FIELDS - READ CAREFULLY!
