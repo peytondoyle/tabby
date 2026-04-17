@@ -139,12 +139,15 @@ export const ShareCard: React.FC<ShareCardProps> = ({
         })
         if (sharesError) throw sharesError
 
-        // Use centralized computeTotals for accurate calculations with penny reconciliation
+        // Use centralized computeTotals for accurate calculations with penny reconciliation.
+        // DB stores item.price as the LINE TOTAL (receipts.ts writes qty:1 for every row
+        // after server-side quantity expansion), so pass it through as-is — multiplying
+        // by quantity would double-count if any row ever has quantity > 1.
         const computeItems: ComputeItem[] = itemsData.map((item: Item) => ({
           id: item.id,
           label: item.label,
-          price: item.price * (item.quantity || 1),
-          quantity: item.quantity || 1,
+          price: item.price,
+          quantity: 1,
           unit_price: item.price,
           emoji: item.emoji
         }))

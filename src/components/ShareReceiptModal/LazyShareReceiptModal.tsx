@@ -1,4 +1,5 @@
 import React, { lazy, Suspense } from 'react';
+import type { BillTotals } from '../../lib/computeTotals';
 
 // Lazy load the ShareReceiptModal component
 const ShareReceiptModal = lazy(() => import('./index').then(module => ({ default: module.ShareReceiptModal })));
@@ -27,6 +28,7 @@ interface LazyShareReceiptModalProps {
   discount?: number;
   serviceFee?: number;
   total: number;
+  billTotals?: BillTotals | null;
 }
 
 export const LazyShareReceiptModal: React.FC<LazyShareReceiptModalProps> = (props) => {

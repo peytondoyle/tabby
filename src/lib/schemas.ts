@@ -27,6 +27,8 @@ export const ReceiptCreateSchema = z.object({
   people: z.array(PersonSchema).default([]), // empty array allowed
   tax: z.number().finite().default(0),
   tip: z.number().finite().default(0),
+  discount: z.number().finite().default(0),      // positive number, subtracted
+  service_fee: z.number().finite().default(0),   // positive number, added
 });
 
 export type ReceiptItemPayload = z.infer<typeof ReceiptItemSchema>;

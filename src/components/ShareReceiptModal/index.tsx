@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { FoodIcon } from '../../lib/foodIcons';
 import { HomeButton } from '../HomeButton';
-import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare as ComputeItemShare } from '../../lib/computeTotals';
+import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare as ComputeItemShare, type BillTotals } from '../../lib/computeTotals';
 import './styles.css';
 
 interface Item {
@@ -39,6 +39,9 @@ interface ShareReceiptModalProps {
   discount?: number;
   serviceFee?: number;
   total: number;
+  // Pre-computed totals from the parent. When provided the modal skips its
+  // own computeTotals call, so both sides can't disagree.
+  billTotals?: BillTotals | null;
 }
 
 export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
@@ -54,6 +57,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
   discount = 0,
   serviceFee = 0,
   total,
+  billTotals: billTotalsProp,
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -146,78 +150,61 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     }
   };
 
-  // SINGLE SOURCE OF TRUTH: Use computeTotals for all calculations
+  // Prefer parent-provided billTotals. Only recompute locally when absent
+  // (e.g. ReceiptPage callers that pass raw receipt data).
   const peopleWithTotals = useMemo(() => {
     if (!people || people.length === 0) return [];
 
-    // Count how many people have each item (for auto-detecting splits)
-    const itemPersonCount = new Map<string, number>();
-    people.forEach(person => {
-      person.items.forEach(itemId => {
-        itemPersonCount.set(itemId, (itemPersonCount.get(itemId) || 0) + 1);
-      });
-    });
+    let billTotals = billTotalsProp;
 
-    // Build shares from itemShares if available, otherwise auto-detect splits
-    const shares: ComputeItemShare[] = [];
-    people.forEach(person => {
-      if (person.itemShares && person.itemShares.length > 0) {
-        // Use pre-calculated weights from itemShares
-        person.itemShares.forEach(share => {
-          shares.push({
-            item_id: share.itemId,
-            person_id: person.id,
-            weight: share.weight
-          });
-        });
-      } else {
-        // Auto-detect splits: if same item is in multiple people's lists, split evenly
+    if (!billTotals) {
+      const itemPersonCount = new Map<string, number>();
+      people.forEach(person => {
         person.items.forEach(itemId => {
-          const splitCount = itemPersonCount.get(itemId) || 1;
-          shares.push({
-            item_id: itemId,
-            person_id: person.id,
-            weight: 1 / splitCount
-          });
+          itemPersonCount.set(itemId, (itemPersonCount.get(itemId) || 0) + 1);
         });
-      }
-    });
+      });
 
-    // Normalize items and people for computeTotals
-    const normalizedItems: ComputeItem[] = items.map(item => ({
-      id: item.id,
-      label: item.name || item.label || 'Item',
-      price: item.price,
-      quantity: 1,
-      unit_price: item.price,
-      emoji: item.emoji
-    }));
+      const shares: ComputeItemShare[] = [];
+      people.forEach(person => {
+        if (person.itemShares && person.itemShares.length > 0) {
+          person.itemShares.forEach(share => {
+            shares.push({ item_id: share.itemId, person_id: person.id, weight: share.weight });
+          });
+        } else {
+          person.items.forEach(itemId => {
+            const splitCount = itemPersonCount.get(itemId) || 1;
+            shares.push({ item_id: itemId, person_id: person.id, weight: 1 / splitCount });
+          });
+        }
+      });
 
-    const normalizedPeople: ComputePerson[] = people.map(p => ({
-      id: p.id,
-      name: p.name,
-      is_paid: false
-    }));
+      const normalizedItems: ComputeItem[] = items.map(item => ({
+        id: item.id,
+        label: item.name || item.label || 'Item',
+        price: item.price,
+        quantity: 1,
+        unit_price: item.price,
+        emoji: item.emoji
+      }));
 
-    // Compute all totals using the single source of truth
-    const billTotals = computeTotals(
-      normalizedItems,
-      shares,
-      normalizedPeople,
-      tax,
-      tip,
-      discount,
-      serviceFee,
-      'proportional',
-      'proportional',
-      true
-    );
+      const normalizedPeople: ComputePerson[] = people.map(p => ({
+        id: p.id,
+        name: p.name,
+        is_paid: false
+      }));
 
-    // Map back to component's display format
+      billTotals = computeTotals(
+        normalizedItems, shares, normalizedPeople,
+        tax, tip, discount, serviceFee,
+        'proportional', 'proportional', true
+      );
+    }
+
     return billTotals.person_totals.map(pt => {
-      const person = people.find(p => p.id === pt.person_id)!;
+      const person = people.find(p => p.id === pt.person_id);
+      if (!person) return null;
 
-      // Build items with shares for display
       const personItemsWithShares = pt.items.map(itemData => {
         const item = items.find(i => i.id === itemData.item_id);
         return {
@@ -231,15 +218,14 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         person,
         itemsSubtotal: pt.subtotal,
         personItemsWithShares,
-        proportion: subtotal > 0 ? pt.subtotal / subtotal : 0,
         personDiscount: pt.discount_share,
         personServiceFee: pt.service_fee_share,
         personTax: pt.tax_share,
         personTip: pt.tip_share,
         personTotal: pt.total
       };
-    });
-  }, [people, items, subtotal, tax, tip, discount, serviceFee]);
+    }).filter((x): x is NonNullable<typeof x> => x !== null);
+  }, [billTotalsProp, people, items, subtotal, tax, tip, discount, serviceFee]);
 
   const renderPersonReceipt = (personData: typeof peopleWithTotals[0], personIndex: number) => {
     const {
@@ -354,7 +340,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         {/* Bill Total */}
         <div className="modern-bill-total">
           <span className="modern-total-label">Bill Total</span>
-          <span className="modern-total-amount">${total.toFixed(2)}</span>
+          <span className="modern-total-amount">${(billTotalsProp?.grand_total ?? total).toFixed(2)}</span>
         </div>
 
         {/* Footer */}

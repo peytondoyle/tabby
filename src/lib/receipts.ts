@@ -86,14 +86,25 @@ export async function fetchReceiptByToken(token: string): Promise<{ receipt: Rec
     // Try API first
     const response = await apiFetch<{ receipt: Receipt; items: unknown[]; people?: unknown[]; shares?: unknown[] }>(`/api/receipts/${token}`)
 
-    // Track receipt access for history
+    // Track receipt access for history. Note the API's Receipt shape uses snake_case
+    // and includes fields (editor_token, place, date, total_amount) not on the
+    // local Receipt type — cast through an indexed shape to avoid TS noise while
+    // we're still cleaning up that type drift.
     if (response?.receipt) {
+      const r = response.receipt as unknown as {
+        editor_token?: string
+        place?: string | null
+        title?: string | null
+        date?: string | null
+        total_amount?: number | null
+        total?: number | null
+      }
       trackReceiptAccess({
-        token: response.receipt.editor_token || token,
-        title: response.receipt.place || response.receipt.title || 'Untitled Receipt',
-        place: response.receipt.place,
-        date: response.receipt.date,
-        totalAmount: response.receipt.subtotal ? Number(response.receipt.subtotal) : undefined
+        token: r.editor_token || token,
+        title: r.place || r.title || 'Untitled Receipt',
+        place: r.place ?? undefined,
+        date: r.date ?? undefined,
+        totalAmount: Number(r.total_amount ?? r.total ?? 0) || undefined
       })
     }
 
@@ -184,6 +195,8 @@ export function buildCreatePayload(scan: {
   subtotal?: number | string | null;
   tax?: number | string | null;
   tip?: number | string | null;
+  discount?: number | string | null;
+  service_fee?: number | string | null;
 }): ReceiptCreatePayload {
   const items: ReceiptItemPayload[] = (scan.items || []).map((i, idx) => {
     const itemName = String(i.label ?? i.name ?? i.title ?? "Item");
@@ -205,6 +218,8 @@ export function buildCreatePayload(scan: {
   const total = scan.total == null ? null : toMoney(scan.total);
   const tax = scan.tax == null ? 0 : toMoney(scan.tax);
   const tip = scan.tip == null ? 0 : toMoney(scan.tip);
+  const discount = scan.discount == null ? 0 : toMoney(scan.discount);
+  const service_fee = scan.service_fee == null ? 0 : toMoney(scan.service_fee);
 
   const payload = {
     place: scan.place ?? null,
@@ -213,6 +228,8 @@ export function buildCreatePayload(scan: {
     people: [],   // IMPORTANT: backend expects array (can be empty)
     tax,
     tip,
+    discount,
+    service_fee,
   };
 
   if (import.meta?.env?.MODE !== "production") {
@@ -282,7 +299,13 @@ export async function createReceipt(payload: ReceiptCreatePayload, userId?: stri
     const receiptId = receiptData.id;
     const receiptToken = receiptData.token || receiptId;
 
-    // Cache in localStorage as secondary backup (NOT source of truth)
+    // Cache in localStorage as secondary backup (NOT source of truth). Derive
+    // subtotal from items instead of aliasing it to total — storing total as
+    // subtotal silently erases the tax/tip/discount/fee on round-trip.
+    const cachedSubtotal = (payload.items || []).reduce(
+      (sum, it) => sum + (Number(it.price) || 0),
+      0
+    )
     const fullReceiptData = {
       id: receiptId,
       token: receiptToken,
@@ -290,9 +313,11 @@ export async function createReceipt(payload: ReceiptCreatePayload, userId?: stri
       place: payload.place,
       date: new Date().toISOString().split('T')[0],
       items: payload.items,
-      subtotal: payload.total,
+      subtotal: Math.round(cachedSubtotal * 100) / 100,
       sales_tax: payload.tax,
       tip: payload.tip,
+      discount: payload.discount ?? 0,
+      service_fee: payload.service_fee ?? 0,
       total: payload.total,
       people: payload.people || [],
       shares: [],
@@ -421,16 +446,30 @@ function createLocalReceipt(parsed: ParseResult): string {
     formattedDate = new Date().toISOString().split('T')[0]
   }
   
+  const cents = (v: unknown) => Math.round((Number(v) || 0) * 100) / 100
+  const subtotal = cents(parsed.subtotal) ||
+    parsed.items.reduce((sum, item) => sum + cents(item.price), 0)
+  const salesTax = cents(parsed.tax)
+  const tipAmt = cents(parsed.tip)
+  const discountAmt = cents(parsed.discount)
+  const serviceFeeAmt = cents(parsed.service_fee)
+  // When OCR doesn't hand back a total, derive it from all charges — NOT just
+  // the items sum — so downstream consumers don't think total == subtotal.
+  const derivedTotal = cents(subtotal - discountAmt + serviceFeeAmt + salesTax + tipAmt)
+  const total = cents(parsed.total) || derivedTotal
+
   const receiptData = {
     id: receiptId,
     token: `edit-${nanoid()}`,
     title: parsed.place || "Receipt Upload",
     place: parsed.place,
     date: formattedDate,
-    subtotal: Math.round((Number(parsed.subtotal) || 0) * 100) / 100,
-    sales_tax: Math.round((Number(parsed.tax) || 0) * 100) / 100,  // Use sales_tax for consistency
-    tip: Math.round((Number(parsed.tip) || 0) * 100) / 100,
-    total: Number(parsed.total) || parsed.items.reduce((sum, item) => sum + Number(item.price), 0),
+    subtotal,
+    sales_tax: salesTax,
+    tip: tipAmt,
+    discount: discountAmt,
+    service_fee: serviceFeeAmt,
+    total,
     created_at: new Date().toISOString(),
     editor_token: `edit-${nanoid()}`,
     viewer_token: `view-${nanoid()}`,
@@ -438,13 +477,13 @@ function createLocalReceipt(parsed: ParseResult): string {
     items: parsed.items.map(item => ({
       id: `item-${nanoid()}`,
       label: item.label,
-      unit_price: Math.round(Number(item.price) * 100) / 100,
+      unit_price: cents(item.price),
       qty: 1,
       emoji: item.emoji || '🍽️'
     })),
     item_count: parsed.items.length,
     people_count: 0,
-    total_amount: Number(parsed.total) || parsed.items.reduce((sum, item) => sum + Number(item.price), 0)
+    total_amount: total
   }
 
   // Store the receipt

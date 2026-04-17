@@ -121,8 +121,6 @@ export const TabbySimple: React.FC = () => {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverPerson, setDragOverPerson] = useState<string | null>(null);
   const [restaurantName, setRestaurantName] = useState('');
-  const [total, setTotal] = useState(0);
-  const [subtotal, setSubtotal] = useState(0);
   const [tax, setTax] = useState(0);
   const [tip, setTip] = useState(0);
   const [discount, setDiscount] = useState(0);
@@ -291,24 +289,28 @@ export const TabbySimple: React.FC = () => {
           const receiptData = billData.bill || billData.receipt;
 
           if (billData && receiptData) {
-            // Load items
+            // Coerce to a finite number — protects against undefined/null/NaN
+            // strings from the API silently collapsing to NaN downstream.
+            const safeNum = (v: unknown): number => {
+              const n = Number(v);
+              return Number.isFinite(n) ? n : 0;
+            };
+
             const loadedItems: Item[] = (billData.items || []).map((item: any) => ({
               id: item.id,
               emoji: item.emoji || '🍽️',
               name: item.label || item.name || 'Item',
-              price: Number(item.price || item.unit_price || 0),
+              price: safeNum(item.price ?? item.unit_price),
               assignedTo: undefined,
               splitBetween: undefined
             }));
 
             setItems(loadedItems);
             setRestaurantName(receiptData.place || receiptData.title || 'Restaurant');
-            setSubtotal(Number(receiptData.subtotal || 0));
-            setTax(Number(receiptData.sales_tax || 0));
-            setTip(Number(receiptData.tip || 0));
-            setDiscount(Number(receiptData.discount || 0));
-            setServiceFee(Number(receiptData.service_fee || 0));
-            setTotal(Number(receiptData.total_amount || receiptData.subtotal - (receiptData.discount || 0) + (receiptData.service_fee || 0) + receiptData.sales_tax + receiptData.tip || 0));
+            setTax(safeNum(receiptData.sales_tax));
+            setTip(safeNum(receiptData.tip));
+            setDiscount(safeNum(receiptData.discount));
+            setServiceFee(safeNum(receiptData.service_fee));
             setBillToken(urlToken);
 
             // Load people from API if available
@@ -413,12 +415,10 @@ export const TabbySimple: React.FC = () => {
 
       setItems(scannedItems);
       setRestaurantName(result.place || 'Restaurant');
-      setSubtotal(result.subtotal || 0);
       setTax(result.tax || 0);
       setTip(result.tip || 0);
       setDiscount(result.discount || 0);
       setServiceFee(result.service_fee || 0);
-      setTotal(result.total || 0);
 
       // Log what was scanned for debugging
       console.log('[TabbySimple] Scan results:', {
@@ -447,6 +447,8 @@ export const TabbySimple: React.FC = () => {
         subtotal: result.subtotal || 0,
         tax: result.tax || 0,
         tip: result.tip || 0,
+        discount: result.discount || 0,
+        service_fee: result.service_fee || 0,
         total: result.total || 0
       };
 
@@ -544,47 +546,40 @@ export const TabbySimple: React.FC = () => {
     }
   };
 
+  const rebaseTaxTip = (newItems: Item[]) => {
+    const oldSubtotal = billTotals?.subtotal ?? 0;
+    const newSubtotal = newItems.reduce((sum, it) => sum + it.price, 0);
+    if (oldSubtotal <= 0 || newSubtotal <= 0) return;
+    const ratio = newSubtotal / oldSubtotal;
+    if (Math.abs(ratio - 1) < 0.0001) return;
+    setTax(Math.round(tax * ratio * 100) / 100);
+    setTip(Math.round(tip * ratio * 100) / 100);
+  };
+
   const handleUnifiedItemsSave = (newItems: Item[]) => {
+    rebaseTaxTip(newItems);
     setItems(newItems);
-
-    // Recalculate subtotal based on new item prices
-    const newSubtotal = newItems.reduce((sum, item) => sum + item.price, 0);
-    setSubtotal(newSubtotal);
-
-    // Recalculate bill total (must include discount and serviceFee)
-    const newTotal = newSubtotal - discount + serviceFee + tax + tip;
-    setTotal(newTotal);
-
-    // Note: Person totals are automatically computed by useBillTotals hook
-    // No manual recalculation needed - the hook reacts to items/people state changes
+    // Subtotal, total, and person totals are all derived by useBillTotals.
   };
 
   const handleUnifiedBillTotalsSave = async (data: { subtotal: number; tax: number; tip: number }) => {
-    const { subtotal: newSubtotal, tax: newTax, tip: newTip } = data;
-    const newTotal = newSubtotal - discount + serviceFee + newTax + newTip;
-
-    setSubtotal(newSubtotal);
+    // Subtotal is derived from items — ignore any subtotal edit from the modal.
+    const { tax: newTax, tip: newTip } = data;
     setTax(newTax);
     setTip(newTip);
-    setTotal(newTotal);
 
-    // Persist to database
     if (billToken) {
       try {
         await updateReceiptMetadata(billToken, {
-          subtotal: newSubtotal,
+          subtotal: billTotals?.subtotal ?? 0,
           sales_tax: newTax,
           tip: newTip
         });
-        console.log('[TabbySimple] Bill totals updated successfully');
       } catch (error) {
         console.error('[TabbySimple] Failed to update bill totals:', error);
         throw error;
       }
     }
-
-    // Note: Person totals are automatically computed by useBillTotals hook
-    // No manual recalculation needed - the hook reacts to tax/tip state changes
   };
 
   const handleUnifiedPersonRemove = async (personId: string) => {
@@ -601,46 +596,31 @@ export const TabbySimple: React.FC = () => {
   };
 
   const handleSaveReceiptEdits = () => {
+    rebaseTaxTip(editableItems);
     setItems(editableItems);
     setIsEditingReceipt(false);
-
-    // Recalculate subtotal
-    const newSubtotal = editableItems.reduce((sum, item) => sum + item.price, 0);
-    setSubtotal(newSubtotal);
-
-    // Recalculate total (must include discount and serviceFee)
-    const newTotal = newSubtotal - discount + serviceFee + tax + tip;
-    setTotal(newTotal);
+    // Subtotal and total are derived by useBillTotals.
   };
 
   const handleSaveBillEdits = async () => {
-    const newSubtotal = parseFloat(editableSubtotal) || 0;
+    // Subtotal edits are ignored — subtotal is derived from items.
     const newTax = parseFloat(editableTax) || 0;
     const newTip = parseFloat(editableTip) || 0;
-    const newTotal = newSubtotal - discount + serviceFee + newTax + newTip;
-
-    setSubtotal(newSubtotal);
     setTax(newTax);
     setTip(newTip);
-    setTotal(newTotal);
     setIsEditingBill(false);
 
-    // Persist to database
     if (billToken) {
       try {
         await updateReceiptMetadata(billToken, {
-          subtotal: newSubtotal,
+          subtotal: billTotals?.subtotal ?? 0,
           sales_tax: newTax,
           tip: newTip
         });
-        console.log('[TabbySimple] Bill totals updated successfully');
       } catch (error) {
         console.error('[TabbySimple] Failed to update bill totals:', error);
       }
     }
-
-    // Note: Person totals are automatically computed by useBillTotals hook
-    // No manual recalculation needed - the hook reacts to tax/tip state changes
   };
 
   // Toast notification helper
@@ -1349,73 +1329,20 @@ export const TabbySimple: React.FC = () => {
             onClick={() => {
               console.log('[TabbySimple] Continue button clicked', { billToken, peopleCount: people.length });
               if (billToken) {
-                // Calculate itemShares with penny reconciliation for split items
-                const itemShareMap = new Map<string, Map<string, { weight: number; shareAmount: number }>>();
-
-                items.forEach(item => {
-                  if (!item.splitBetween || item.splitBetween.length <= 1) {
-                    // Not split - full price to single person
-                    const personId = item.assignedTo || item.splitBetween?.[0];
-                    if (personId) {
-                      const personMap = new Map<string, { weight: number; shareAmount: number }>();
-                      personMap.set(personId, { weight: 1, shareAmount: item.price });
-                      itemShareMap.set(item.id, personMap);
-                    }
-                    return;
-                  }
-
-                  // Split item - calculate shares with penny reconciliation
-                  const splitCount = item.splitBetween.length;
-                  const rawShare = item.price / splitCount;
-                  const roundedDown = Math.floor(rawShare * 100) / 100;
-                  const totalRounded = roundedDown * splitCount;
-                  const remainingCents = Math.round((item.price - totalRounded) * 100);
-
-                  const shares = item.splitBetween.map(personId => ({
-                    personId,
-                    rawShare,
-                    roundedShare: roundedDown
-                  }));
-
-                  // Give extra pennies to those with highest fractional parts
-                  if (remainingCents > 0) {
-                    const sortedByFraction = [...shares].sort((a, b) => {
-                      const fracA = (a.rawShare * 100) % 1;
-                      const fracB = (b.rawShare * 100) % 1;
-                      return fracB - fracA;
-                    });
-                    for (let i = 0; i < remainingCents && i < sortedByFraction.length; i++) {
-                      sortedByFraction[i].roundedShare += 0.01;
-                    }
-                  }
-
-                  const personMap = new Map<string, { weight: number; shareAmount: number }>();
-                  shares.forEach(share => {
-                    personMap.set(share.personId, {
-                      weight: 1 / splitCount,
-                      shareAmount: share.roundedShare
-                    });
-                  });
-                  itemShareMap.set(item.id, personMap);
-                });
-
-                // Build people with itemShares included
+                // Read per-item shares straight from the computeTotals result.
                 const peopleWithShares = people.map(person => {
-                  const personItems = items.filter(item => person.items.includes(item.id));
-                  const itemShares = personItems.map(item => {
-                    const share = itemShareMap.get(item.id)?.get(person.id);
-                    return {
-                      itemId: item.id,
-                      weight: share?.weight ?? 1,
-                      shareAmount: share?.shareAmount ?? item.price
-                    };
-                  });
+                  const breakdown = getPersonBreakdown(billTotals, person.id);
+                  const itemShares = (breakdown?.items ?? []).map(it => ({
+                    itemId: it.item_id,
+                    weight: it.weight,
+                    shareAmount: it.share_amount
+                  }));
                   return {
                     id: person.id,
                     name: person.name,
                     items: person.items,
                     itemShares,
-                    total: getPersonTotal(billTotals, person.id) // Use computed total from hook
+                    total: getPersonTotal(billTotals, person.id)
                   };
                 });
 
@@ -1423,12 +1350,12 @@ export const TabbySimple: React.FC = () => {
                 const shareData = {
                   billToken,
                   people: peopleWithShares,
-                  subtotal,
+                  subtotal: billTotals?.subtotal ?? 0,
                   tax,
                   tip,
                   discount,
                   serviceFee,
-                  total,
+                  total: billTotals?.grand_total ?? 0,
                   assignments: items.reduce((acc, item) => {
                     if (item.assignedTo) {
                       acc[item.id] = item.assignedTo;
@@ -1754,7 +1681,8 @@ export const TabbySimple: React.FC = () => {
                                       newSubtotal += ri.price;
                                     }
                                   });
-                                  const newProportion = subtotal > 0 ? newSubtotal / subtotal : 0;
+                                  const prevSubtotal = billTotals?.subtotal ?? 0;
+                                  const newProportion = prevSubtotal > 0 ? newSubtotal / prevSubtotal : 0;
                                   // Include discount and serviceFee, and round to avoid floating-point errors
                                   const newTotal = Math.round((newSubtotal - (discount * newProportion) + (serviceFee * newProportion) + (tax * newProportion) + (tip * newProportion)) * 100) / 100;
 
@@ -1828,7 +1756,7 @@ export const TabbySimple: React.FC = () => {
         <div className="totals-section">
           <div className="total-row">
             <span>Subtotal:</span>
-            <span>${subtotal.toFixed(2)}</span>
+            <span>${(billTotals?.subtotal ?? 0).toFixed(2)}</span>
           </div>
           <div className="total-row">
             <span>Tax:</span>
@@ -1840,7 +1768,7 @@ export const TabbySimple: React.FC = () => {
           </div>
           <div className="total-row total">
             <span>Total:</span>
-            <span>${total.toFixed(2)}</span>
+            <span>${(billTotals?.grand_total ?? 0).toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -2562,7 +2490,7 @@ export const TabbySimple: React.FC = () => {
                 <>
                   <div className="bill-overview-row">
                     <span>Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>${(billTotals?.subtotal ?? 0).toFixed(2)}</span>
                   </div>
                   <div className="bill-overview-row">
                     <span>Tax</span>
@@ -2574,7 +2502,7 @@ export const TabbySimple: React.FC = () => {
                   </div>
                   <div className="bill-overview-row" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px', marginTop: '12px', fontWeight: '600' }}>
                     <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>${(billTotals?.grand_total ?? 0).toFixed(2)}</span>
                   </div>
                 </>
               )}
@@ -2590,7 +2518,7 @@ export const TabbySimple: React.FC = () => {
                     className="contacts-btn"
                     onClick={() => {
                       setIsEditingBill(false);
-                      setEditableSubtotal(subtotal.toFixed(2));
+                      setEditableSubtotal((billTotals?.subtotal ?? 0).toFixed(2));
                       setEditableTax(tax.toFixed(2));
                       setEditableTip(tip.toFixed(2));
                     }}
@@ -2676,10 +2604,10 @@ export const TabbySimple: React.FC = () => {
         onPeopleUpdate={setPeople}
         onPersonAdd={handleAddPerson}
         onPersonRemove={handleUnifiedPersonRemove}
-        subtotal={subtotal}
+        subtotal={billTotals?.subtotal ?? 0}
         tax={tax}
         tip={tip}
-        total={total}
+        total={billTotals?.grand_total ?? 0}
         onBillTotalsSave={handleUnifiedBillTotalsSave}
         billToken={billToken}
         getPersonColor={getPersonColor}
@@ -2698,97 +2626,22 @@ export const TabbySimple: React.FC = () => {
           year: 'numeric'
         })}
         items={items}
-        people={(() => {
-          // Pre-calculate all item shares with penny reconciliation
-          const itemShareMap = new Map<string, Map<string, { weight: number; shareAmount: number }>>();
-
-          // DEBUG: Log split items
-          const splitItems = items.filter(item => item.splitBetween && item.splitBetween.length > 1);
-          if (splitItems.length > 0) {
-            console.log('[ShareReceipt] Split items:', splitItems.map(i => ({
-              name: i.name,
-              price: i.price,
-              splitBetween: i.splitBetween
-            })));
-          }
-
-          items.forEach(item => {
-            if (!item.splitBetween || item.splitBetween.length <= 1) {
-              // Not split - full price to single person
-              const personId = item.assignedTo || item.splitBetween?.[0];
-              if (personId) {
-                const personMap = new Map<string, { weight: number; shareAmount: number }>();
-                personMap.set(personId, { weight: 1, shareAmount: item.price });
-                itemShareMap.set(item.id, personMap);
-              }
-              return;
-            }
-
-            // Split item - calculate shares with penny reconciliation
-            const splitCount = item.splitBetween.length;
-            const rawShare = item.price / splitCount;
-            const roundedDown = Math.floor(rawShare * 100) / 100;
-            const totalRounded = roundedDown * splitCount;
-            const remainingCents = Math.round((item.price - totalRounded) * 100);
-
-            // Build shares array with fractional parts for fair penny distribution
-            const shares = item.splitBetween.map(personId => ({
-              personId,
-              rawShare,
-              roundedShare: roundedDown
-            }));
-
-            // Give extra pennies to those with highest fractional parts
-            if (remainingCents > 0) {
-              const sortedByFraction = [...shares].sort((a, b) => {
-                const fracA = (a.rawShare * 100) % 1;
-                const fracB = (b.rawShare * 100) % 1;
-                return fracB - fracA;
-              });
-              for (let i = 0; i < remainingCents && i < sortedByFraction.length; i++) {
-                sortedByFraction[i].roundedShare += 0.01;
-              }
-            }
-
-            const personMap = new Map<string, { weight: number; shareAmount: number }>();
-            shares.forEach(share => {
-              personMap.set(share.personId, {
-                weight: 1 / splitCount,
-                shareAmount: share.roundedShare
-              });
-            });
-            itemShareMap.set(item.id, personMap);
-          });
-
-          // Build people with itemShares
-          const result = people.map(person => {
-            const personItems = items.filter(item => person.items.includes(item.id));
-            const itemShares = personItems.map(item => {
-              const share = itemShareMap.get(item.id)?.get(person.id);
-              // DEBUG: Log when falling back to full price
-              if (!share) {
-                console.log('[ShareReceipt] No share found for', item.name, 'person', person.name, '- using full price', item.price);
-              }
-              return {
-                itemId: item.id,
-                weight: share?.weight ?? 1,
-                shareAmount: share?.shareAmount ?? item.price
-              };
-            });
-            return { ...person, itemShares };
-          });
-          console.log('[ShareReceipt] Final people data:', result.map(p => ({
-            name: p.name,
-            itemShares: p.itemShares
-          })));
-          return result;
-        })()}
-        subtotal={subtotal}
+        people={people.map(person => {
+          const breakdown = getPersonBreakdown(billTotals, person.id);
+          const itemShares = (breakdown?.items ?? []).map(it => ({
+            itemId: it.item_id,
+            weight: it.weight,
+            shareAmount: it.share_amount
+          }));
+          return { ...person, itemShares };
+        })}
+        subtotal={billTotals?.subtotal ?? 0}
         tax={tax}
         tip={tip}
         discount={discount}
         serviceFee={serviceFee}
-        total={total}
+        total={billTotals?.grand_total ?? 0}
+        billTotals={billTotals}
       />
     </div>
   );

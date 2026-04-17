@@ -127,6 +127,8 @@ export interface ParseResult {
   subtotal?: number | null
   tax?: number | null
   tip?: number | null
+  discount?: number | null
+  service_fee?: number | null
   place?: string | null
   date?: string | null
   rawText?: string | null

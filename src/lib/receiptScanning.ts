@@ -255,6 +255,8 @@ export interface ReceiptScanResult {
   subtotal: number
   tax: number
   tip?: number
+  discount?: number
+  service_fee?: number
   total: number
 }
 
@@ -296,15 +298,22 @@ function isDiscount(label: string): boolean {
   return discountKeywords.some(keyword => lowerLabel.includes(keyword))
 }
 
-// Process and normalize items
-function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?: string | null }>): Array<{
+type ProcessedItem = {
   id: string
   label: string
   price: number
   emoji?: string | null
   quantity: number
   unit_price: number
-}> {
+}
+
+// Process and normalize items. Returns filtered items plus any discount amount
+// pulled out of discount line-items, so the caller can avoid double-counting it
+// against a separate OCR-reported `discount` field.
+function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?: string | null }>): {
+  items: ProcessedItem[]
+  lineItemDiscount: number
+} {
   if (process.env.NODE_ENV !== 'production') console.log(`[process_items] Processing ${rawItems.length} raw items`)
 
   // Step 1: Normalize and filter items
@@ -350,40 +359,31 @@ function processItems(rawItems: Array<{ label?: string; price?: unknown; emoji?:
   
   if (process.env.NODE_ENV !== 'production') console.log(`[process_items] After filtering: ${normalizedItems.length} items`)
   
-  // Step 2: Filter special items (fees, tips) and process discounts
-  // NOTE: We no longer coalesce duplicates because server already expanded quantity items
-  // (e.g., "2 Membership Charge" -> 2 separate items) and we want to keep them separate for splitting
-  const processedItems: Array<{
-    id: string
-    label: string
-    price: number
-    emoji?: string | null
-    quantity: number
-    unit_price: number
-  }> = []
+  // Step 2: Filter special items (fees, tips, discounts). Service charges, tips,
+  // and discounts are returned as aggregate amounts to the caller instead of
+  // staying in the items array, so neither `subtotal = sum(items)` nor the
+  // OCR-reported discount/fee/tip can double-count them.
+  const processedItems: ProcessedItem[] = []
+  let lineItemDiscount = 0
 
   for (const item of normalizedItems) {
-    // Skip service charges and tips - they'll be handled separately
     if (isServiceCharge(item.label) || isTip(item.label)) {
       if (process.env.NODE_ENV !== 'production') console.log(`[process_items] Skipping fee/tip item: ${item.label} - $${item.price}`)
       continue
     }
 
-    // Check if this item is a discount (keep as negative line item)
-    if (isDiscount(item.label) && item.price > 0) {
-      // Make discount negative
-      item.price = -Math.abs(item.price)
-      item.unit_price = item.price
-      if (process.env.NODE_ENV !== 'production') console.log(`[process_items] Discount item: ${item.label} - $${item.price}`)
+    if (isDiscount(item.label) && item.price !== 0) {
+      lineItemDiscount += Math.abs(item.price)
+      if (process.env.NODE_ENV !== 'production') console.log(`[process_items] Pulled out discount item: ${item.label} - $${Math.abs(item.price)}`)
+      continue
     }
 
-    // Add item as-is (no coalescing - keep expanded items separate for splitting)
     processedItems.push(item)
   }
 
-  if (process.env.NODE_ENV !== 'production') console.log(`[process_items] After processing: ${processedItems.length} items`)
+  if (process.env.NODE_ENV !== 'production') console.log(`[process_items] After processing: ${processedItems.length} items, lineItemDiscount: $${lineItemDiscount}`)
 
-  return processedItems
+  return { items: processedItems, lineItemDiscount }
 }
 
 // Normalize number values, convert NaN to 0
@@ -566,7 +566,7 @@ export async function parseReceipt(
     }
 
     // Process items with filtering, coalescing, and special handling
-    const processedItems = processItems(rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null }))
+    const { items: processedItems, lineItemDiscount } = processItems(rawItems.map(item => item as { label?: string; price?: unknown; emoji?: string | null }))
 
     // Get service_fee from API response first (if available)
     const apiServiceFee = normalizeNumber((responseData as any).service_fee)
@@ -593,7 +593,11 @@ export async function parseReceipt(
     const originalSubtotal = normalizeNumber(responseData.subtotal)
     const originalTax = normalizeNumber(responseData.tax)
     const originalTip = normalizeNumber(responseData.tip) || additionalTipTotal
-    const originalDiscount = normalizeNumber(responseData.discount)
+    // Prefer discounts pulled from line-items (they're authoritative and already
+    // removed from `items`); only fall back to the OCR-reported discount field
+    // when no discount line-item was present.
+    const reportedDiscount = normalizeNumber(responseData.discount)
+    const originalDiscount = lineItemDiscount > 0 ? lineItemDiscount : reportedDiscount
     const originalServiceFee = apiServiceFee || serviceFeeTotal
     const originalTotal = normalizeNumber(responseData.total)
 
@@ -675,33 +679,6 @@ export async function parseReceipt(
   }
 }
 
-// Legacy scanReceipt function - kept for backwards compatibility
-export async function scanReceipt(file: File): Promise<ReceiptScanResult> {
-  console.info('[scan_start] Legacy scanReceipt called, delegating to parseReceipt...')
-  const parseResult = await parseReceipt(file)
-  
-  // Convert ParseResult to legacy ReceiptScanResult format
-  const legacyResult = {
-    restaurant_name: parseResult.place || "Receipt Upload",
-    location: parseResult.place || "Unknown Location", 
-    date: parseResult.date || new Date().toISOString().split('T')[0],
-    items: parseResult.items.map(item => ({
-      emoji: item.emoji || '🍽️',
-      label: item.label,
-      price: item.price,
-      quantity: item.quantity,
-      unit_price: item.unit_price
-    })),
-    subtotal: parseResult.subtotal || 0,
-    tax: parseResult.tax || 0,
-    tip: parseResult.tip || 0,
-    total: parseResult.total || parseResult.items.reduce((sum, item) => sum + item.price, 0)
-  }
-  
-  console.info(`[scan_ok] Legacy format conversion completed - ${legacyResult.items.length} items`)
-  return legacyResult
-}
-
 // Legacy bill creation function - now routes through server API
 export async function createReceiptFromReceipt(receiptData: ReceiptScanResult, _editorToken?: string, userId?: string): Promise<string> {
   console.info('[scan_start] Creating bill from receipt data via server API...', userId ? `for user ${userId}` : '(no user)')
@@ -722,6 +699,8 @@ export async function createReceiptFromReceipt(receiptData: ReceiptScanResult, _
       subtotal: receiptData.subtotal,
       tax: receiptData.tax,
       tip: receiptData.tip,
+      discount: receiptData.discount,
+      service_fee: receiptData.service_fee,
       total: receiptData.total
     }
 

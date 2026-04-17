@@ -83,8 +83,7 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
   // People editing
   const [newPersonName, setNewPersonName] = useState('');
 
-  // Bill totals editing
-  const [editableSubtotal, setEditableSubtotal] = useState(subtotal.toFixed(2));
+  // Bill totals editing (subtotal is derived from items, so only tax/tip are editable)
   const [editableTax, setEditableTax] = useState(tax.toFixed(2));
   const [editableTip, setEditableTip] = useState(tip.toFixed(2));
   const [isSavingTotals, setIsSavingTotals] = useState(false);
@@ -94,7 +93,6 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
     if (isOpen) {
       setEditableRestaurantName(restaurantName);
       setEditableItems([...items]);
-      setEditableSubtotal(subtotal.toFixed(2));
       setEditableTax(tax.toFixed(2));
       setEditableTip(tip.toFixed(2));
       setActiveSection('overview');
@@ -121,7 +119,8 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
     setIsSavingTotals(true);
     try {
       await onBillTotalsSave({
-        subtotal: parseFloat(editableSubtotal) || 0,
+        // Parent ignores subtotal (derived from items); pass current for API shape.
+        subtotal,
         tax: parseFloat(editableTax) || 0,
         tip: parseFloat(editableTip) || 0
       });
@@ -496,13 +495,10 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
             <div className="unified-edit-section">
               <div className="unified-input-group">
                 <label className="unified-label">Subtotal</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editableSubtotal}
-                  onChange={(e) => setEditableSubtotal(e.target.value)}
-                  className="unified-input unified-money-input"
-                />
+                <div className="unified-input unified-money-input" aria-readonly="true" style={{ opacity: 0.7 }}>
+                  ${subtotal.toFixed(2)}
+                </div>
+                <small style={{ opacity: 0.6 }}>Calculated from items — edit items to change.</small>
               </div>
               <div className="unified-input-group">
                 <label className="unified-label">Tax</label>
@@ -527,10 +523,12 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
               <div className="unified-total-preview">
                 <span>Total</span>
                 <span className="unified-total-amount">
+                  {/* Start from parent-provided total (already includes discount/serviceFee)
+                      and apply the delta between new and current tax/tip. */}
                   ${(
-                    (parseFloat(editableSubtotal) || 0) +
-                    (parseFloat(editableTax) || 0) +
-                    (parseFloat(editableTip) || 0)
+                    total +
+                    ((parseFloat(editableTax) || 0) - tax) +
+                    ((parseFloat(editableTip) || 0) - tip)
                   ).toFixed(2)}
                 </span>
               </div>
@@ -538,7 +536,6 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
                 <button
                   className="unified-btn unified-btn-secondary"
                   onClick={() => {
-                    setEditableSubtotal(subtotal.toFixed(2));
                     setEditableTax(tax.toFixed(2));
                     setEditableTip(tip.toFixed(2));
                     setActiveSection('overview');

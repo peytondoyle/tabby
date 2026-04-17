@@ -162,13 +162,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Insert items and get their IDs back
         const itemIdMap = new Map<string, string>(); // old ID -> new Supabase ID
         if (receiptItems.length > 0) {
-          const itemsToInsert = receiptItems.map(item => ({
-            receipt_id: receiptId,
-            label: item.label,
-            unit_price: item.price,
-            emoji: item.emoji,
-            qty: item.quantity
-          }));
+          // Client Item.price is LINE TOTAL (see computeTotals.ts Item comment);
+          // DB unit_price + qty multiplies back to the same total via the generated
+          // `price` column, so derive unit_price correctly from the line total.
+          const itemsToInsert = receiptItems.map(item => {
+            const qty = Number(item.quantity) || 1
+            return {
+              receipt_id: receiptId,
+              label: item.label,
+              unit_price: Number(item.price) / qty,
+              emoji: item.emoji,
+              qty
+            }
+          });
 
           const { data: insertedItems, error: itemsError } = await supabaseAdmin
             .from('tabby_items')

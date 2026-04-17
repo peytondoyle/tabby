@@ -13,6 +13,8 @@ export interface Item {
   id: string
   emoji?: string
   label: string
+  // `price` is the LINE TOTAL (unit_price * quantity). computeTotals sums
+  // item.price directly when producing subtotal — do NOT pass unit_price here.
   price: number
   quantity: number
   unit_price: number
@@ -182,10 +184,12 @@ export function computeTotals(
   if (discount < 0) throw new Error('Discount cannot be negative')
   if (service_fee < 0) throw new Error('Service fee cannot be negative')
 
-  // 1. Calculate subtotal from items
-  const subtotal = items.reduce((sum, item) => sum + item.price, 0)
-  // Discount is positive and subtracted, service_fee/tax/tip are added
-  const grand_total = subtotal - discount + service_fee + tax + tip
+  // 1. Calculate subtotal from items — round to cents to kill floating-point
+  // drift (e.g. 0.1 + 0.2 = 0.30000000000000004) that otherwise bubbles up
+  // into grand_total and forces spurious penny reconciliation.
+  const rawSubtotal = items.reduce((sum, item) => sum + item.price, 0)
+  const subtotal = Math.round(rawSubtotal * 100) / 100
+  const grand_total = Math.round((subtotal - discount + service_fee + tax + tip) * 100) / 100
 
   // 2. Build lookup maps for quick access
   const itemMap = new Map(items.map(item => [item.id, item]))
@@ -342,9 +346,17 @@ export function computeTotals(
   // 11. Round totals to cents and reconcile pennies
   const reconciledTotals = reconcilePennies(personTotals, grand_total)
 
-  // 12. Calculate how much was distributed in reconciliation
-  const beforeTotal = personTotals.reduce((sum, p) => sum + Math.round(p.total * 100) / 100, 0)
-  const distributed = grand_total - beforeTotal
+  // 11b. Reconcile per-item share_amounts so each item's shares sum to item.price.
+  //      (reconcilePennies rounds each share independently, which can lose a
+  //       penny on 3-way splits like $10/3 → three $3.33 shares summing to $9.99.)
+  reconcileItemShares(reconciledTotals, items)
+
+  // 12. Report net shuffle: reconciled sum (in cents) minus independently-
+  //     rounded per-person sum (in cents). Integer arithmetic keeps this
+  //     immune to floating-point drift.
+  const beforeCents = personTotals.reduce((sum, p) => sum + Math.round(p.total * 100), 0)
+  const afterCents = reconciledTotals.reduce((sum, p) => sum + Math.round(p.total * 100), 0)
+  const distributed = (afterCents - beforeCents) / 100
 
   return {
     subtotal,
@@ -355,8 +367,58 @@ export function computeTotals(
     grand_total,
     person_totals: reconciledTotals,
     penny_reconciliation: {
-      distributed: Math.round(distributed * 100) / 100,
+      distributed,
       method: 'distribute_largest'
+    }
+  }
+}
+
+/**
+ * Distribute per-item penny differences so that each item's per-person
+ * share_amounts sum to item.price. Operates in-place on the person_totals
+ * returned from reconcilePennies.
+ */
+export function reconcileItemShares(personTotals: PersonTotal[], items: Item[]): void {
+  const itemPriceById = new Map(items.map(i => [i.id, i.price]))
+
+  type Ref = { personTotal: PersonTotal; itemIdx: number }
+  const refsByItem = new Map<string, Ref[]>()
+  personTotals.forEach(pt => {
+    pt.items.forEach((it, idx) => {
+      const list = refsByItem.get(it.item_id) ?? []
+      list.push({ personTotal: pt, itemIdx: idx })
+      refsByItem.set(it.item_id, list)
+    })
+  })
+
+  for (const [itemId, refs] of refsByItem) {
+    const price = itemPriceById.get(itemId)
+    if (price == null || refs.length === 0) continue
+
+    const targetCents = Math.round(price * 100)
+    const currentCents = refs.reduce(
+      (sum, r) => sum + Math.round(r.personTotal.items[r.itemIdx].share_amount * 100),
+      0
+    )
+    const diffCents = targetCents - currentCents
+    if (diffCents === 0) continue
+
+    // Largest share first, person_id tiebreaker for determinism.
+    const sorted = [...refs].sort((a, b) => {
+      const aShare = a.personTotal.items[a.itemIdx].share_amount
+      const bShare = b.personTotal.items[b.itemIdx].share_amount
+      return bShare - aShare ||
+        a.personTotal.person_id.localeCompare(b.personTotal.person_id)
+    })
+
+    const pennyValue = diffCents > 0 ? 0.01 : -0.01
+    let remaining = Math.abs(diffCents)
+    for (let i = 0; remaining > 0 && i < sorted.length; i++) {
+      const ref = sorted[i]
+      const line = ref.personTotal.items[ref.itemIdx]
+      line.share_amount = Math.round((line.share_amount + pennyValue) * 100) / 100
+      remaining--
+      if (remaining > 0 && i === sorted.length - 1) i = -1
     }
   }
 }

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import {
   computeTotals,
   buildSharesFromPeopleItems,
+  validateBillTotals,
   type BillTotals,
   type Item as ComputeItem,
   type Person as ComputePerson
@@ -62,7 +63,7 @@ export function useBillTotals(input: UseBillTotalsInput): BillTotals | null {
       is_paid: false
     }))
 
-    return computeTotals(
+    const result = computeTotals(
       normalizedItems,
       shares,
       normalizedPeople,
@@ -74,6 +75,15 @@ export function useBillTotals(input: UseBillTotalsInput): BillTotals | null {
       tipMode,
       true // include zero-item people
     )
+
+    if (process.env.NODE_ENV !== 'production') {
+      const validation = validateBillTotals(result)
+      if (!validation.valid) {
+        console.warn('[useBillTotals] reconciliation drift:', validation.error)
+      }
+    }
+
+    return result
   }, [items, people, tax, tip, discount, serviceFee, taxMode, tipMode])
 }
 

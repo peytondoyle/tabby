@@ -379,6 +379,26 @@ describe('computeTotals', () => {
       // Should have two at $3.33 and one at $3.34 (or similar valid distribution)
       expect(totals.every(t => t >= 3.33 && t <= 3.34)).toBe(true)
     })
+
+    it('should make per-item share_amounts sum exactly to item.price', () => {
+      // $10 split 3 ways → per-item shares must sum to $10.00, not $9.99.
+      const items: Item[] = [
+        { id: '1', emoji: '🍕', label: 'Pizza', price: 10.00, quantity: 1, unit_price: 10.00 }
+      ]
+      const shares: ItemShare[] = [
+        { item_id: '1', person_id: 'p1', weight: 1 },
+        { item_id: '1', person_id: 'p2', weight: 1 },
+        { item_id: '1', person_id: 'p3', weight: 1 }
+      ]
+
+      const result = computeTotals(items, shares, mockPeople, 0, 0, 0, 0)
+      const perItemSum = result.person_totals
+        .flatMap(p => p.items)
+        .filter(i => i.item_id === '1')
+        .reduce((sum, i) => sum + i.share_amount, 0)
+
+      expect(Math.round(perItemSum * 100) / 100).toBe(10.00)
+    })
   })
 
   describe('validateBillTotals', () => {

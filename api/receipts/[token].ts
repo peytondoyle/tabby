@@ -88,13 +88,14 @@ export default async function handler(
           `)
           .eq('receipt_id', receipt.id)
 
-        // Transform to frontend format (price from unit_price, quantity from qty)
+        // Transform to frontend format. `price` is the LINE TOTAL (unit_price * qty)
+        // to match the client's Item.price contract and the DB's generated `price` column.
         const transformedItems = items?.map(item => ({
           id: item.id,
           label: item.label,
-          price: item.unit_price,
+          price: Number(item.unit_price) * Number(item.qty ?? 1),
           emoji: item.emoji,
-          quantity: item.qty
+          quantity: item.qty ?? 1
         })) || []
 
         if (itemsError) {
@@ -147,13 +148,14 @@ export default async function handler(
         const people_count = people?.length || 0
         const total_amount = (receipt.subtotal || 0) - (receipt.discount || 0) + (receipt.service_fee || 0) + (receipt.sales_tax || 0) + (receipt.tip || 0)
 
-        // Use computeTotals for accurate person total calculation with penny reconciliation
-        // Transform data to computeTotals format
+        // Use computeTotals for accurate person total calculation with penny reconciliation.
+        // transformedItems.price is already the LINE TOTAL (unit_price * qty) — do not
+        // multiply by quantity again, that would double-count.
         const computeItems: ComputeItem[] = transformedItems.map(item => ({
           id: item.id,
           label: item.label,
-          price: item.price * (item.quantity || 1),
-          quantity: item.quantity || 1,
+          price: item.price,
+          quantity: 1,
           unit_price: item.price,
           emoji: item.emoji
         }))
