@@ -869,7 +869,7 @@ export const TabbySimple: React.FC = () => {
             }}>
               <div style={{
                 fontSize: '13px',
-                color: 'rgba(255,255,255,0.6)'
+                color: 'var(--tb-ink-muted)'
               }}>
                 {user.email}
               </div>
@@ -878,7 +878,7 @@ export const TabbySimple: React.FC = () => {
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: 'rgba(255,255,255,0.5)',
+                  color: 'var(--tb-ink-muted)',
                   fontSize: '13px',
                   cursor: 'pointer',
                   padding: '4px 8px'
@@ -921,10 +921,10 @@ export const TabbySimple: React.FC = () => {
                 style={{
                   width: '100%',
                   padding: '14px 24px',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'var(--tb-surface-2)',
+                  border: 'none',
                   borderRadius: '12px',
-                  color: '#fff',
+                  color: 'var(--tb-ink)',
                   fontSize: '16px',
                   cursor: 'pointer',
                   fontWeight: '600',
@@ -954,10 +954,10 @@ export const TabbySimple: React.FC = () => {
                 style={{
                   width: '100%',
                   padding: '14px 24px',
-                  background: 'rgba(0, 122, 255, 0.15)',
+                  background: 'var(--tb-accent-tint)',
                   border: '1px solid rgba(0, 122, 255, 0.3)',
                   borderRadius: '12px',
-                  color: '#007AFF',
+                  color: 'var(--tb-accent)',
                   fontSize: '16px',
                   cursor: 'pointer',
                   fontWeight: '600',
@@ -968,11 +968,11 @@ export const TabbySimple: React.FC = () => {
                   transition: 'all 0.2s ease'
                 }}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(0, 122, 255, 0.25)';
+                  e.currentTarget.style.background = 'var(--tb-accent-tint)';
                   e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(0, 122, 255, 0.15)';
+                  e.currentTarget.style.background = 'var(--tb-accent-tint)';
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
@@ -1054,7 +1054,7 @@ export const TabbySimple: React.FC = () => {
               fontSize: '16px',
               fontWeight: '600',
               marginBottom: '16px',
-              color: 'rgba(255,255,255,0.9)'
+              color: 'var(--tb-ink)'
             }}>
               Who's splitting? (Add while we scan)
             </h3>
@@ -1085,11 +1085,11 @@ export const TabbySimple: React.FC = () => {
                       justifyContent: 'center',
                       fontSize: '20px',
                       fontWeight: '600',
-                      color: '#fff'
+                      color: 'var(--tb-ink)'
                     }}>
                       {person.name[0].toUpperCase()}
                     </div>
-                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--tb-ink-muted)' }}>
                       {person.name}
                     </span>
                   </div>
@@ -1100,7 +1100,7 @@ export const TabbySimple: React.FC = () => {
             {/* Quick Add Suggestions */}
             {quickAddSuggestions.length > 0 && (
               <div style={{ marginBottom: '16px' }}>
-                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
+                <p style={{ fontSize: '13px', color: 'var(--tb-ink-muted)', marginBottom: '8px' }}>
                   Quick Add
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
@@ -1110,10 +1110,10 @@ export const TabbySimple: React.FC = () => {
                       onClick={() => handleAddPerson(suggestion.name)}
                       style={{
                         padding: '8px 16px',
-                        background: 'rgba(0, 122, 255, 0.15)',
+                        background: 'var(--tb-accent-tint)',
                         border: '1px solid rgba(0, 122, 255, 0.3)',
                         borderRadius: '20px',
-                        color: '#007AFF',
+                        color: 'var(--tb-accent)',
                         fontSize: '14px',
                         cursor: 'pointer',
                         fontWeight: '500'
@@ -1141,10 +1141,10 @@ export const TabbySimple: React.FC = () => {
                 style={{
                   width: '100%',
                   padding: '12px 16px',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'var(--tb-surface-2)',
+                  border: 'none',
                   borderRadius: '12px',
-                  color: '#fff',
+                  color: 'var(--tb-ink)',
                   fontSize: '16px',
                   outline: 'none'
                 }}
@@ -1159,10 +1159,10 @@ export const TabbySimple: React.FC = () => {
                 style={{
                   flex: 1,
                   padding: '12px',
-                  background: newPersonName.trim() ? 'rgba(0, 122, 255, 0.2)' : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${newPersonName.trim() ? 'rgba(0, 122, 255, 0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  background: newPersonName.trim() ? 'var(--tb-accent-tint)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${newPersonName.trim() ? 'var(--tb-accent)' : 'rgba(255,255,255,0.1)'}`,
                   borderRadius: '12px',
-                  color: newPersonName.trim() ? '#007AFF' : 'rgba(255,255,255,0.3)',
+                  color: newPersonName.trim() ? 'var(--tb-accent)' : 'rgba(255,255,255,0.3)',
                   fontSize: '15px',
                   cursor: newPersonName.trim() ? 'pointer' : 'not-allowed',
                   fontWeight: '600'
@@ -1181,10 +1181,10 @@ export const TabbySimple: React.FC = () => {
                   }}
                   style={{
                     padding: '12px',
-                    background: 'rgba(255,255,255,0.1)',
-                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'var(--tb-surface-2)',
+                    border: 'none',
                     borderRadius: '12px',
-                    color: 'rgba(255,255,255,0.7)',
+                    color: 'var(--tb-ink-muted)',
                     fontSize: '15px',
                     cursor: 'pointer',
                     fontWeight: '600'
@@ -1197,7 +1197,7 @@ export const TabbySimple: React.FC = () => {
 
             <p style={{
               fontSize: '12px',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'var(--tb-ink-dim)',
               marginTop: '16px',
               textAlign: 'center'
             }}>
@@ -1322,8 +1322,8 @@ export const TabbySimple: React.FC = () => {
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    borderBottom: '2px solid rgba(255,255,255,0.3)',
-                    color: '#fff',
+                    borderBottom: '1px solid var(--tb-border-strong)',
+                    color: 'var(--tb-ink)',
                     fontSize: '20px',
                     fontWeight: '700',
                     padding: '0 0 4px 0',
@@ -1352,7 +1352,7 @@ export const TabbySimple: React.FC = () => {
                     <span style={{
                       marginLeft: '8px',
                       fontSize: '14px',
-                      color: 'rgba(255,255,255,0.4)',
+                      color: 'var(--tb-ink-dim)',
                       fontWeight: '400'
                     }}>✏️</span>
                   )}
@@ -1388,7 +1388,7 @@ export const TabbySimple: React.FC = () => {
           {/* Quick Add from Recent */}
           {quickAddSuggestions.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', marginBottom: '12px', fontWeight: '500' }}>
+              <h3 style={{ fontSize: '14px', color: 'var(--tb-ink-muted)', marginBottom: '12px', fontWeight: '500' }}>
                 Quick Add
               </h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -1398,10 +1398,10 @@ export const TabbySimple: React.FC = () => {
                     onClick={() => handleAddPerson(suggestion.name)}
                     style={{
                       padding: '8px 16px',
-                      background: 'rgba(0, 122, 255, 0.15)',
+                      background: 'var(--tb-accent-tint)',
                       border: '1px solid rgba(0, 122, 255, 0.3)',
                       borderRadius: '20px',
-                      color: '#007AFF',
+                      color: 'var(--tb-accent)',
                       fontSize: '14px',
                       cursor: 'pointer',
                       fontWeight: '500'
@@ -1608,8 +1608,8 @@ export const TabbySimple: React.FC = () => {
               style={{
                 background: 'transparent',
                 border: 'none',
-                borderBottom: '2px solid rgba(255,255,255,0.3)',
-                color: '#fff',
+                borderBottom: '1px solid var(--tb-border-strong)',
+                color: 'var(--tb-ink)',
                 fontSize: '20px',
                 fontWeight: '700',
                 padding: '0 0 4px 0',
@@ -1619,50 +1619,29 @@ export const TabbySimple: React.FC = () => {
               }}
             />
           ) : (
-            <h1
+            <button
+              type="button"
+              className="header-title-btn"
               onClick={() => {
                 setEditableRestaurantName(restaurantName);
                 setIsEditingRestaurantName(true);
               }}
-              style={{
-                cursor: 'pointer',
-                display: 'inline-block',
-                position: 'relative'
-              }}
               title="Click to edit"
             >
-              {restaurantName}
-              <span style={{
-                marginLeft: '8px',
-                fontSize: '14px',
-                color: 'rgba(255,255,255,0.4)',
-                fontWeight: '400'
-              }}>✏️</span>
-            </h1>
+              <span className="header-title-text">{restaurantName || 'Untitled'}</span>
+            </button>
           )}
           <p className="date">{new Date().toLocaleDateString()}</p>
         </div>
         <div className="header-buttons">
           <button
-            className="menu-btn"
+            className="header-edit-btn"
             onClick={() => setShowUnifiedEdit(true)}
-            style={{
-              background: 'rgba(255, 255, 255, 0.15)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '10px',
-              padding: '10px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '15px',
-              fontWeight: '600',
-              color: '#fff',
-              minWidth: '80px'
-            }}
+            aria-label="Edit bill"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m6.36 6.36l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m6.36-6.36l4.24-4.24"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
             <span>Edit</span>
           </button>
@@ -1687,7 +1666,7 @@ export const TabbySimple: React.FC = () => {
               <h3 className="section-title">Unassigned Items</h3>
               <p style={{
                 fontSize: '13px',
-                color: 'rgba(255,255,255,0.5)',
+                color: 'var(--tb-ink-muted)',
                 margin: '-4px 4px 12px 4px',
                 fontWeight: '400'
               }}>
@@ -1809,7 +1788,7 @@ export const TabbySimple: React.FC = () => {
                         <div style={{
                           padding: '24px',
                           textAlign: 'center',
-                          color: 'rgba(255, 255, 255, 0.4)',
+                          color: 'var(--tb-ink-dim)',
                           fontSize: '14px',
                           fontStyle: 'italic'
                         }}>
@@ -1939,11 +1918,6 @@ export const TabbySimple: React.FC = () => {
             </>
           )}
 
-          {allItemsAssigned && items.length > 0 && (
-            <div className="all-assigned">
-              All items assigned — ready to share!
-            </div>
-          )}
         </div>
 
         {/* Totals Section */}
@@ -1982,7 +1956,7 @@ export const TabbySimple: React.FC = () => {
             >
               <span>{toast.emoji}</span>
               <span className="toast-text">{toast.item}</span>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>&rarr;</span>
+              <span style={{ color: 'var(--tb-ink-dim)' }}>&rarr;</span>
               <span style={{ color: toast.color, fontWeight: 600 }}>{toast.person}</span>
             </motion.div>
           ))}
@@ -2044,7 +2018,7 @@ export const TabbySimple: React.FC = () => {
                 position: 'relative',
                 fontSize: '24px',
                 fontWeight: 700,
-                color: '#fff',
+                color: 'var(--tb-ink)',
                 textAlign: 'center',
               }}
               initial={{ scale: 0 }}
@@ -2090,7 +2064,7 @@ export const TabbySimple: React.FC = () => {
               const suggestions = getQuickAddSuggestions(people.map(p => p.name));
               return suggestions.length > 0 ? (
                 <div style={{ marginBottom: '16px' }}>
-                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--tb-ink-muted)', marginBottom: '8px' }}>
                     Quick Add
                   </p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -2100,10 +2074,10 @@ export const TabbySimple: React.FC = () => {
                         onClick={() => handleAddPerson(suggestion.name)}
                         style={{
                           padding: '6px 12px',
-                          background: 'rgba(0, 122, 255, 0.15)',
+                          background: 'var(--tb-accent-tint)',
                           border: '1px solid rgba(0, 122, 255, 0.3)',
                           borderRadius: '16px',
-                          color: '#007AFF',
+                          color: 'var(--tb-accent)',
                           fontSize: '13px',
                           cursor: 'pointer',
                           fontWeight: '500'
@@ -2156,7 +2130,7 @@ export const TabbySimple: React.FC = () => {
               <span>{selectedItem.name}</span>
               <span className="item-price">${selectedItem.price.toFixed(2)}</span>
             </div>
-            <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '16px', fontSize: '14px' }}>
+            <p style={{ color: 'var(--tb-ink-muted)', marginBottom: '16px', fontSize: '14px' }}>
               Select at least 2 people to split this item
             </p>
             <div className="split-people-list">
@@ -2283,7 +2257,7 @@ export const TabbySimple: React.FC = () => {
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#007AFF',
+                      color: 'var(--tb-accent)',
                       fontSize: '24px',
                       cursor: 'pointer',
                       padding: 0,
@@ -2296,11 +2270,11 @@ export const TabbySimple: React.FC = () => {
                 </div>
 
                 <div style={{ marginBottom: '24px' }}>
-                  <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                  <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: 'var(--tb-ink-muted)' }}>
                     LINE ITEMS
                   </h4>
                   {editableItems.map((item, index) => (
-                    <div key={item.id} style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                    <div key={item.id} style={{ marginBottom: '16px', padding: '12px', background: 'var(--tb-surface-2)', borderRadius: '8px' }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
                         <input
                           type="text"
@@ -2313,10 +2287,10 @@ export const TabbySimple: React.FC = () => {
                           style={{
                             width: '50px',
                             padding: '8px',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid rgba(255,255,255,0.2)',
+                            background: 'var(--tb-surface-2)',
+                            border: 'none',
                             borderRadius: '6px',
-                            color: '#fff',
+                            color: 'var(--tb-ink)',
                             fontSize: '18px',
                             textAlign: 'center'
                           }}
@@ -2332,10 +2306,10 @@ export const TabbySimple: React.FC = () => {
                           style={{
                             flex: 1,
                             padding: '8px',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid rgba(255,255,255,0.2)',
+                            background: 'var(--tb-surface-2)',
+                            border: 'none',
                             borderRadius: '6px',
-                            color: '#fff',
+                            color: 'var(--tb-ink)',
                             fontSize: '15px'
                           }}
                         />
@@ -2351,10 +2325,10 @@ export const TabbySimple: React.FC = () => {
                           style={{
                             width: '90px',
                             padding: '8px',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid rgba(255,255,255,0.2)',
+                            background: 'var(--tb-surface-2)',
+                            border: 'none',
                             borderRadius: '6px',
-                            color: '#fff',
+                            color: 'var(--tb-ink)',
                             fontSize: '15px',
                             fontFamily: "'Courier New', 'Courier', monospace",
                             textAlign: 'right'
@@ -2368,7 +2342,7 @@ export const TabbySimple: React.FC = () => {
                         style={{
                           width: '100%',
                           padding: '6px',
-                          background: 'rgba(255,59,48,0.15)',
+                          background: 'var(--tb-danger-tint)',
                           border: '1px solid rgba(255,59,48,0.3)',
                           borderRadius: '6px',
                           color: '#FF3B30',
@@ -2427,10 +2401,10 @@ export const TabbySimple: React.FC = () => {
                         style={{
                           flex: 1,
                           padding: '12px',
-                          background: 'rgba(255,255,255,0.1)',
-                          border: '1px solid rgba(255,255,255,0.2)',
+                          background: 'var(--tb-surface-2)',
+                          border: 'none',
                           borderRadius: '8px',
-                          color: '#fff',
+                          color: 'var(--tb-ink)',
                           fontSize: '20px',
                           fontWeight: '600',
                           outline: 'none'
@@ -2454,10 +2428,10 @@ export const TabbySimple: React.FC = () => {
                           }
                         }}
                         style={{
-                          background: '#007AFF',
+                          background: 'var(--tb-accent)',
                           border: 'none',
                           borderRadius: '6px',
-                          color: '#fff',
+                          color: 'var(--tb-ink)',
                           padding: '12px 16px',
                           fontSize: '14px',
                           fontWeight: '600',
@@ -2470,9 +2444,9 @@ export const TabbySimple: React.FC = () => {
                         onClick={() => setIsEditingRestaurantName(false)}
                         style={{
                           background: 'transparent',
-                          border: '1px solid rgba(255,255,255,0.2)',
+                          border: 'none',
                           borderRadius: '6px',
-                          color: 'rgba(255,255,255,0.7)',
+                          color: 'var(--tb-ink-muted)',
                           padding: '12px 16px',
                           fontSize: '14px',
                           fontWeight: '600',
@@ -2486,7 +2460,7 @@ export const TabbySimple: React.FC = () => {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div>
                         <h3 style={{ margin: 0, fontSize: '24px', fontWeight: '600' }}>{restaurantName}</h3>
-                        <p className="date" style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0 0' }}>
+                        <p className="date" style={{ color: 'var(--tb-ink-muted)', margin: '4px 0 0 0' }}>
                           {new Date().toLocaleDateString()}
                         </p>
                       </div>
@@ -2498,7 +2472,7 @@ export const TabbySimple: React.FC = () => {
                         style={{
                           background: 'transparent',
                           border: 'none',
-                          color: '#007AFF',
+                          color: 'var(--tb-accent)',
                           fontSize: '14px',
                           fontWeight: '600',
                           cursor: 'pointer',
@@ -2514,7 +2488,7 @@ export const TabbySimple: React.FC = () => {
             {/* Receipt Link Section */}
             {billToken && (
               <div className="bill-overview-section" style={{ marginBottom: '24px' }}>
-                <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: 'var(--tb-ink-muted)' }}>
                   RECEIPT LINK
                 </h4>
                 <div style={{
@@ -2522,7 +2496,7 @@ export const TabbySimple: React.FC = () => {
                   gap: '8px',
                   alignItems: 'center',
                   padding: '12px',
-                  background: 'rgba(0, 122, 255, 0.1)',
+                  background: 'var(--tb-accent-tint)',
                   border: '1px solid rgba(0, 122, 255, 0.3)',
                   borderRadius: '8px'
                 }}>
@@ -2534,7 +2508,7 @@ export const TabbySimple: React.FC = () => {
                       flex: 1,
                       background: 'transparent',
                       border: 'none',
-                      color: '#007AFF',
+                      color: 'var(--tb-accent)',
                       fontSize: '13px',
                       fontFamily: "'Courier New', 'Courier', monospace",
                       outline: 'none',
@@ -2553,7 +2527,7 @@ export const TabbySimple: React.FC = () => {
                         btn.style.color = '#34C759';
                         setTimeout(() => {
                           btn.textContent = originalText;
-                          btn.style.color = '#007AFF';
+                          btn.style.color = 'var(--tb-accent)';
                         }, 2000);
                       } catch (error) {
                         console.error('Error copying to clipboard:', error);
@@ -2562,7 +2536,7 @@ export const TabbySimple: React.FC = () => {
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#007AFF',
+                      color: 'var(--tb-accent)',
                       fontSize: '13px',
                       fontWeight: '600',
                       cursor: 'pointer',
@@ -2575,7 +2549,7 @@ export const TabbySimple: React.FC = () => {
                 </div>
                 <p style={{
                   fontSize: '12px',
-                  color: 'rgba(255,255,255,0.5)',
+                  color: 'var(--tb-ink-muted)',
                   marginTop: '8px',
                   marginBottom: 0
                 }}>
@@ -2585,7 +2559,7 @@ export const TabbySimple: React.FC = () => {
             )}
 
             <div className="bill-overview-section">
-              <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: 'rgba(255,255,255,0.7)' }}>
+              <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: 'var(--tb-ink-muted)' }}>
                 PEOPLE ({people.length})
               </h4>
               {people.map((person, index) => (
@@ -2603,7 +2577,7 @@ export const TabbySimple: React.FC = () => {
 
             <div className="bill-overview-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'rgba(255,255,255,0.7)', margin: 0 }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--tb-ink-muted)', margin: 0 }}>
                   BILL TOTALS
                 </h4>
                 {!isEditingBill && (
@@ -2612,7 +2586,7 @@ export const TabbySimple: React.FC = () => {
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#007AFF',
+                      color: 'var(--tb-accent)',
                       fontSize: '14px',
                       fontWeight: '600',
                       cursor: 'pointer',
@@ -2636,10 +2610,10 @@ export const TabbySimple: React.FC = () => {
                       style={{
                         width: '100px',
                         padding: '6px 8px',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'var(--tb-surface-2)',
+                        border: 'none',
                         borderRadius: '6px',
-                        color: '#fff',
+                        color: 'var(--tb-ink)',
                         fontSize: '15px',
                         fontFamily: "'Courier New', 'Courier', monospace",
                         textAlign: 'right'
@@ -2656,10 +2630,10 @@ export const TabbySimple: React.FC = () => {
                       style={{
                         width: '100px',
                         padding: '6px 8px',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'var(--tb-surface-2)',
+                        border: 'none',
                         borderRadius: '6px',
-                        color: '#fff',
+                        color: 'var(--tb-ink)',
                         fontSize: '15px',
                         fontFamily: "'Courier New', 'Courier', monospace",
                         textAlign: 'right'
@@ -2676,17 +2650,17 @@ export const TabbySimple: React.FC = () => {
                       style={{
                         width: '100px',
                         padding: '6px 8px',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'var(--tb-surface-2)',
+                        border: 'none',
                         borderRadius: '6px',
-                        color: '#fff',
+                        color: 'var(--tb-ink)',
                         fontSize: '15px',
                         fontFamily: "'Courier New', 'Courier', monospace",
                         textAlign: 'right'
                       }}
                     />
                   </div>
-                  <div className="bill-overview-row" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px', marginTop: '12px', fontWeight: '600' }}>
+                  <div className="bill-overview-row" style={{ borderTop: '1px solid var(--tb-border)', paddingTop: '12px', marginTop: '12px', fontWeight: '600' }}>
                     <span>Total</span>
                     <span>${((parseFloat(editableSubtotal) || 0) + (parseFloat(editableTax) || 0) + (parseFloat(editableTip) || 0)).toFixed(2)}</span>
                   </div>
@@ -2705,7 +2679,7 @@ export const TabbySimple: React.FC = () => {
                     <span>Tip</span>
                     <span>${tip.toFixed(2)}</span>
                   </div>
-                  <div className="bill-overview-row" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px', marginTop: '12px', fontWeight: '600' }}>
+                  <div className="bill-overview-row" style={{ borderTop: '1px solid var(--tb-border)', paddingTop: '12px', marginTop: '12px', fontWeight: '600' }}>
                     <span>Total</span>
                     <span>${(billTotals?.grand_total ?? 0).toFixed(2)}</span>
                   </div>
