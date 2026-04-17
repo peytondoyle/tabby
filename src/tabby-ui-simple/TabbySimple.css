@@ -7,13 +7,15 @@
 .tabby-simple {
   min-height: 100vh;
   background:
-    radial-gradient(1200px 700px at 90% -10%, rgba(255, 90, 95, 0.07), transparent 60%),
-    radial-gradient(900px 600px at -10% 110%, rgba(255, 203, 71, 0.04), transparent 55%),
+    radial-gradient(1200px 700px at 92% -10%, rgba(255, 90, 95, 0.10), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(232, 166, 29, 0.08), transparent 55%),
     var(--tb-bg);
   color: var(--tb-ink);
   display: flex;
   flex-direction: column;
   font-family: var(--tb-font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Receipt-style monospace font for prices and numbers */
@@ -36,19 +38,21 @@
 
 .logo {
   font-family: var(--tb-font-display);
-  font-size: clamp(56px, 14vw, 88px);
+  font-size: clamp(64px, 16vw, 104px);
   font-weight: 600;
-  letter-spacing: -0.04em;
-  margin-bottom: 12px;
+  font-variation-settings: 'opsz' 144;
+  letter-spacing: -0.05em;
+  margin-bottom: 8px;
   color: var(--tb-ink-strong);
-  line-height: 0.95;
+  line-height: 0.9;
 }
 
 .subtitle {
   color: var(--tb-ink-muted);
-  font-size: 18px;
-  margin-bottom: 48px;
-  letter-spacing: -0.01em;
+  font-size: 17px;
+  margin-bottom: 52px;
+  letter-spacing: -0.005em;
+  font-weight: 500;
 }
 
 /* Upload area — cream-paper aesthetic against the warm dark bg.
@@ -78,15 +82,15 @@
   box-shadow: var(--tb-shadow-md);
 }
 
-/* Drop-shadow "paper corner" peek behind the card. */
+/* Soft paper-lift shadow underneath — warmer and lighter than a black drop. */
 .upload-area::after {
   content: '';
   position: absolute;
-  inset: auto 10% -6px 10%;
-  height: 16px;
-  background: radial-gradient(50% 100% at 50% 0%, rgba(14, 11, 10, 0.5), transparent 70%);
+  inset: auto 8% -8px 8%;
+  height: 20px;
+  background: radial-gradient(50% 100% at 50% 0%, rgba(110, 92, 80, 0.25), transparent 70%);
   z-index: -1;
-  filter: blur(4px);
+  filter: blur(6px);
 }
 
 .upload-area:hover {
@@ -193,8 +197,8 @@
 }
 
 .scan-failed-actions .contacts-btn {
-  background: var(--tb-surface-1);
-  border: 1px solid var(--tb-border-strong);
+  background: transparent;
+  border: 1.5px solid var(--tb-border-strong);
   color: var(--tb-ink);
 }
 
@@ -437,22 +441,26 @@
   padding-bottom: 60px;
 }
 
+/* Item chip — soft white pill with a tiny shadow, no border. */
 .item-card {
   background: var(--tb-surface-1);
-  border: 1px solid var(--tb-border);
-  border-radius: 20px;
-  padding: 8px 14px;
+  border-radius: var(--tb-r-pill);
+  padding: 10px 16px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: grab;
-  transition: all 0.2s ease;
+  transition: box-shadow var(--tb-base) var(--tb-ease-out),
+              transform var(--tb-fast) var(--tb-ease-out),
+              background var(--tb-base) var(--tb-ease-out);
   white-space: nowrap;
+  box-shadow: var(--tb-shadow-sm);
 }
 
 .item-card:hover {
-  background: var(--tb-surface-2);
-  transform: scale(1.02);
+  background: var(--tb-surface-1);
+  box-shadow: var(--tb-shadow-md);
+  transform: translateY(-1px);
 }
 
 .item-card:active {
@@ -518,18 +526,19 @@
 }
 
 .item-name {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--tb-ink);
   font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .item-qty {
   margin-left: 6px;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: var(--tb-r-pill);
-  background: var(--tb-surface-3);
+  background: var(--tb-butter-tint);
   color: var(--tb-butter);
-  font-family: var(--tb-font-mono);
+  font-family: var(--tb-font-body);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
   font-weight: 700;
@@ -537,12 +546,12 @@
 }
 
 .item-price {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--tb-butter);
-  font-family: var(--tb-font-mono);
+  color: var(--tb-ink);
+  font-family: var(--tb-font-body);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
 }
 
 .all-assigned {
@@ -577,16 +586,20 @@
 .person-section {
   position: relative;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--person-color, transparent) 12%, var(--tb-surface-1)), var(--tb-surface-1) 40%);
-  border: 1px solid var(--tb-border);
-  border-radius: var(--tb-r-lg);
-  padding: 18px 14px 12px;
-  box-shadow: var(--tb-shadow-sm);
+    linear-gradient(180deg, color-mix(in srgb, var(--person-color, transparent) 10%, var(--tb-surface-1)), var(--tb-surface-1) 50%);
+  border: none;
+  border-radius: var(--tb-r-xl);
+  padding: 20px 16px 14px;
+  box-shadow: var(--tb-shadow-md);
   max-width: 220px;
   overflow: hidden;
-  transition: border-color var(--tb-base) var(--tb-ease-out),
-              box-shadow var(--tb-base) var(--tb-ease-out),
+  transition: box-shadow var(--tb-base) var(--tb-ease-out),
               transform var(--tb-fast) var(--tb-ease-out);
+}
+
+.person-section:hover {
+  box-shadow: var(--tb-shadow-lg);
+  transform: translateY(-1px);
 }
 
 .person-section::before {
@@ -615,25 +628,24 @@
 }
 
 .person-name-large {
-  font-family: var(--tb-font-display);
-  font-size: 18px;
-  font-weight: 600;
-  font-variation-settings: 'opsz' 48;
-  letter-spacing: -0.02em;
-  color: var(--tb-ink-strong);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tb-ink-muted);
   line-height: 1;
 }
 
 /* The money IS the point of this card — make it dominant. */
 .person-total {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--tb-butter);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--tb-ink-strong);
   align-self: flex-start;
   margin-top: 4px;
-  font-family: var(--tb-font-mono);
+  font-family: var(--tb-font-numeric);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.03em;
   line-height: 1;
 }
 
@@ -839,7 +851,7 @@
   transform: scale(0.98);
 }
 
-/* Bottom Navigation */
+/* Bottom Navigation — glassy so content shows through. */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -849,10 +861,11 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 10px 20px;
+  padding: 12px 20px;
   background: var(--tb-surface-glass);
   border-top: 1px solid var(--tb-border);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
 
 .status-text {
@@ -862,12 +875,12 @@
 }
 
 .share-btn {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: var(--tb-accent);
   border: none;
-  color: var(--tb-ink-strong);
+  color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -875,18 +888,18 @@
   transition: transform var(--tb-fast) var(--tb-ease-out),
               box-shadow var(--tb-base) var(--tb-ease-out),
               background var(--tb-base) var(--tb-ease-out);
-  box-shadow: 0 6px 18px var(--tb-accent-glow);
+  box-shadow: var(--tb-shadow-accent);
 }
 
 .share-btn:not(:disabled):hover {
   background: var(--tb-accent-hover);
-  box-shadow: 0 8px 24px var(--tb-accent-glow), 0 0 0 4px var(--tb-accent-tint);
-  transform: translateY(-1px);
+  box-shadow: var(--tb-shadow-accent), 0 0 0 6px var(--tb-accent-tint);
+  transform: translateY(-2px);
 }
 
 .share-btn:disabled {
-  background: var(--tb-border);
-  color: var(--tb-ink-muted);
+  background: var(--tb-surface-3);
+  color: var(--tb-ink-dim);
   box-shadow: none;
 }
 
@@ -916,7 +929,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(14, 11, 10, 0.85);
+  background: rgba(31, 22, 18, 0.45);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: flex-end;
@@ -1145,23 +1158,22 @@
 }
 
 .credit-btn {
-  padding: 5px 10px;
-  background: var(--tb-surface-2);
-  border: 1px solid var(--tb-border);
+  padding: 6px 12px;
+  background: var(--tb-butter-tint);
+  border: none;
   border-radius: var(--tb-r-pill);
-  color: var(--tb-ink);
+  color: var(--tb-butter);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
   transition: background var(--tb-fast) var(--tb-ease-out),
-              border-color var(--tb-fast) var(--tb-ease-out);
+              transform var(--tb-fast) var(--tb-ease-out);
 }
 
 .credit-btn:hover {
-  background: var(--tb-butter-tint);
-  border-color: var(--tb-butter);
-  color: var(--tb-butter);
+  background: color-mix(in srgb, var(--tb-butter) 22%, transparent);
+  transform: translateY(-1px);
 }
 
 .credit-btn:active {
@@ -1192,7 +1204,7 @@
 }
 
 .venmo-request-btn:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--tb-ink);
   outline-offset: 2px;
 }
 
