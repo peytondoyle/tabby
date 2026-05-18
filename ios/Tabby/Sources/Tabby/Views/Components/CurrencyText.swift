@@ -11,11 +11,11 @@ enum CurrencyStyle {
     var font: Font {
         switch self {
         case .large:
-            return .title.bold()
+            return TB.Typography.moneyLarge()
         case .medium:
-            return .body
+            return TB.Typography.moneyMedium()
         case .small:
-            return .caption
+            return TB.Typography.moneySmall()
         }
     }
 }
@@ -30,13 +30,13 @@ enum CurrencyColorType {
     func color(for colorScheme: ColorScheme) -> Color {
         switch self {
         case .standard:
-            return .primary
+            return TB.Palette.ink
         case .discount:
-            return .green
+            return TB.Palette.success
         case .fee:
-            return .red
+            return TB.Palette.danger
         case .muted:
-            return .secondary
+            return TB.Palette.inkFaint
         }
     }
 }
@@ -89,6 +89,7 @@ struct CurrencyText: View {
     var body: some View {
         Text(formattedAmount)
             .font(style.font)
+            .monospacedDigit()
             .foregroundStyle(colorType.color(for: colorScheme))
     }
 

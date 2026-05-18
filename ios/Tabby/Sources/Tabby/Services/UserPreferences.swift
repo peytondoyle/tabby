@@ -33,6 +33,10 @@ final class UserPreferences {
     @ObservationIgnored
     @AppStorage("tipDistribution") var tipDistribution: String = "proportional"
 
+    /// When splitting tax/tip evenly, include people with no assigned items
+    @ObservationIgnored
+    @AppStorage("includeZeroPeopleInEvenSplits") var includeZeroPeopleInEvenSplits: Bool = true
+
     // MARK: - App Settings
 
     /// Whether haptic feedback is enabled

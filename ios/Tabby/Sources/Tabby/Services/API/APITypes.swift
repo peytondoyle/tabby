@@ -168,6 +168,7 @@ public struct CreateBillRequest: Encodable {
     public let tip: Decimal?
     public let discount: Decimal?
     public let serviceFee: Decimal?
+    public let userId: String?
 
     enum CodingKeys: String, CodingKey {
         case place
@@ -177,6 +178,7 @@ public struct CreateBillRequest: Encodable {
         case tip
         case discount
         case serviceFee = "service_fee"
+        case userId = "user_id"
     }
 
     public init(
@@ -186,7 +188,8 @@ public struct CreateBillRequest: Encodable {
         tax: Decimal? = nil,
         tip: Decimal? = nil,
         discount: Decimal? = nil,
-        serviceFee: Decimal? = nil
+        serviceFee: Decimal? = nil,
+        userId: String? = nil
     ) {
         self.place = place
         self.items = items
@@ -195,18 +198,19 @@ public struct CreateBillRequest: Encodable {
         self.tip = tip
         self.discount = discount
         self.serviceFee = serviceFee
+        self.userId = userId
     }
 }
 
-/// Item for creating a bill
+/// Item for creating a bill (API field is `name`)
 public struct CreateBillItem: Encodable {
-    public let label: String
+    public let name: String
     public let price: Decimal
     public let emoji: String?
     public let quantity: Int
 
-    public init(label: String, price: Decimal, emoji: String? = nil, quantity: Int = 1) {
-        self.label = label
+    public init(name: String, price: Decimal, emoji: String? = nil, quantity: Int = 1) {
+        self.name = name
         self.price = price
         self.emoji = emoji
         self.quantity = quantity
@@ -225,12 +229,16 @@ public struct ReceiptInfo: Decodable {
     public let token: String?
     public let editorToken: String?
     public let viewerToken: String?
+    public let title: String?
+    public let place: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case token
         case editorToken = "editor_token"
         case viewerToken = "viewer_token"
+        case title
+        case place
     }
 }
 
@@ -240,6 +248,29 @@ public struct ReceiptItemInfo: Decodable {
     public let label: String
     public let price: Decimal
     public let emoji: String?
+    public let quantity: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case label
+        case name
+        case price
+        case emoji
+        case quantity
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        if let l = try c.decodeIfPresent(String.self, forKey: .label) {
+            label = l
+        } else {
+            label = try c.decodeIfPresent(String.self, forKey: .name) ?? "Item"
+        }
+        price = try c.decode(Decimal.self, forKey: .price)
+        emoji = try c.decodeIfPresent(String.self, forKey: .emoji)
+        quantity = try c.decodeIfPresent(Int.self, forKey: .quantity)
+    }
 }
 
 // MARK: - Bill Response Types
@@ -315,6 +346,12 @@ public struct ItemShareData: Codable, Equatable {
         case itemId = "item_id"
         case personId = "person_id"
         case weight
+    }
+
+    public init(itemId: String, personId: String, weight: Int) {
+        self.itemId = itemId
+        self.personId = personId
+        self.weight = weight
     }
 }
 
@@ -441,7 +478,7 @@ extension ScanResult {
     public var createBillItems: [CreateBillItem] {
         items.map { item in
             CreateBillItem(
-                label: item.label,
+                name: item.label,
                 price: item.price,
                 emoji: item.emoji,
                 quantity: item.quantity ?? 1

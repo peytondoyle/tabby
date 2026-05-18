@@ -8,6 +8,9 @@ struct BillPerson: Identifiable, Codable, Equatable {
     var avatarUrl: String?
     var venmoHandle: String?
     var isArchived: Bool
+    /// Personal credit (gift card, promo) — applied after gross share, capped per person
+    var personalCredit: Decimal
+    var creditNote: String?
 
     init(
         id: String = UUID().uuidString,
@@ -15,7 +18,9 @@ struct BillPerson: Identifiable, Codable, Equatable {
         name: String,
         avatarUrl: String? = nil,
         venmoHandle: String? = nil,
-        isArchived: Bool = false
+        isArchived: Bool = false,
+        personalCredit: Decimal = 0,
+        creditNote: String? = nil
     ) {
         self.id = id
         self.billId = billId
@@ -23,6 +28,8 @@ struct BillPerson: Identifiable, Codable, Equatable {
         self.avatarUrl = avatarUrl
         self.venmoHandle = venmoHandle
         self.isArchived = isArchived
+        self.personalCredit = max(0, personalCredit)
+        self.creditNote = creditNote
     }
 
     enum CodingKeys: String, CodingKey {
@@ -32,5 +39,7 @@ struct BillPerson: Identifiable, Codable, Equatable {
         case avatarUrl = "avatar_url"
         case venmoHandle = "venmo_handle"
         case isArchived = "is_archived"
+        case personalCredit = "personal_credit"
+        case creditNote = "credit_note"
     }
 }

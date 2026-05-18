@@ -82,9 +82,9 @@ struct TotalsCard: View {
             }
         }
         .padding()
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+        .background(TB.Palette.surface1)
+        .clipShape(RoundedRectangle(cornerRadius: TB.Radius.lg, style: .continuous))
+        .tbShadow(.sm)
     }
 
     // MARK: - Compact View
@@ -330,9 +330,9 @@ struct PersonSummaryCard: View {
             }
         }
         .padding()
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+        .background(TB.Palette.surface1)
+        .clipShape(RoundedRectangle(cornerRadius: TB.Radius.lg, style: .continuous))
+        .tbShadow(.sm)
     }
 
     private func breakdownRow(_ label: String, _ amount: Decimal, isDiscount: Bool = false) -> some View {

@@ -14,8 +14,8 @@ public actor APIClient {
     /// Base URL for the API
     public private(set) var baseURL: URL
 
-    /// Default base URL pointing to production
-    public static let defaultBaseURL = URL(string: "https://tabby-ashen.vercel.app/api")!
+    /// Default base URL pointing to production (must match web app hostname)
+    public static let defaultBaseURL = URL(string: "https://tabby.vercel.app/api")!
 
     /// URLSession for making requests
     private let session: URLSession

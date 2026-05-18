@@ -56,7 +56,12 @@ struct ShareSheet: View {
 
     private var shareURL: URL? {
         guard let token = currentToken else { return nil }
-        return URL(string: "\(baseURL)/bill/\(token)")
+        switch selectedLinkType {
+        case .viewer:
+            return URL(string: "\(baseURL)/receipt/\(token)")
+        case .editor:
+            return URL(string: "\(baseURL)/receipt/\(token)/edit")
+        }
     }
 
     private var shareURLString: String {
@@ -76,29 +81,25 @@ struct ShareSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Header
                 headerSection
 
-                Divider()
+                Rectangle()
+                    .fill(TB.Palette.rule)
+                    .frame(height: 1)
 
-                // Content
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Link type picker
                         if hasEditorToken && hasViewerToken {
                             linkTypePicker
                         }
-
-                        // Link display
                         linkDisplaySection
-
-                        // Action buttons
                         actionButtons
                     }
                     .padding()
                 }
             }
-            .navigationTitle("Share Bill")
+            .background(TB.Palette.bg)
+            .navigationTitle("Share bill")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -120,11 +121,7 @@ struct ShareSheet: View {
                 }
             }
             #endif
-            .overlay {
-                if showingCopiedConfirmation {
-                    copiedConfirmationOverlay
-                }
-            }
+            .tbToast(isPresented: showingCopiedConfirmation, message: "Link copied to clipboard")
         }
     }
 
@@ -155,10 +152,9 @@ struct ShareSheet: View {
 
     private var linkTypePicker: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Link Type")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
+            Text("Link type")
+                .font(TB.Typography.bodySoft())
+                .foregroundStyle(TB.Palette.inkFaint)
 
             Picker("Link Type", selection: $selectedLinkType) {
                 ForEach(LinkType.allCases) { linkType in
@@ -172,8 +168,8 @@ struct ShareSheet: View {
             .pickerStyle(.segmented)
 
             Text(selectedLinkType.description)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(TB.Typography.meta())
+                .foregroundStyle(TB.Palette.inkSoft)
         }
     }
 
@@ -181,16 +177,16 @@ struct ShareSheet: View {
 
     private var linkDisplaySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Share Link")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
+            Text("Share link")
+                .font(TB.Typography.bodySoft())
+                .foregroundStyle(TB.Palette.inkFaint)
 
             if currentToken != nil {
                 HStack {
                     Text(shareURLString)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(.primary)
+                        .font(TB.Typography.moneyMedium())
+                        .monospacedDigit()
+                        .foregroundStyle(TB.Palette.ink)
                         .lineLimit(2)
                         .truncationMode(.middle)
 
@@ -200,13 +196,14 @@ struct ShareSheet: View {
                         copyToClipboard()
                     } label: {
                         Image(systemName: "doc.on.doc")
-                            .font(.body)
+                            .font(TB.Typography.body())
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(TBSecondaryButtonStyle())
                 }
                 .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
+                .background(TB.Palette.surface1)
+                .clipShape(RoundedRectangle(cornerRadius: TB.Radius.md, style: .continuous))
+                .tbShadow(.sm)
             } else {
                 noLinkAvailableView
             }
@@ -218,83 +215,55 @@ struct ShareSheet: View {
     private var noLinkAvailableView: some View {
         HStack {
             Image(systemName: "exclamationmark.triangle")
-                .foregroundStyle(.orange)
+                .foregroundStyle(TB.Palette.warning)
 
             Text("No \(selectedLinkType.rawValue.lowercased()) link available for this bill.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(TB.Typography.bodySoft())
+                .foregroundStyle(TB.Palette.inkSoft)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
+        .background(TB.Palette.surface1)
+        .clipShape(RoundedRectangle(cornerRadius: TB.Radius.md, style: .continuous))
+        .tbShadow(.xs)
     }
 
     // MARK: - Action Buttons
 
     private var actionButtons: some View {
-        VStack(spacing: 12) {
-            // Copy button
+        VStack(spacing: TB.Space.md) {
             Button {
                 copyToClipboard()
             } label: {
-                Label("Copy Link", systemImage: "doc.on.doc")
+                Label("Copy link", systemImage: "doc.on.doc")
+                    .font(TB.Typography.buttonSecondary())
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(TBSecondaryButtonStyle())
             .disabled(currentToken == nil)
 
             #if os(iOS)
-            // Share button (iOS only)
             Button {
                 showingNativeShareSheet = true
             } label: {
                 Label("Share", systemImage: "square.and.arrow.up")
+                    .font(TB.Typography.buttonPrimary())
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(TBPrimaryButtonStyle())
             .disabled(currentToken == nil)
             #else
-            // Share button (macOS)
             Button {
                 shareOnMacOS()
             } label: {
                 Label("Share", systemImage: "square.and.arrow.up")
+                    .font(TB.Typography.buttonPrimary())
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(TBPrimaryButtonStyle())
             .disabled(currentToken == nil)
             #endif
         }
-    }
-
-    // MARK: - Copied Confirmation Overlay
-
-    private var copiedConfirmationOverlay: some View {
-        VStack {
-            Spacer()
-
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Link copied to clipboard")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
-            .cornerRadius(25)
-            .shadow(radius: 8)
-
-            Spacer()
-                .frame(height: 80)
-        }
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-        .animation(.spring(response: 0.3), value: showingCopiedConfirmation)
     }
 
     // MARK: - Actions

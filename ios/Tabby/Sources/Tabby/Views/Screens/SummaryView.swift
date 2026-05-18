@@ -1,4 +1,8 @@
 import SwiftUI
+import SwiftData
+#if os(iOS)
+import UIKit
+#endif
 
 /// Summary view showing the final bill breakdown with expandable person rows
 /// and bill totals section
@@ -7,8 +11,13 @@ struct SummaryView: View {
     // MARK: - Properties
 
     @Bindable var viewModel: BillViewModel
+    @Environment(\.modelContext) private var modelContext
     @State private var expandedPersonIds: Set<String> = []
     @State private var showingShareSheet = false
+    #if os(iOS)
+    @State private var showingExportActivity = false
+    @State private var exportActivityItems: [Any] = []
+    #endif
     @State private var hasUnsavedChanges = false
     @State private var isSaving = false
     @State private var showingSaveConfirmation = false
@@ -31,7 +40,7 @@ struct SummaryView: View {
         .toolbar {
             #if os(iOS)
             ToolbarItem(placement: .topBarTrailing) {
-                shareButton
+                shareMenu
             }
             #else
             ToolbarItem(placement: .primaryAction) {
@@ -53,9 +62,33 @@ struct SummaryView: View {
         } message: {
             Text("Your changes have been saved successfully.")
         }
+        #if os(iOS)
+        .sheet(isPresented: $showingExportActivity) {
+            ActivityViewController(activityItems: exportActivityItems)
+        }
+        #endif
     }
 
-    // MARK: - Share Button
+    // MARK: - Share
+
+    #if os(iOS)
+    private var shareMenu: some View {
+        Menu {
+            Button("Share link", systemImage: "link") {
+                showingShareSheet = true
+            }
+            Button("Export image", systemImage: "photo") {
+                exportShareImage()
+            }
+            Button("Export PDF", systemImage: "doc.richtext") {
+                exportSharePDF()
+            }
+        } label: {
+            Image(systemName: "square.and.arrow.up")
+        }
+        .disabled(viewModel.bill == nil || viewModel.billTotals == nil)
+    }
+    #endif
 
     private var shareButton: some View {
         Button {
@@ -65,6 +98,22 @@ struct SummaryView: View {
         }
         .disabled(viewModel.bill == nil)
     }
+
+    #if os(iOS)
+    private func exportShareImage() {
+        guard let bill = viewModel.bill, let totals = viewModel.billTotals else { return }
+        guard let img = ReceiptShareImageRenderer.render(title: bill.title, totals: totals) else { return }
+        exportActivityItems = [img]
+        showingExportActivity = true
+    }
+
+    private func exportSharePDF() {
+        guard let bill = viewModel.bill, let totals = viewModel.billTotals else { return }
+        guard let url = ReceiptSharePDFRenderer.writeTemporaryPDF(title: bill.title, totals: totals) else { return }
+        exportActivityItems = [url]
+        showingExportActivity = true
+    }
+    #endif
 
     // MARK: - Loading View
 
@@ -146,7 +195,7 @@ struct SummaryView: View {
             }
 
             // Save button section if there are unsaved changes
-            if hasUnsavedChanges {
+            if hasUnsavedChanges, !viewModel.isReadOnly {
                 Section {
                     saveButton
                 }
@@ -178,8 +227,16 @@ struct SummaryView: View {
         BillTotalRow(label: "Tax", amount: totals.tax)
         BillTotalRow(label: "Tip", amount: totals.tip)
 
+        if totals.totalPersonalCredits > 0 {
+            BillTotalRow(
+                label: "Personal credits",
+                amount: totals.totalPersonalCredits,
+                isDiscount: true
+            )
+        }
+
         BillTotalRow(
-            label: "Grand Total",
+            label: totals.totalPersonalCredits > 0 ? "Amount owed" : "Grand Total",
             amount: totals.grandTotal,
             isGrandTotal: true
         )
@@ -250,6 +307,7 @@ struct SummaryView: View {
 
         if viewModel.error == nil {
             hasUnsavedChanges = false
+            viewModel.persistSnapshotToSwiftData(context: modelContext)
             showingSaveConfirmation = true
         }
     }
@@ -329,6 +387,14 @@ struct PersonBreakdownRow: View {
 
             PersonBreakdownLine(label: "Tax", amount: personTotal.taxShare)
             PersonBreakdownLine(label: "Tip", amount: personTotal.tipShare)
+
+            if personTotal.personalCredit > 0 {
+                PersonBreakdownLine(
+                    label: personTotal.creditNote ?? "Personal credit",
+                    amount: personTotal.personalCredit,
+                    isDiscount: true
+                )
+            }
 
             Divider()
                 .padding(.vertical, 4)

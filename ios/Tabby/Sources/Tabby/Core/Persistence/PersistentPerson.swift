@@ -20,6 +20,12 @@ final class PersistentPerson {
     /// Whether this person is archived (paid)
     var isArchived: Bool
 
+    /// Personal credit amount (positive)
+    var personalCredit: Decimal
+
+    /// Optional note for the credit
+    var creditNote: String?
+
     /// The bill this person is associated with
     var bill: PersistentBill?
 
@@ -33,6 +39,8 @@ final class PersistentPerson {
         avatarUrl: String? = nil,
         venmoHandle: String? = nil,
         isArchived: Bool = false,
+        personalCredit: Decimal = 0,
+        creditNote: String? = nil,
         bill: PersistentBill? = nil,
         assignedItems: [PersistentItem] = []
     ) {
@@ -41,6 +49,8 @@ final class PersistentPerson {
         self.avatarUrl = avatarUrl
         self.venmoHandle = venmoHandle
         self.isArchived = isArchived
+        self.personalCredit = personalCredit
+        self.creditNote = creditNote
         self.bill = bill
         self.assignedItems = assignedItems
     }
@@ -57,6 +67,8 @@ extension PersistentPerson {
             avatarUrl: person.avatarUrl,
             venmoHandle: person.venmoHandle,
             isArchived: person.isArchived,
+            personalCredit: person.personalCredit,
+            creditNote: person.creditNote,
             bill: bill,
             assignedItems: []
         )
@@ -70,7 +82,9 @@ extension PersistentPerson {
             name: name,
             avatarUrl: avatarUrl,
             venmoHandle: venmoHandle,
-            isArchived: isArchived
+            isArchived: isArchived,
+            personalCredit: personalCredit,
+            creditNote: creditNote
         )
     }
 }

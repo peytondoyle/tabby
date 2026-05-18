@@ -4,9 +4,13 @@ import SwiftData
 /// Main tab view container for the app's primary navigation
 struct MainTabView: View {
     @Environment(BillViewModel.self) private var viewModel
+    @Environment(\.modelContext) private var modelContext
 
     /// Currently selected tab
     @State private var selectedTab: Tab = .home
+
+    /// Scan tab stack — lifted so deep links can push `ItemListView` while switching to Scan.
+    @State private var homeNavigationPath = NavigationPath()
 
     /// Count of bills in history (for badge)
     @State private var historyBadgeCount: Int = 0
@@ -19,7 +23,7 @@ struct MainTabView: View {
 
         var title: String {
             switch self {
-            case .home: return "Home"
+            case .home: return "Scan"
             case .history: return "History"
             case .settings: return "Settings"
             }
@@ -27,7 +31,7 @@ struct MainTabView: View {
 
         var icon: String {
             switch self {
-            case .home: return "house.fill"
+            case .home: return "camera.viewfinder"
             case .history: return "clock.fill"
             case .settings: return "gearshape.fill"
             }
@@ -36,8 +40,8 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Home Tab
-            HomeView()
+            // Scan (receipt entry)
+            HomeView(navigationPath: $homeNavigationPath)
                 .tabItem {
                     Label(Tab.home.title, systemImage: Tab.home.icon)
                 }
@@ -52,99 +56,19 @@ struct MainTabView: View {
                 .badge(historyBadgeCount > 0 ? historyBadgeCount : 0)
 
             // Settings Tab
-            SettingsTabView()
+            SettingsView()
                 .tabItem {
                     Label(Tab.settings.title, systemImage: Tab.settings.icon)
                 }
                 .tag(Tab.settings)
         }
-    }
-}
-
-// MARK: - Settings Tab View (Placeholder)
-
-/// Placeholder view for app settings
-struct SettingsTabView: View {
-    var body: some View {
-        NavigationStack {
-            List {
-                // Account Section
-                Section("Account") {
-                    HStack {
-                        Image(systemName: "person.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(.blue)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Sign In")
-                                .font(.body)
-                            Text("Sync your bills across devices")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-
-                // Preferences Section
-                Section("Preferences") {
-                    NavigationLink {
-                        Text("Currency Settings")
-                    } label: {
-                        Label("Currency", systemImage: "dollarsign.circle")
-                    }
-
-                    NavigationLink {
-                        Text("Default Tip Settings")
-                    } label: {
-                        Label("Default Tip", systemImage: "percent")
-                    }
-
-                    NavigationLink {
-                        Text("Tax Settings")
-                    } label: {
-                        Label("Default Tax Rate", systemImage: "building.columns")
-                    }
-                }
-
-                // Payment Section
-                Section("Payment") {
-                    NavigationLink {
-                        Text("Venmo Settings")
-                    } label: {
-                        Label("Venmo", systemImage: "creditcard")
-                    }
-                }
-
-                // About Section
-                Section("About") {
-                    NavigationLink {
-                        Text("Help & Support")
-                    } label: {
-                        Label("Help & Support", systemImage: "questionmark.circle")
-                    }
-
-                    NavigationLink {
-                        Text("Privacy Policy")
-                    } label: {
-                        Label("Privacy Policy", systemImage: "hand.raised")
-                    }
-
-                    NavigationLink {
-                        Text("Terms of Service")
-                    } label: {
-                        Label("Terms of Service", systemImage: "doc.text")
-                    }
-
-                    HStack {
-                        Label("Version", systemImage: "info.circle")
-                        Spacer()
-                        Text("1.0.0")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .navigationTitle("Settings")
+        .tint(TB.Palette.clay)
+        .background(TB.Palette.bg)
+        .onChange(of: viewModel.homeItemListNavigationTick) { _, _ in
+            selectedTab = .home
+            homeNavigationPath = NavigationPath()
+            homeNavigationPath.append(HomeNavigationDestination.itemList)
+            viewModel.persistSnapshotToSwiftData(context: modelContext)
         }
     }
 }
@@ -157,6 +81,3 @@ struct SettingsTabView: View {
         .modelContainer(for: [PersistentBill.self, PersistentItem.self, PersistentPerson.self], inMemory: true)
 }
 
-#Preview("Settings Tab") {
-    SettingsTabView()
-}

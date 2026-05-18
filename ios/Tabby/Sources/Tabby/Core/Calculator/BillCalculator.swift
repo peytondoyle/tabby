@@ -64,19 +64,26 @@ public struct Person: Equatable, Hashable {
     public var avatarUrl: String?
     public var venmoHandle: String?
     public var isPaid: Bool
+    /// Personal credit (e.g. gift card) applied after gross share, capped at gross
+    public var personalCredit: Decimal
+    public var creditNote: String?
 
     public init(
         id: String,
         name: String,
         avatarUrl: String? = nil,
         venmoHandle: String? = nil,
-        isPaid: Bool = false
+        isPaid: Bool = false,
+        personalCredit: Decimal = 0,
+        creditNote: String? = nil
     ) {
         self.id = id
         self.name = name
         self.avatarUrl = avatarUrl
         self.venmoHandle = venmoHandle
         self.isPaid = isPaid
+        self.personalCredit = max(0, personalCredit)
+        self.creditNote = creditNote
     }
 }
 
@@ -102,6 +109,11 @@ public struct PersonTotal: Equatable {
     public var serviceFeeShare: Decimal
     public var taxShare: Decimal
     public var tipShare: Decimal
+    /// Subtotal − discount + service + tax + tip (before personal credit)
+    public var grossShare: Decimal
+    /// Credit actually applied after capping to gross share
+    public var personalCredit: Decimal
+    public var creditNote: String?
     public var total: Decimal
     public var items: [AssignedLine]
 
@@ -113,6 +125,9 @@ public struct PersonTotal: Equatable {
         serviceFeeShare: Decimal = .zero,
         taxShare: Decimal = .zero,
         tipShare: Decimal = .zero,
+        grossShare: Decimal = .zero,
+        personalCredit: Decimal = .zero,
+        creditNote: String? = nil,
         total: Decimal = .zero,
         items: [AssignedLine] = []
     ) {
@@ -123,6 +138,9 @@ public struct PersonTotal: Equatable {
         self.serviceFeeShare = serviceFeeShare
         self.taxShare = taxShare
         self.tipShare = tipShare
+        self.grossShare = grossShare
+        self.personalCredit = personalCredit
+        self.creditNote = creditNote
         self.total = total
         self.items = items
     }
@@ -155,6 +173,11 @@ public struct BillTotals: Equatable {
     public var serviceFee: Decimal
     public var tax: Decimal
     public var tip: Decimal
+    /// Receipt total before personal credits: subtotal − discount + serviceFee + tax + tip
+    public var receiptTotalBeforeCredits: Decimal
+    /// Sum of applied personal credits
+    public var totalPersonalCredits: Decimal
+    /// Amount owed collectively after credits (reconciliation target)
     public var grandTotal: Decimal
     public var personTotals: [PersonTotal]
     public var pennyReconciliation: PennyReconciliation
@@ -165,6 +188,8 @@ public struct BillTotals: Equatable {
         serviceFee: Decimal,
         tax: Decimal,
         tip: Decimal,
+        receiptTotalBeforeCredits: Decimal,
+        totalPersonalCredits: Decimal,
         grandTotal: Decimal,
         personTotals: [PersonTotal],
         pennyReconciliation: PennyReconciliation
@@ -174,6 +199,8 @@ public struct BillTotals: Equatable {
         self.serviceFee = serviceFee
         self.tax = tax
         self.tip = tip
+        self.receiptTotalBeforeCredits = receiptTotalBeforeCredits
+        self.totalPersonalCredits = totalPersonalCredits
         self.grandTotal = grandTotal
         self.personTotals = personTotals
         self.pennyReconciliation = pennyReconciliation
@@ -283,17 +310,18 @@ public struct BillCalculator {
         // 1. Calculate subtotal from items
         let subtotal = items.reduce(Decimal.zero) { sum, item in sum + item.price }
         // Discount is positive and subtracted, service_fee/tax/tip are added
-        let grandTotal = subtotal - discount + serviceFee + tax + tip
+        let receiptTotalBeforeCredits = subtotal - discount + serviceFee + tax + tip
 
         // 2. Build lookup maps for quick access
         let itemMap = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+        let peopleById = Dictionary(uniqueKeysWithValues: people.map { ($0.id, $0) })
 
         // 3. Initialize person totals
         var personTotals: [PersonTotal] = people.map { person in
             PersonTotal(personId: person.id, name: person.name)
         }
 
-        var personTotalMap = Dictionary(uniqueKeysWithValues: personTotals.enumerated().map { ($1.personId, $0) })
+        let personTotalMap = Dictionary(uniqueKeysWithValues: personTotals.enumerated().map { ($1.personId, $0) })
 
         // 4. Calculate total weight for each item (for shared items)
         var itemWeightTotals: [String: Decimal] = [:]
@@ -393,26 +421,35 @@ public struct BillCalculator {
             }
         }
 
-        // 10. Calculate raw totals for each person (discount is subtracted, others added)
+        // 10. Gross per person, then apply personal credit (capped), then reconcile to collective target
         for i in personTotals.indices {
-            personTotals[i].total = personTotals[i].subtotal
+            let gross = personTotals[i].subtotal
                 - personTotals[i].discountShare
                 + personTotals[i].serviceFeeShare
                 + personTotals[i].taxShare
                 + personTotals[i].tipShare
+            personTotals[i].grossShare = gross
+            let requested = peopleById[personTotals[i].personId]?.personalCredit ?? 0
+            let applied = min(max(0, requested), max(0, gross))
+            personTotals[i].personalCredit = applied
+            personTotals[i].creditNote = peopleById[personTotals[i].personId]?.creditNote
+            personTotals[i].total = gross - applied
         }
+
+        let totalPersonalCredits = personTotals.reduce(Decimal.zero) { $0 + $1.personalCredit }
+        let collectiveTarget = receiptTotalBeforeCredits - totalPersonalCredits
 
         // 11. Round totals to cents and reconcile pennies
         let reconciledTotals = PennyReconciler.reconcilePennies(
             personTotals: personTotals,
-            targetTotal: grandTotal
+            targetTotal: collectiveTarget
         )
 
         // 12. Calculate how much was distributed in reconciliation
         let beforeTotal = personTotals.reduce(Decimal.zero) { sum, p in
             sum + roundToCents(p.total)
         }
-        let distributed = grandTotal - beforeTotal
+        let distributed = collectiveTarget - beforeTotal
 
         return BillTotals(
             subtotal: subtotal,
@@ -420,7 +457,9 @@ public struct BillCalculator {
             serviceFee: serviceFee,
             tax: tax,
             tip: tip,
-            grandTotal: grandTotal,
+            receiptTotalBeforeCredits: receiptTotalBeforeCredits,
+            totalPersonalCredits: totalPersonalCredits,
+            grandTotal: collectiveTarget,
             personTotals: reconciledTotals,
             pennyReconciliation: PennyReconciliation(
                 distributed: roundToCents(distributed),

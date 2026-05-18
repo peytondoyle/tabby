@@ -21,13 +21,23 @@ struct AddPersonSheet: View {
                         .onSubmit {
                             savePerson()
                         }
+                        .font(TB.Typography.input())
+                        .foregroundStyle(TB.Palette.ink)
                 } header: {
-                    Text("Person Details")
+                    Text("Person details")
+                        .font(TB.Typography.section())
+                        .foregroundStyle(TB.Palette.inkFaint)
                 } footer: {
                     Text("Enter the name of the person to add to this bill.")
+                        .font(TB.Typography.meta())
+                        .foregroundStyle(TB.Palette.inkFaint)
                 }
             }
-            .navigationTitle("Add Person")
+            .scrollContentBackground(.hidden)
+            .background(TB.Palette.bg)
+            .tint(TB.Palette.clay)
+            .listRowBackground(TB.Palette.surface1)
+            .navigationTitle("Add person")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -42,7 +52,8 @@ struct AddPersonSheet: View {
                     Button("Save") {
                         savePerson()
                     }
-                    .fontWeight(.semibold)
+                    .font(TB.Typography.buttonPrimary())
+                    .foregroundStyle(TB.Palette.clay)
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }

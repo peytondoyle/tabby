@@ -161,12 +161,14 @@ public struct BillAPI {
         return token.hasPrefix("v_")
     }
 
-    /// Generates a shareable viewer URL for a bill
-    public func shareableURL(
-        viewerToken: String,
-        baseWebURL: String = "https://tabby.vercel.app"
-    ) -> URL? {
-        return URL(string: "\(baseWebURL)/split/\(viewerToken)")
+    /// Shareable web URL for read-only viewing
+    public func receiptViewerURL(viewerToken: String, baseWebURL: String = "https://tabby.vercel.app") -> URL? {
+        URL(string: "\(baseWebURL)/receipt/\(viewerToken)")
+    }
+
+    /// Shareable web URL for editing (editor token)
+    public func receiptEditorURL(editorToken: String, baseWebURL: String = "https://tabby.vercel.app") -> URL? {
+        URL(string: "\(baseWebURL)/receipt/\(editorToken)/edit")
     }
 }
 

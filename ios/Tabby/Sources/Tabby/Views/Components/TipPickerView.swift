@@ -83,7 +83,7 @@ struct TipPickerView: View {
                 .background {
                     if isSelected(option) {
                         Capsule()
-                            .fill(Color.accentColor)
+                            .fill(TB.Palette.clay)
                     } else {
                         Capsule()
                             .fill(Color.secondary.opacity(0.15))
@@ -289,7 +289,7 @@ struct TipPickerSheet: View {
                             Spacer()
                             if selectedPercent == option.rawValue {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(TB.Palette.clay)
                             }
                         }
                     }
@@ -346,7 +346,7 @@ private struct CustomTipRow: View {
 
             if isCustomSelected {
                 Image(systemName: "checkmark")
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(TB.Palette.clay)
             }
         }
     }

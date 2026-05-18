@@ -1,240 +1,59 @@
 import Foundation
-
-// MARK: - BillAPI Protocol
-
-/// Protocol for bill API operations, allowing for dependency injection and testing
-protocol BillAPIProtocol: Sendable {
-    func fetchBill(token: String) async throws -> BillAPIResponse
-    func updateBill(
-        token: String,
-        bill: Bill,
-        items: [BillItem],
-        people: [BillPerson],
-        shares: [BillItemShare]
-    ) async throws
-}
-
-/// Response structure from fetching a bill
-struct BillAPIResponse {
-    let bill: Bill
-    let items: [BillItem]
-    let people: [BillPerson]
-    let shares: [BillItemShare]
-}
-
-// MARK: - BillAPI
-
-/// Default implementation of BillAPIProtocol for network operations
-final class BillAPIClient: BillAPIProtocol, @unchecked Sendable {
-    private let baseURL: URL
-    private let session: URLSession
-
-    init(baseURL: URL = URL(string: "https://tabby.vercel.app")!, session: URLSession = .shared) {
-        self.baseURL = baseURL
-        self.session = session
-    }
-
-    func fetchBill(token: String) async throws -> BillAPIResponse {
-        let url = baseURL.appendingPathComponent("api/receipts/\(token)")
-        let (data, response) = try await session.data(from: url)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BillAPIError.invalidResponse
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            throw BillAPIError.httpError(statusCode: httpResponse.statusCode)
-        }
-
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-
-        let apiResponse = try decoder.decode(APIBillResponse.self, from: data)
-
-        guard let bill = apiResponse.bill ?? apiResponse.receipt else {
-            throw BillAPIError.missingData("bill")
-        }
-
-        return BillAPIResponse(
-            bill: bill,
-            items: apiResponse.items,
-            people: apiResponse.people,
-            shares: apiResponse.shares
-        )
-    }
-
-    func updateBill(
-        token: String,
-        bill: Bill,
-        items: [BillItem],
-        people: [BillPerson],
-        shares: [BillItemShare]
-    ) async throws {
-        // Update metadata
-        let metadataURL = baseURL.appendingPathComponent("api/receipts/\(token)/update")
-        var metadataRequest = URLRequest(url: metadataURL)
-        metadataRequest.httpMethod = "PUT"
-        metadataRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let metadataPayload = BillMetadataUpdate(
-            place: bill.place,
-            title: bill.title,
-            subtotal: bill.subtotal,
-            salesTax: bill.tax,
-            tip: bill.tip
-        )
-
-        let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        metadataRequest.httpBody = try encoder.encode(metadataPayload)
-
-        let (_, metadataResponse) = try await session.data(for: metadataRequest)
-        guard let metadataHttpResponse = metadataResponse as? HTTPURLResponse,
-              metadataHttpResponse.statusCode == 200 else {
-            throw BillAPIError.updateFailed("metadata")
-        }
-
-        // Update assignments
-        let assignURL = baseURL.appendingPathComponent("api/receipts/\(token)/assign")
-        var assignRequest = URLRequest(url: assignURL)
-        assignRequest.httpMethod = "POST"
-        assignRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let assignPayload = AssignmentsUpdate(
-            people: people.map { person in
-                AssignmentsPerson(
-                    id: person.id,
-                    name: person.name,
-                    avatarUrl: person.avatarUrl,
-                    venmoHandle: person.venmoHandle
-                )
-            },
-            shares: shares.map { share in
-                AssignmentsShare(
-                    itemId: share.itemId,
-                    personId: share.personId,
-                    weight: share.weight
-                )
-            }
-        )
-
-        assignRequest.httpBody = try encoder.encode(assignPayload)
-
-        let (_, assignResponse) = try await session.data(for: assignRequest)
-        guard let assignHttpResponse = assignResponse as? HTTPURLResponse,
-              assignHttpResponse.statusCode == 200 else {
-            throw BillAPIError.updateFailed("assignments")
-        }
-    }
-}
-
-// MARK: - API Response Types
-
-private struct APIBillResponse: Decodable {
-    let bill: Bill?
-    let receipt: Bill?
-    let items: [BillItem]
-    let people: [BillPerson]
-    let shares: [BillItemShare]
-}
-
-private struct BillMetadataUpdate: Encodable {
-    let place: String?
-    let title: String?
-    let subtotal: Decimal?
-    let salesTax: Decimal?
-    let tip: Decimal?
-}
-
-private struct AssignmentsUpdate: Encodable {
-    let people: [AssignmentsPerson]
-    let shares: [AssignmentsShare]
-}
-
-private struct AssignmentsPerson: Encodable {
-    let id: String
-    let name: String
-    let avatarUrl: String?
-    let venmoHandle: String?
-}
-
-private struct AssignmentsShare: Encodable {
-    let itemId: String
-    let personId: String
-    let weight: Decimal
-}
-
-// MARK: - API Errors
-
-enum BillAPIError: Error, LocalizedError {
-    case invalidResponse
-    case httpError(statusCode: Int)
-    case missingData(String)
-    case updateFailed(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidResponse:
-            return "Invalid response from server"
-        case .httpError(let statusCode):
-            return "HTTP error: \(statusCode)"
-        case .missingData(let field):
-            return "Missing required data: \(field)"
-        case .updateFailed(let operation):
-            return "Failed to update \(operation)"
-        }
-    }
-}
+import SwiftData
 
 // MARK: - BillViewModel
 
 /// Main ViewModel for managing bill state and calculations in the Tabby iOS app.
-/// Uses iOS 17+ @Observable macro for reactive state management.
 @Observable
 final class BillViewModel {
 
-    // MARK: - State Properties
+    // MARK: - State
 
-    /// The current bill being edited/viewed
     var bill: Bill?
-
-    /// All items on the bill
     var items: [BillItem] = []
-
-    /// All people splitting the bill
     var people: [BillPerson] = []
-
-    /// Item share assignments (who pays what portion of each item)
     var shares: [BillItemShare] = []
 
-    /// Loading state for async operations
     var isLoading: Bool = false
-
-    /// Error message if an operation fails
     var error: String?
 
-    // MARK: - Private Properties
+    /// Token used to open this session (editor or viewer)
+    private(set) var sessionToken: String?
 
-    /// The API client for network operations
-    private let api: BillAPIProtocol
+    /// When true, assignments and save are disabled (viewer link)
+    private(set) var isReadOnly: Bool = false
 
-    /// The current bill token for API calls
-    private var currentToken: String?
+    /// Bumped when a deep link finishes loading so `MainTabView` can push Home → Item list.
+    private(set) var homeItemListNavigationTick: UInt64 = 0
 
-    // MARK: - Initialization
+    var taxMode: TaxMode = .proportional
+    var tipMode: TipMode = .proportional
+    var includeZeroPeople: Bool = true
 
-    init(api: BillAPIProtocol = BillAPIClient()) {
+    private let api: BillAPI
+
+    // MARK: - Init
+
+    init(api: BillAPI = .shared) {
         self.api = api
+        let prefs = UserPreferences.shared
+        taxMode = prefs.taxDistributionMode == .even ? .even : .proportional
+        tipMode = prefs.tipDistributionMode == .even ? .even : .proportional
+        includeZeroPeople = prefs.includeZeroPeopleInEvenSplits
     }
 
-    // MARK: - Computed Properties
+    func syncSplitModesFromPreferences() {
+        let prefs = UserPreferences.shared
+        taxMode = prefs.taxDistributionMode == .even ? .even : .proportional
+        tipMode = prefs.tipDistributionMode == .even ? .even : .proportional
+        includeZeroPeople = prefs.includeZeroPeopleInEvenSplits
+    }
 
-    /// Computed bill totals using BillCalculator
-    /// Returns nil if bill is not loaded
+    // MARK: - Totals
+
     var billTotals: BillTotals? {
-        guard let bill = bill else { return nil }
+        guard let bill else { return nil }
 
-        // Convert Model types to Calculator types
         let calculatorItems = items.map { item in
             Item(
                 id: item.id,
@@ -252,7 +71,9 @@ final class BillViewModel {
                 name: person.name,
                 avatarUrl: person.avatarUrl,
                 venmoHandle: person.venmoHandle,
-                isPaid: person.isArchived
+                isPaid: person.isArchived,
+                personalCredit: person.personalCredit,
+                creditNote: person.creditNote
             )
         }
 
@@ -272,161 +93,223 @@ final class BillViewModel {
             tip: bill.tip,
             discount: bill.discount,
             serviceFee: bill.serviceFee,
-            taxMode: .proportional,
-            tipMode: .proportional,
-            includeZeroPeople: true
+            taxMode: taxMode,
+            tipMode: tipMode,
+            includeZeroPeople: includeZeroPeople
         )
     }
 
-    // MARK: - Helper Methods
-
-    /// Get the total amount a person owes
-    /// - Parameter personId: The ID of the person
-    /// - Returns: The person's total as a Decimal, or 0 if not found
     func getPersonTotal(personId: String) -> Decimal {
-        guard let totals = billTotals else { return 0 }
-        return totals.personTotals.first { $0.personId == personId }?.total ?? 0
+        billTotals?.personTotals.first { $0.personId == personId }?.total ?? 0
     }
 
-    /// Get the full breakdown for a person's share of the bill
-    /// - Parameter personId: The ID of the person
-    /// - Returns: The PersonTotal breakdown, or nil if not found
     func getPersonBreakdown(personId: String) -> PersonTotal? {
-        guard let totals = billTotals else { return nil }
-        return totals.personTotals.first { $0.personId == personId }
+        billTotals?.personTotals.first { $0.personId == personId }
     }
 
-    /// Check if an item is assigned to a specific person
-    /// - Parameters:
-    ///   - itemId: The ID of the item
-    ///   - personId: The ID of the person
-    /// - Returns: True if the item is assigned to the person
     func isItemAssignedTo(itemId: String, personId: String) -> Bool {
-        return shares.contains { share in
-            share.itemId == itemId && share.personId == personId && share.weight > 0
-        }
+        shares.contains { $0.itemId == itemId && $0.personId == personId && $0.weight > 0 }
     }
 
-    // MARK: - Actions
+    // MARK: - API: Load
 
-    /// Load a bill by its token
-    /// - Parameter token: The bill's editor or viewer token
     @MainActor
-    func loadBill(token: String) async {
+    func loadBill(token: String, navigateToItemList: Bool = false) async {
         isLoading = true
         error = nil
-        currentToken = token
+        sessionToken = token
 
         do {
             let response = try await api.fetchBill(token: token)
-            self.bill = response.bill
-            self.items = response.items
-            self.people = response.people
-            self.shares = response.shares
+            guard let mapped = ReceiptMapper.mapFetchResponse(response, sessionToken: token) else {
+                self.error = "Invalid receipt data"
+                isLoading = false
+                return
+            }
+            bill = mapped.bill
+            items = mapped.items
+            people = mapped.people
+            shares = mapped.shares
+            isReadOnly = mapped.isReadOnly
         } catch {
             self.error = error.localizedDescription
         }
 
         isLoading = false
+
+        if navigateToItemList, self.error == nil, bill != nil {
+            homeItemListNavigationTick &+= 1
+        }
     }
 
-    /// Add a new item to the bill
-    /// - Parameter item: The item to add
+    /// Writes the current in-memory bill snapshot into the app’s SwiftData store (History).
+    @MainActor
+    func persistSnapshotToSwiftData(context: ModelContext) {
+        guard let bill else { return }
+        try? PersistenceService.saveBill(
+            bill,
+            items: items,
+            people: people,
+            shares: shares,
+            into: context
+        )
+    }
+
+    // MARK: - API: Create
+
+    /// Creates a receipt on the server from OCR output and loads it into state.
+    @MainActor
+    func createBillFromScan(_ scanResult: ScanResult, userId: String?) async {
+        isLoading = true
+        error = nil
+        do {
+            let response = try await api.createBill(
+                CreateBillRequest(
+                    place: scanResult.place,
+                    items: scanResult.createBillItems,
+                    subtotal: scanResult.subtotal,
+                    tax: scanResult.tax,
+                    tip: scanResult.tip,
+                    discount: nil,
+                    serviceFee: nil,
+                    userId: userId
+                )
+            )
+            let mapped = ReceiptMapper.mapCreateResponse(
+                response,
+                scanResult: scanResult,
+                titleFallback: "Scanned receipt"
+            )
+            bill = mapped.bill
+            items = mapped.items
+            people = []
+            shares = []
+            sessionToken = mapped.bill.editorToken
+            isReadOnly = false
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    /// Creates a minimal server-backed bill for manual entry (one placeholder line).
+    @MainActor
+    func createManualBill(userId: String?) async {
+        isLoading = true
+        error = nil
+        let placeholder = CreateBillItem(name: "New item", price: 0, emoji: "📦", quantity: 1)
+        do {
+            let response = try await api.createBill(
+                CreateBillRequest(
+                    place: nil,
+                    items: [placeholder],
+                    subtotal: 0,
+                    tax: 0,
+                    tip: 0,
+                    discount: 0,
+                    serviceFee: 0,
+                    userId: userId
+                )
+            )
+            let mapped = ReceiptMapper.mapCreateResponse(
+                response,
+                scanResult: nil,
+                titleFallback: "New Bill"
+            )
+            bill = mapped.bill
+            items = mapped.items
+            people = []
+            shares = []
+            sessionToken = mapped.bill.editorToken
+            isReadOnly = false
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    // MARK: - Mutations (local)
+
     func addItem(_ item: BillItem) {
         items.append(item)
     }
 
-    /// Update an existing item
-    /// - Parameter item: The updated item (matched by ID)
     func updateItem(_ item: BillItem) {
         if let index = items.firstIndex(where: { $0.id == item.id }) {
             items[index] = item
         }
     }
 
-    /// Delete an item from the bill
-    /// - Parameter itemId: The ID of the item to delete
     func deleteItem(itemId: String) {
         items.removeAll { $0.id == itemId }
-        // Also remove any shares for this item
         shares.removeAll { $0.itemId == itemId }
     }
 
-    /// Add a new person to the bill
-    /// - Parameter name: The person's name
     func addPerson(name: String) {
         guard let billId = bill?.id else { return }
-
-        let person = BillPerson(
-            id: UUID().uuidString,
-            billId: billId,
-            name: name,
-            avatarUrl: nil,
-            venmoHandle: nil,
-            isArchived: false
+        people.append(
+            BillPerson(
+                id: UUID().uuidString,
+                billId: billId,
+                name: name,
+                avatarUrl: nil,
+                venmoHandle: nil,
+                isArchived: false,
+                personalCredit: 0,
+                creditNote: nil
+            )
         )
-        people.append(person)
     }
 
-    /// Delete a person from the bill
-    /// - Parameter personId: The ID of the person to delete
     func deletePerson(personId: String) {
-        // First, find affected items before removing the person's shares
-        let affectedItemIds = Set(shares.filter { $0.personId == personId }.map { $0.itemId })
-
-        // Remove the person
+        let affected = Set(shares.filter { $0.personId == personId }.map(\.itemId))
         people.removeAll { $0.id == personId }
-
-        // Remove any shares for this person
         shares.removeAll { $0.personId == personId }
-
-        // Recalculate weights for items that were assigned to this person
-        for itemId in affectedItemIds {
+        for itemId in affected {
             recalculateWeights(for: itemId)
         }
     }
 
-    /// Toggle assignment of an item to a person
-    /// If already assigned, removes the assignment. Otherwise, adds it.
-    /// - Parameters:
-    ///   - itemId: The ID of the item
-    ///   - personId: The ID of the person
+    func setPersonalCredit(personId: String, amount: Decimal, note: String?) {
+        guard let idx = people.firstIndex(where: { $0.id == personId }) else { return }
+        people[idx].personalCredit = max(0, amount)
+        people[idx].creditNote = note
+    }
+
     func assignItem(itemId: String, to personId: String) {
         if let existingIndex = shares.firstIndex(where: { $0.itemId == itemId && $0.personId == personId }) {
-            // Remove existing assignment
             shares.remove(at: existingIndex)
         } else {
-            // Add new assignment with default weight of 1
-            let share = BillItemShare(
-                itemId: itemId,
-                personId: personId,
-                weight: 1
-            )
-            shares.append(share)
+            shares.append(BillItemShare(itemId: itemId, personId: personId, weight: 1))
         }
-
-        // Recalculate weights for auto-split
         recalculateWeights(for: itemId)
     }
 
-    /// Update the weight for a specific item-person share
-    /// - Parameters:
-    ///   - itemId: The ID of the item
-    ///   - personId: The ID of the person
-    ///   - weight: The new weight (must be > 0)
     func updateWeight(itemId: String, personId: String, weight: Decimal) {
         guard weight > 0 else { return }
-
         if let index = shares.firstIndex(where: { $0.itemId == itemId && $0.personId == personId }) {
             shares[index].weight = weight
         }
     }
 
-    /// Save the current bill state to the server
+    // MARK: - Save
+
     @MainActor
     func saveBill() async {
-        guard let token = currentToken, let bill = bill else {
+        guard let bill else {
             error = "No bill loaded"
+            return
+        }
+        guard let token = sessionToken else {
+            error = "Not synced yet"
+            return
+        }
+        guard !isReadOnly else {
+            error = "View-only link cannot save changes"
+            return
+        }
+        guard let editor = ReceiptMapper.editorTokenForWrites(bill: bill, sessionToken: token) else {
+            error = "Editor token required to save"
             return
         }
 
@@ -434,13 +317,41 @@ final class BillViewModel {
         error = nil
 
         do {
-            try await api.updateBill(
-                token: token,
-                bill: bill,
-                items: items,
-                people: people,
-                shares: shares
+            _ = try await api.updateBill(
+                token: editor,
+                BillUpdateRequest(
+                    place: bill.place,
+                    title: bill.title,
+                    subtotal: bill.subtotal,
+                    salesTax: bill.tax,
+                    tip: bill.tip,
+                    discount: bill.discount,
+                    serviceFee: bill.serviceFee
+                )
             )
+
+            let assignPeople = people.map {
+                AssignPerson(
+                    id: $0.id,
+                    name: $0.name,
+                    avatarUrl: $0.avatarUrl,
+                    venmoHandle: $0.venmoHandle
+                )
+            }
+            let assignShares: [ItemShareData] = shares.map { share in
+                ItemShareData(
+                    itemId: share.itemId,
+                    personId: share.personId,
+                    weight: Self.apiWeight(from: share.weight)
+                )
+            }
+            if !people.isEmpty {
+                _ = try await api.updateAssignments(
+                    token: editor,
+                    people: assignPeople,
+                    shares: assignShares
+                )
+            }
         } catch {
             self.error = error.localizedDescription
         }
@@ -448,23 +359,54 @@ final class BillViewModel {
         isLoading = false
     }
 
-    // MARK: - Private Helpers
+    /// Deletes the receipt on the server (requires editor token).
+    @MainActor
+    func deleteRemoteBill() async throws {
+        guard let bill, let token = sessionToken else { return }
+        guard let editor = ReceiptMapper.editorTokenForWrites(bill: bill, sessionToken: token) else {
+            throw BillStoreError.needsEditorToken
+        }
+        _ = try await api.deleteBill(token: editor)
+    }
 
-    /// Recalculate weights for an item when people are added/removed
-    /// Implements auto-split: evenly divides the item among all assigned people
-    /// - Parameter itemId: The ID of the item to recalculate
+    func resetSession() {
+        bill = nil
+        items = []
+        people = []
+        shares = []
+        sessionToken = nil
+        isReadOnly = false
+        error = nil
+    }
+
+    // MARK: - Private
+
     private func recalculateWeights(for itemId: String) {
-        let itemShareIndices = shares.indices.filter { shares[$0].itemId == itemId }
-        let count = itemShareIndices.count
-
+        let indices = shares.indices.filter { shares[$0].itemId == itemId }
+        let count = indices.count
         guard count > 0 else { return }
-
-        // Calculate equal weight for each person
         let equalWeight = Decimal(1) / Decimal(count)
+        for i in indices {
+            shares[i].weight = equalWeight
+        }
+    }
 
-        // Update all shares for this item
-        for index in itemShareIndices {
-            shares[index].weight = equalWeight
+    private static func apiWeight(from decimal: Decimal) -> Int {
+        var times100 = decimal * 100
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &times100, 0, .plain)
+        let v = Int(NSDecimalNumber(decimal: rounded).doubleValue)
+        return max(1, min(100, v))
+    }
+}
+
+enum BillStoreError: LocalizedError {
+    case needsEditorToken
+
+    var errorDescription: String? {
+        switch self {
+        case .needsEditorToken:
+            return "Editor access is required for this action."
         }
     }
 }

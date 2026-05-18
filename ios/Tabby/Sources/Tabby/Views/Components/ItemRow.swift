@@ -65,14 +65,14 @@ struct ItemRow: View {
                 Text(emoji)
                     .font(.title2)
                     .frame(width: 40, height: 40)
-                    .background(Color.gray.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .background(TB.Palette.surface2)
+                    .clipShape(RoundedRectangle(cornerRadius: TB.Radius.sm, style: .continuous))
 
                 // Label and badges
                 VStack(alignment: .leading, spacing: 4) {
                     Text(label)
-                        .font(.body)
-                        .foregroundStyle(.primary)
+                        .font(TB.Typography.body())
+                        .foregroundStyle(TB.Palette.ink)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
@@ -92,11 +92,14 @@ struct ItemRow: View {
 
                 // Price and assignment indicator
                 HStack(spacing: 8) {
-                    CurrencyText(price)
+                    Text(price.asCurrency)
+                        .font(isAssigned ? TB.Typography.moneySmall() : TB.Typography.moneyMedium())
+                        .monospacedDigit()
+                        .foregroundStyle(isAssigned ? TB.Palette.inkFaint : TB.Palette.mustard)
 
                     if isAssigned {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(TB.Palette.success)
                             .font(.title3)
                     }
                 }
@@ -116,11 +119,11 @@ private struct QuantityBadge: View {
 
     var body: some View {
         Text("x\(quantity)")
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.secondary)
+            .font(TB.Typography.meta())
+            .foregroundStyle(TB.Palette.inkSoft)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Color.gray.opacity(0.15))
+            .background(TB.Palette.surface2)
             .clipShape(Capsule())
     }
 }
@@ -133,11 +136,11 @@ private struct SplitBadge: View {
 
     var body: some View {
         Text(formattedPercentage)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.blue)
+            .font(TB.Typography.meta())
+            .foregroundStyle(TB.Palette.olive)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Color.blue.opacity(0.1))
+            .background(TB.Palette.olive.opacity(0.12))
             .clipShape(Capsule())
     }
 

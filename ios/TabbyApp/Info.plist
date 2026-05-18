@@ -24,7 +24,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.tabby.app</string>
+			<string>com.peytondoyle.tabby</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>tabby</string>
@@ -39,8 +39,6 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Tabby needs camera access to scan receipts</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Tabby needs photo library access to upload receipt images</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

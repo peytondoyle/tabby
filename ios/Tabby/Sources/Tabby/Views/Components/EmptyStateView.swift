@@ -43,7 +43,7 @@ struct EmptyStateView: View {
         icon: String,
         title: String,
         subtitle: String = "",
-        iconColor: Color = .secondary,
+        iconColor: Color = TB.Palette.inkFaint,
         actionTitle: String? = nil,
         action: (() -> Void)? = nil
     ) {
@@ -65,35 +65,31 @@ struct EmptyStateView: View {
             // Text content
             VStack(spacing: 8) {
                 Text(title)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
+                    .font(TB.Typography.display())
+                    .foregroundStyle(TB.Palette.ink)
                     .multilineTextAlignment(.center)
 
                 if !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(TB.Typography.bodySoft())
+                        .foregroundStyle(TB.Palette.inkSoft)
                         .multilineTextAlignment(.center)
                 }
             }
 
-            // Action button
             if let actionTitle = actionTitle, let action = action {
                 Button(action: action) {
                     Text(actionTitle)
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(Color.accentColor)
-                        .clipShape(Capsule())
+                        .font(TB.Typography.buttonPrimary())
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(TBPrimaryButtonStyle())
                 .padding(.top, 8)
             }
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(TB.Palette.bg)
     }
 }
 
@@ -106,7 +102,7 @@ extension EmptyStateView {
             icon: "list.bullet.rectangle",
             title: "No Items Yet",
             subtitle: "Scan a receipt or add items manually to get started",
-            iconColor: .orange,
+            iconColor: TB.Palette.mustard,
             actionTitle: action != nil ? "Scan Receipt" : nil,
             action: action
         )
@@ -118,7 +114,7 @@ extension EmptyStateView {
             icon: "person.2",
             title: "No People Added",
             subtitle: "Add people to start splitting the bill",
-            iconColor: .blue,
+            iconColor: TB.Palette.olive,
             actionTitle: action != nil ? "Add Person" : nil,
             action: action
         )
@@ -130,7 +126,7 @@ extension EmptyStateView {
             icon: "arrow.left.arrow.right",
             title: "No Items Assigned",
             subtitle: "Tap items to assign them to people",
-            iconColor: .purple
+            iconColor: TB.Palette.plum
         )
     }
 
@@ -140,7 +136,7 @@ extension EmptyStateView {
             icon: "clock",
             title: "No Bill History",
             subtitle: "Your past bills will appear here",
-            iconColor: .gray,
+            iconColor: TB.Palette.inkFaint,
             actionTitle: action != nil ? "Start New Bill" : nil,
             action: action
         )
@@ -152,7 +148,7 @@ extension EmptyStateView {
             icon: "magnifyingglass",
             title: "No Results",
             subtitle: "No items matching \"\(query)\"",
-            iconColor: .secondary
+            iconColor: TB.Palette.inkFaint
         )
     }
 
@@ -162,7 +158,7 @@ extension EmptyStateView {
             icon: "exclamationmark.triangle",
             title: "Something Went Wrong",
             subtitle: message,
-            iconColor: .red,
+            iconColor: TB.Palette.danger,
             actionTitle: retryAction != nil ? "Try Again" : nil,
             action: retryAction
         )
@@ -174,7 +170,7 @@ extension EmptyStateView {
             icon: "wifi.slash",
             title: "No Connection",
             subtitle: "Check your internet connection and try again",
-            iconColor: .orange,
+            iconColor: TB.Palette.warning,
             actionTitle: retryAction != nil ? "Retry" : nil,
             action: retryAction
         )

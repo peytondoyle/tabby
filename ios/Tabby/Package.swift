@@ -15,20 +15,24 @@ let package = Package(
     ],
     dependencies: [
         .package(
-            url: "https://github.com/supabase/supabase-swift",
-            from: "2.0.0"
+            url: "https://github.com/clerk/clerk-ios",
+            from: "1.0.0"
         )
     ],
     targets: [
         .target(
             name: "Tabby",
             dependencies: [
-                .product(name: "Supabase", package: "supabase-swift")
+                .product(name: "ClerkKit", package: "clerk-ios"),
+                .product(name: "ClerkKitUI", package: "clerk-ios")
             ],
             path: "Sources/Tabby",
             exclude: [
-                "App/TabbyApp.swift",  // Exclude @main for library target
-                "Resources/Info.plist"  // Info.plist is for iOS app target, not library
+                "App/TabbyApp.swift",
+                "Resources/Info.plist"
+            ],
+            resources: [
+                .copy("Resources/Fonts")
             ]
         ),
         .testTarget(

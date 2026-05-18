@@ -1,81 +1,71 @@
 import SwiftUI
 import SwiftData
 
-/// A row view displaying a bill summary in the history list
+/// History list row — Milk & Clay card feel in list
 struct HistoryRowView: View {
-    /// The bill to display
     let bill: PersistentBill
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Leading icon
+        HStack(spacing: TB.Space.md) {
             ZStack {
                 Circle()
-                    .fill(Color.accentColor.opacity(0.15))
+                    .fill(TB.Palette.clayTint)
                     .frame(width: 44, height: 44)
-
                 Image(systemName: "receipt")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Color.accentColor)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(TB.Palette.clay)
             }
+            .tbShadow(.xs)
 
-            // Main content
             VStack(alignment: .leading, spacing: 4) {
-                // Place name / title
                 HStack {
                     Text(bill.displayName)
-                        .font(.headline)
+                        .font(TB.Typography.body())
+                        .foregroundStyle(TB.Palette.ink)
                         .lineLimit(1)
 
                     if bill.isSynced {
                         Image(systemName: "checkmark.icloud.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
+                            .font(TB.Typography.meta())
+                            .foregroundStyle(TB.Palette.success)
                     }
                 }
 
-                // Date and people count
-                HStack(spacing: 8) {
-                    // Date
+                HStack(spacing: TB.Space.sm) {
                     if let date = bill.date ?? bill.createdAt as Date? {
                         Text(formattedDate(date))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(TB.Typography.meta())
+                            .foregroundStyle(TB.Palette.inkFaint)
                     }
 
-                    // Separator
                     if bill.personCount > 0 {
                         Text("\u{2022}")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-
-                        // People count
+                            .font(TB.Typography.meta())
+                            .foregroundStyle(TB.Palette.inkDim)
                         Label("\(bill.personCount)", systemImage: "person.2")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(TB.Typography.meta())
+                            .foregroundStyle(TB.Palette.inkSoft)
                     }
                 }
             }
 
             Spacer()
 
-            // Total amount
             VStack(alignment: .trailing, spacing: 2) {
                 Text(formatCurrency(bill.grandTotal))
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+                    .font(TB.Typography.moneyMedium())
+                    .monospacedDigit()
+                    .foregroundStyle(TB.Palette.clay)
 
                 if bill.items.count > 0 {
                     Text("\(bill.items.count) items")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .font(TB.Typography.meta())
+                        .foregroundStyle(TB.Palette.inkFaint)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, TB.Space.xs)
     }
-
-    // MARK: - Helpers
 
     private func formattedDate(_ date: Date) -> String {
         let calendar = Calendar.current
@@ -105,16 +95,12 @@ struct HistoryRowView: View {
     }
 }
 
-// MARK: - Preview
-
 #if DEBUG
 struct HistoryRowView_Previews: PreviewProvider {
     static var previews: some View {
         List {
             HistoryRowView(bill: sampleBill(place: "The Cheesecake Factory", total: 156.78, personCount: 4, isSynced: true))
             HistoryRowView(bill: sampleBill(place: "Chipotle", total: 32.50, personCount: 2, isSynced: false))
-            HistoryRowView(bill: sampleBill(place: nil, title: "Team Lunch", total: 89.00, personCount: 6, isSynced: true))
-            HistoryRowView(bill: sampleBill(place: nil, title: nil, total: 45.00, personCount: 0, isSynced: false))
         }
         #if os(iOS)
         .listStyle(.insetGrouped)
@@ -139,7 +125,6 @@ struct HistoryRowView_Previews: PreviewProvider {
             isSynced: isSynced
         )
 
-        // Add sample people
         for i in 0..<personCount {
             let person = PersistentPerson(
                 id: UUID().uuidString,
@@ -149,7 +134,6 @@ struct HistoryRowView_Previews: PreviewProvider {
             bill.people.append(person)
         }
 
-        // Add sample items
         for i in 0..<3 {
             let item = PersistentItem(
                 id: UUID().uuidString,

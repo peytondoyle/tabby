@@ -32,8 +32,13 @@ struct HistoryView: View {
                     billsList
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(TB.Palette.bg)
             .navigationTitle("History")
             .searchable(text: $searchText, prompt: "Search bills")
+            #if os(iOS)
+            .toolbarBackground(TB.Palette.bg, for: .navigationBar)
+            #endif
             .alert("Delete Bill", isPresented: $showDeleteAlert) {
                 Button("Cancel", role: .cancel) {
                     billToDelete = nil
@@ -59,6 +64,7 @@ struct HistoryView: View {
                 NavigationLink(value: bill) {
                     HistoryRowView(bill: bill)
                 }
+                .listRowBackground(TB.Palette.surface1)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
                         billToDelete = bill
@@ -69,6 +75,8 @@ struct HistoryView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(TB.Palette.bg)
         #if os(iOS)
         .listStyle(.insetGrouped)
         #endif
@@ -94,6 +102,11 @@ struct HistoryView: View {
     // MARK: - Actions
 
     private func deleteBill(_ bill: PersistentBill) {
+        if let editor = bill.editorToken {
+            Task {
+                try? await BillAPI.shared.deleteBill(token: editor)
+            }
+        }
         withAnimation {
             modelContext.delete(bill)
             try? modelContext.save()
@@ -119,9 +132,20 @@ extension PersistentBill {
 
 // MARK: - Bill Detail View (Placeholder)
 
-/// Placeholder view for viewing/editing a bill from history
+/// Cached bill snapshot with optional link to reopen the live receipt on the server.
 struct BillDetailView: View {
     let bill: PersistentBill
+
+    @Environment(BillViewModel.self) private var viewModel
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var navigateToItems = false
+
+    @State private var showLoadError = false
+
+    private var remoteToken: String? {
+        bill.editorToken ?? bill.viewerToken
+    }
 
     var body: some View {
         ScrollView {
@@ -137,6 +161,24 @@ struct BillDetailView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                if remoteToken != nil {
+                    Button {
+                        Task { await openLiveBill() }
+                    } label: {
+                        Text(viewModel.isLoading ? "Loading…" : "Open bill")
+                            .font(TB.Typography.buttonPrimary())
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, TB.Space.md)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(TB.Palette.clay)
+                    .disabled(viewModel.isLoading)
+                } else {
+                    Text("This copy has no receipt link. New scans and manual bills save a link you can reopen from here.")
+                        .font(TB.Typography.meta())
+                        .foregroundStyle(TB.Palette.inkSoft)
                 }
 
                 Divider()
@@ -206,13 +248,13 @@ struct BillDetailView: View {
                         ForEach(bill.people) { person in
                             HStack {
                                 Circle()
-                                    .fill(Color.accentColor.opacity(0.2))
+                                    .fill(TB.Palette.clayTint)
                                     .frame(width: 32, height: 32)
                                     .overlay(
                                         Text(String(person.name.prefix(1)).uppercased())
                                             .font(.caption)
                                             .fontWeight(.semibold)
-                                            .foregroundStyle(Color.accentColor)
+                                            .foregroundStyle(TB.Palette.clay)
                                     )
 
                                 Text(person.name)
@@ -234,10 +276,31 @@ struct BillDetailView: View {
             }
             .padding()
         }
+        .background(TB.Palette.bg)
         .navigationTitle("Bill Details")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .navigationDestination(isPresented: $navigateToItems) {
+            ItemListView(viewModel: viewModel)
+        }
+        .alert("Couldn’t open receipt", isPresented: $showLoadError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.error ?? "Unknown error")
+        }
+    }
+
+    @MainActor
+    private func openLiveBill() async {
+        guard let token = remoteToken else { return }
+        await viewModel.loadBill(token: token)
+        if viewModel.error == nil {
+            viewModel.persistSnapshotToSwiftData(context: modelContext)
+            navigateToItems = true
+        } else {
+            showLoadError = true
+        }
     }
 
     private func totalRow(_ label: String, value: Decimal, color: Color = .primary) -> some View {
@@ -263,11 +326,13 @@ struct BillDetailView: View {
 #if DEBUG
 #Preview("History View") {
     HistoryView()
+        .environment(BillViewModel())
         .modelContainer(for: [PersistentBill.self, PersistentItem.self, PersistentPerson.self], inMemory: true)
 }
 
 #Preview("Empty History") {
     HistoryView()
+        .environment(BillViewModel())
         .modelContainer(for: [PersistentBill.self, PersistentItem.self, PersistentPerson.self], inMemory: true)
 }
 #endif

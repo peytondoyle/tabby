@@ -1,9 +1,19 @@
 import SwiftUI
-import AVFoundation
+import SwiftData
+@preconcurrency import AVFoundation
 import PhotosUI
 
 #if canImport(UIKit)
 import UIKit
+
+// MARK: - Capture session box
+
+/// `AVCaptureSession` is not `Sendable`; we only pass it through a dedicated serial queue.
+/// Boxing avoids `@Sendable` diagnostics on `DispatchQueue.async` without sharing the session across threads.
+private final class CaptureSessionBox: @unchecked Sendable {
+    nonisolated(unsafe) let session: AVCaptureSession
+    init() { self.session = AVCaptureSession() }
+}
 
 // MARK: - ScannerViewModel
 
@@ -14,8 +24,13 @@ final class ScannerViewModel: NSObject {
 
     // MARK: - State
 
-    /// The AVCaptureSession for camera access
-    let captureSession = AVCaptureSession()
+    /// Serial queue for `startRunning` / `stopRunning` so the main thread is not blocked (Thread Performance Checker).
+    private let sessionQueue = DispatchQueue(label: "com.tabby.camera.session", qos: .userInitiated)
+
+    private let sessionBox = CaptureSessionBox()
+
+    /// The AVCaptureSession for camera access (preview + configuration on the main actor; start/stop on `sessionQueue`).
+    var captureSession: AVCaptureSession { sessionBox.session }
 
     /// Whether the scanner is currently processing an image
     var isProcessing = false
@@ -98,9 +113,8 @@ final class ScannerViewModel: NSObject {
             return
         }
 
-        // Add photo output
+        // Add photo output (max dimensions replace deprecated isHighResolutionCaptureEnabled on iOS 16+)
         let output = AVCapturePhotoOutput()
-        output.isHighResolutionCaptureEnabled = true
 
         if captureSession.canAddOutput(output) {
             captureSession.addOutput(output)
@@ -113,15 +127,18 @@ final class ScannerViewModel: NSObject {
 
         captureSession.commitConfiguration()
 
-        // Start the session on a background thread
         await startSession()
     }
 
-    /// Start the capture session
+    /// Start the capture session off the main thread so UI stays responsive.
     private func startSession() async {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                self?.captureSession.startRunning()
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let box = sessionBox
+            sessionQueue.async {
+                let session = box.session
+                if !session.isRunning {
+                    session.startRunning()
+                }
                 continuation.resume()
             }
         }
@@ -129,8 +146,12 @@ final class ScannerViewModel: NSObject {
 
     /// Stop the capture session
     func stopCamera() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.captureSession.stopRunning()
+        let box = sessionBox
+        sessionQueue.async {
+            let session = box.session
+            if session.isRunning {
+                session.stopRunning()
+            }
         }
     }
 
@@ -194,7 +215,7 @@ final class ScannerViewModel: NSObject {
             self.photoContinuation = continuation
 
             let settings = AVCapturePhotoSettings()
-            settings.isHighResolutionPhotoEnabled = true
+            settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
 
             // Capture on the main actor since we need to access photoOutput
             photoOutput.capturePhoto(with: settings, delegate: self)
@@ -270,9 +291,15 @@ enum ScannerError: Error, LocalizedError {
 /// Main scanner view for capturing and processing receipt images
 struct ScannerView: View {
 
+    @Binding var navigationPath: NavigationPath
+
     @State private var viewModel = ScannerViewModel()
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showingPhotoPicker = false
+    /// Cycles while processing — spec §2 (warm copy, no CSS pulse)
+    @State private var processingStatusPhase = 0
+    private let processingStatusPhrases = ["Reading receipt…", "Finding items…", "Just a moment…"]
+
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -285,29 +312,40 @@ struct ScannerView: View {
             VStack {
                 Spacer()
 
-                // Bottom controls
-                HStack(spacing: 40) {
-                    // Photo library button
+                // Bottom controls — floating glass bar; shutter lifted so it reads as the primary action
+                HStack(alignment: .bottom, spacing: 0) {
                     PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                        VStack(spacing: 4) {
+                        VStack(spacing: 6) {
                             Image(systemName: "photo.on.rectangle")
-                                .font(.system(size: 24))
+                                .font(.system(size: 22, weight: .semibold))
                             Text("Library")
-                                .font(.caption2)
+                                .font(TB.Typography.meta())
                         }
-                        .foregroundStyle(.white)
-                        .frame(width: 60)
+                        .foregroundStyle(TB.Palette.ink)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
                     }
                     .disabled(viewModel.isProcessing)
 
-                    // Capture button
                     captureButton
+                        .offset(y: -18)
+                        .frame(maxWidth: .infinity)
 
-                    // Spacer to balance layout
                     Color.clear
-                        .frame(width: 60)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .accessibilityHidden(true)
                 }
-                .padding(.bottom, 40)
+                .padding(.horizontal, TB.Space.lg)
+                .padding(.top, 32)
+                .padding(.bottom, TB.Space.lg)
+                .background {
+                    RoundedRectangle(cornerRadius: 36, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .shadow(color: .black.opacity(0.22), radius: 28, y: 14)
+                }
+                .padding(.horizontal, TB.Space.lg)
+                .padding(.bottom, 8)
             }
 
             // Processing overlay
@@ -315,13 +353,15 @@ struct ScannerView: View {
                 processingOverlay
             }
         }
-        .navigationTitle("Scan Receipt")
+        .navigationTitle("Scan receipt")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(TB.Palette.bg.opacity(0.92), for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
                     dismiss()
                 }
+                .foregroundStyle(TB.Palette.inkSoft)
             }
         }
         .task {
@@ -330,10 +370,20 @@ struct ScannerView: View {
         .onDisappear {
             viewModel.stopCamera()
         }
-        .onChange(of: selectedPhotoItem) { oldValue, newValue in
+        .onChange(of: selectedPhotoItem) { _, newValue in
             if let item = newValue {
                 Task {
                     await loadAndProcessPhoto(from: item)
+                }
+            }
+        }
+        .task(id: viewModel.isProcessing) {
+            guard viewModel.isProcessing else { return }
+            processingStatusPhase = 0
+            while viewModel.isProcessing {
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                await MainActor.run {
+                    processingStatusPhase = (processingStatusPhase + 1) % processingStatusPhrases.count
                 }
             }
         }
@@ -344,7 +394,10 @@ struct ScannerView: View {
         }
         .navigationDestination(isPresented: $viewModel.scanCompleted) {
             if let result = viewModel.scanResult {
-                ScanResultListView(scanResult: result)
+                ScanResultListView(
+                    scanResult: result,
+                    navigationPath: $navigationPath
+                )
             }
         }
     }
@@ -367,7 +420,7 @@ struct ScannerView: View {
 
     // MARK: - Subviews
 
-    /// Large white capture button
+    /// Capture button — high contrast on camera preview
     private var captureButton: some View {
         Button {
             Task {
@@ -375,35 +428,63 @@ struct ScannerView: View {
             }
         } label: {
             ZStack {
-                // Outer ring
                 Circle()
-                    .stroke(Color.white, lineWidth: 4)
-                    .frame(width: 80, height: 80)
-
-                // Inner filled circle
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                TB.Palette.surface1,
+                                TB.Palette.surface1.opacity(0.55)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 4
+                    )
+                    .frame(width: 84, height: 84)
+                    .shadow(color: .black.opacity(0.35), radius: 12, y: 6)
                 Circle()
-                    .fill(Color.white)
-                    .frame(width: 64, height: 64)
+                    .fill(TB.Palette.clay)
+                    .frame(width: 68, height: 68)
+                    .shadow(color: TB.Palette.clay.opacity(0.45), radius: 8, y: 4)
             }
         }
+        .buttonStyle(.plain)
         .disabled(viewModel.isProcessing)
     }
 
-    /// Processing overlay with status message
+    /// Processing overlay — static camera frame, cycling meta (spec §2)
     private var processingOverlay: some View {
         ZStack {
-            Color.black.opacity(0.7)
+            TB.Palette.scrim
                 .ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.5)
+            VStack(spacing: 18) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: TB.Radius.lg, style: .continuous)
+                        .fill(TB.Palette.surface1)
+                        .frame(width: 96, height: 96)
+                        .tbShadow(.lg)
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(TB.Palette.ink)
+                }
 
-                Text(viewModel.statusMessage)
-                    .font(.headline)
-                    .foregroundStyle(.white)
+                Text("Processing…")
+                    .font(TB.Typography.scanningTitle())
+                    .foregroundStyle(TB.Palette.ink)
+
+                Text(processingStatusPhrases[processingStatusPhase])
+                    .font(TB.Typography.metaScanning())
+                    .tracking(0.96)
+                    .textCase(.uppercase)
+                    .foregroundStyle(TB.Palette.inkFaint)
+
+                ProgressView()
+                    .tint(TB.Palette.clay)
+                    .scaleEffect(1.1)
+                    .padding(.top, 8)
             }
+            .padding(24)
         }
     }
 }
@@ -414,6 +495,10 @@ struct ScannerView: View {
 struct ScanResultListView: View {
 
     let scanResult: ScanResult
+    @Binding var navigationPath: NavigationPath
+    @Environment(BillViewModel.self) private var billViewModel
+    @Environment(\.modelContext) private var modelContext
+    @State private var isSaving = false
 
     var body: some View {
         List {
@@ -433,8 +518,12 @@ struct ScanResultListView: View {
                             Text(emoji)
                         }
                         Text(item.label)
+                            .font(TB.Typography.body())
                         Spacer()
                         Text(item.price, format: .currency(code: "USD"))
+                            .font(TB.Typography.moneyMedium())
+                            .monospacedDigit()
+                            .foregroundStyle(TB.Palette.mustard)
                     }
                 }
             }
@@ -443,28 +532,64 @@ struct ScanResultListView: View {
                 if let subtotal = scanResult.subtotal {
                     LabeledContent("Subtotal") {
                         Text(subtotal, format: .currency(code: "USD"))
+                            .font(TB.Typography.moneyMedium())
+                            .monospacedDigit()
                     }
                 }
                 if let tax = scanResult.tax {
                     LabeledContent("Tax") {
                         Text(tax, format: .currency(code: "USD"))
+                            .font(TB.Typography.moneyMedium())
+                            .monospacedDigit()
                     }
                 }
                 if let tip = scanResult.tip {
                     LabeledContent("Tip") {
                         Text(tip, format: .currency(code: "USD"))
+                            .font(TB.Typography.moneyMedium())
+                            .monospacedDigit()
                     }
                 }
                 if let total = scanResult.total {
                     LabeledContent("Total") {
                         Text(total, format: .currency(code: "USD"))
-                            .fontWeight(.bold)
+                            .font(TB.Typography.moneyLarge())
+                            .monospacedDigit()
+                            .foregroundStyle(TB.Palette.clay)
                     }
                 }
             }
         }
-        .navigationTitle("Scanned Items")
+        .scrollContentBackground(.hidden)
+        .background(TB.Palette.bg)
+        .listRowBackground(TB.Palette.surface1)
+        .navigationTitle("Scanned items")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(TB.Palette.bg, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Continue") {
+                    Task { await continueToBill() }
+                }
+                .font(TB.Typography.buttonPrimary())
+                .foregroundStyle(TB.Palette.clay)
+                .disabled(isSaving)
+            }
+        }
+    }
+
+    private func continueToBill() async {
+        isSaving = true
+        let uid = await MainActor.run { AuthService.shared.currentUserId }
+        await billViewModel.createBillFromScan(scanResult, userId: uid)
+        isSaving = false
+        guard billViewModel.error == nil else { return }
+        await MainActor.run {
+            billViewModel.syncSplitModesFromPreferences()
+            billViewModel.persistSnapshotToSwiftData(context: modelContext)
+            navigationPath = NavigationPath()
+            navigationPath.append(HomeNavigationDestination.itemList)
+        }
     }
 }
 
@@ -472,8 +597,9 @@ struct ScanResultListView: View {
 
 #Preview("Scanner View") {
     NavigationStack {
-        ScannerView()
+        ScannerView(navigationPath: .constant(NavigationPath()))
     }
+    .environment(BillViewModel())
 }
 
 #Preview("Scan Result View") {
@@ -490,9 +616,11 @@ struct ScanResultListView: View {
                 tax: 1.45,
                 place: "Joe's Diner",
                 date: "2025-01-14"
-            )
+            ),
+            navigationPath: .constant(NavigationPath())
         )
     }
+    .environment(BillViewModel())
 }
 
 #endif

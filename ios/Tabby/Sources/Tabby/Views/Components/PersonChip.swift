@@ -70,27 +70,25 @@ struct PersonChip: View {
 
                 // Name
                 Text(name)
-                    .font(isCompact ? .caption : .subheadline)
-                    .fontWeight(isSelected ? .semibold : .regular)
-                    .foregroundStyle(.primary)
+                    .font(isCompact ? TB.Typography.meta() : TB.Typography.body())
+                    .foregroundStyle(isSelected ? TB.Palette.ink : TB.Palette.inkSoft)
                     .lineLimit(1)
 
                 // Total amount
-                CurrencyText(
-                    total,
-                    style: isCompact ? .small : .medium,
-                    colorType: isSelected ? .standard : .muted
-                )
+                Text(total.asCurrency)
+                    .font(isCompact ? TB.Typography.moneySmall() : TB.Typography.moneyMedium())
+                    .monospacedDigit()
+                    .foregroundStyle(isSelected ? TB.Palette.clay : TB.Palette.inkFaint)
             }
             .frame(width: isCompact ? 64 : 80)
             .padding(.vertical, isCompact ? 8 : 12)
             .padding(.horizontal, 4)
             .background(
                 isSelected
-                    ? Color.accentColor.opacity(0.1)
+                    ? TB.Palette.clayTint
                     : Color.clear
             )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: TB.Radius.md, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -145,7 +143,7 @@ struct PersonAvatar: View {
         .overlay(
             Circle()
                 .strokeBorder(
-                    isSelected ? Color.accentColor : Color.clear,
+                    isSelected ? TB.Palette.clay : Color.clear,
                     lineWidth: isSelected ? 3 : 0
                 )
         )
@@ -154,11 +152,12 @@ struct PersonAvatar: View {
     private var initialsView: some View {
         ZStack {
             Circle()
-                .fill(avatarColor)
+                .fill(isSelected ? TB.Palette.ink : TB.Palette.surface1)
+                .tbShadow(.sm)
 
             Text(initials)
-                .font(.system(size: size * 0.4, weight: .medium))
-                .foregroundStyle(.white)
+                .font(.system(size: size * 0.4, weight: .bold))
+                .foregroundStyle(isSelected ? TB.Palette.bg : TB.Palette.ink)
         }
     }
 
@@ -171,15 +170,6 @@ struct PersonAvatar: View {
         return (firstInitial + lastInitial).uppercased()
     }
 
-    /// Generates a consistent color based on the name
-    private var avatarColor: Color {
-        let colors: [Color] = [
-            .blue, .green, .orange, .purple, .pink, .red, .teal, .indigo
-        ]
-        let hash = name.hashValue
-        let index = abs(hash) % colors.count
-        return colors[index]
-    }
 }
 
 // MARK: - PersonChip from BillPerson

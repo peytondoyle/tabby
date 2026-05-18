@@ -115,7 +115,7 @@ struct AddItemSheet: View {
                                     Text(emojiOption)
                                         .font(.title2)
                                         .padding(8)
-                                        .background(emoji == emojiOption ? Color.accentColor.opacity(0.2) : Color.clear)
+                                        .background(emoji == emojiOption ? TB.Palette.clayTint : Color.clear)
                                         .clipShape(RoundedRectangle(cornerRadius: 8))
                                 }
                                 .buttonStyle(.plain)
@@ -212,6 +212,10 @@ struct AddItemSheet: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(TB.Palette.bg)
+            .tint(TB.Palette.clay)
+            .listRowBackground(TB.Palette.surface1)
             .navigationTitle(title)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -368,7 +372,7 @@ private struct EmojiPickerSheet: View {
                                         Text(emoji)
                                             .font(.title)
                                             .frame(width: 44, height: 44)
-                                            .background(selectedEmoji == emoji ? Color.accentColor.opacity(0.2) : Color.clear)
+                                            .background(selectedEmoji == emoji ? TB.Palette.clayTint : Color.clear)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                     }
                                     .buttonStyle(.plain)

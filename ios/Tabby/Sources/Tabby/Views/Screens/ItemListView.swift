@@ -17,6 +17,14 @@ struct ItemListView: View {
 
     var body: some View {
         List {
+                if viewModel.isReadOnly {
+                    Section {
+                        Text("View-only link — you can review this bill but not change items.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 // MARK: - Totals Summary Section
                 if let bill = viewModel.bill {
                     Section {
@@ -27,7 +35,7 @@ struct ItemListView: View {
                         if bill.discount > 0 {
                             LabeledContent("Discount") {
                                 Text("-\(formatCurrency(bill.discount))")
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(TB.Palette.success)
                             }
                         }
 
@@ -67,10 +75,12 @@ struct ItemListView: View {
                             ItemListRowView(item: item)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
+                                    guard !viewModel.isReadOnly else { return }
                                     editingItem = item
                                 }
                         }
                         .onDelete(perform: deleteItems)
+                        .deleteDisabled(viewModel.isReadOnly)
                     }
                 } header: {
                     HStack {
@@ -82,7 +92,14 @@ struct ItemListView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(TB.Palette.bg)
+            .listRowBackground(TB.Palette.surface1)
+            .tint(TB.Palette.clay)
             .navigationTitle(viewModel.bill?.title ?? "Items")
+            #if os(iOS)
+            .toolbarBackground(TB.Palette.bg, for: .navigationBar)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -97,16 +114,14 @@ struct ItemListView: View {
                 Button {
                     showingAddSheet = true
                 } label: {
-                    Label("Add Item", systemImage: "plus.circle.fill")
-                        .font(.headline)
+                    Label("Add item", systemImage: "plus.circle.fill")
+                        .font(TB.Typography.buttonPrimary())
                         .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.tint)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(TBPrimaryButtonStyle())
+                .disabled(viewModel.isReadOnly)
                 .padding()
-                .background(.background)
+                .background(TB.Palette.bg)
             }
             .sheet(isPresented: $showingAddSheet) {
                 AddItemSheet(viewModel: viewModel, mode: .add)
@@ -116,6 +131,9 @@ struct ItemListView: View {
             }
         .navigationDestination(isPresented: $navigateToAssign) {
             AssignView(viewModel: viewModel)
+        }
+        .onAppear {
+            viewModel.syncSplitModesFromPreferences()
         }
     }
 
@@ -146,43 +164,42 @@ private struct ItemListRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Emoji
+        HStack(spacing: TB.Space.md) {
             Text(item.emoji ?? "")
                 .font(.title2)
                 .frame(width: 40, height: 40)
-                .background(Color.secondary.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .background(TB.Palette.surface2)
+                .clipShape(RoundedRectangle(cornerRadius: TB.Radius.sm, style: .continuous))
 
-            // Label and quantity
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.label)
-                    .font(.body)
+                    .font(TB.Typography.body())
+                    .foregroundStyle(TB.Palette.ink)
                     .lineLimit(1)
 
                 if item.quantity > 1 {
                     Text("Qty: \(item.quantity as NSDecimalNumber)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TB.Typography.meta())
+                        .foregroundStyle(TB.Palette.inkFaint)
                 }
             }
 
             Spacer()
 
-            // Price
             VStack(alignment: .trailing, spacing: 2) {
                 Text(formatCurrency(item.price))
-                    .font(.body)
-                    .fontWeight(.medium)
+                    .font(TB.Typography.moneyMedium())
+                    .monospacedDigit()
+                    .foregroundStyle(TB.Palette.mustard)
 
                 if item.quantity > 1 {
                     Text("\(formatCurrency(item.unitPrice)) each")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TB.Typography.meta())
+                        .foregroundStyle(TB.Palette.inkFaint)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, TB.Space.xs)
     }
 
     private func formatCurrency(_ value: Decimal) -> String {

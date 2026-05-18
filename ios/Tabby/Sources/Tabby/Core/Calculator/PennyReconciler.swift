@@ -14,13 +14,15 @@ public struct PennyReconciler {
         targetTotal: Decimal
     ) -> [PersonTotal] {
         // 1. Round all values to cents (2 decimal places)
-        var roundedTotals = personTotals.map { person -> PersonTotal in
+        let roundedTotals = personTotals.map { person -> PersonTotal in
             var rounded = person
             rounded.subtotal = roundToCents(person.subtotal)
             rounded.discountShare = roundToCents(person.discountShare)
             rounded.serviceFeeShare = roundToCents(person.serviceFeeShare)
             rounded.taxShare = roundToCents(person.taxShare)
             rounded.tipShare = roundToCents(person.tipShare)
+            rounded.grossShare = roundToCents(person.grossShare)
+            rounded.personalCredit = roundToCents(person.personalCredit)
             rounded.total = roundToCents(person.total)
             rounded.items = person.items.map { item -> AssignedLine in
                 var roundedItem = item

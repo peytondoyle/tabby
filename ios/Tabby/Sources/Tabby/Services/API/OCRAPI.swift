@@ -44,6 +44,16 @@ public struct OCRAPI {
         )
     }
 
+    /// Scans a PDF or other file supported by the scan API (same multipart route as images).
+    public func scanReceipt(fileData: Data, fileName: String, mimeType: String) async throws -> ScanResult {
+        try await client.uploadMultipart(
+            "scan-receipt",
+            fileData: fileData,
+            fileName: fileName,
+            mimeType: mimeType
+        )
+    }
+
     #if canImport(UIKit)
     /// Scans a receipt from a UIImage
     /// - Parameters:

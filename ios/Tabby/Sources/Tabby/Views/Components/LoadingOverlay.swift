@@ -55,13 +55,13 @@ struct LoadingOverlay: View {
                     ProgressView()
                         .progressViewStyle(.circular)
                         .scaleEffect(1.2)
-                        .tint(style == .light ? .white : .primary)
+                        .tint(TB.Palette.clay)
                 }
 
                 if !statusText.isEmpty {
                     Text(statusText)
-                        .font(.subheadline)
-                        .foregroundStyle(style == .light ? .white : .primary)
+                        .font(TB.Typography.bodySoft())
+                        .foregroundStyle(TB.Palette.ink)
                         .multilineTextAlignment(.center)
                 }
             }
@@ -77,8 +77,7 @@ struct LoadingOverlay: View {
     private var backgroundView: some View {
         switch style {
         case .blur:
-            Rectangle()
-                .fill(.ultraThinMaterial)
+            TB.Palette.scrim
         case .dark:
             Color.black.opacity(0.5)
         case .light:
@@ -92,14 +91,14 @@ struct LoadingOverlay: View {
     private var cardBackground: some View {
         switch style {
         case .blur:
-            Color.clear
+            TB.Palette.surface1
         case .dark:
             Color.white.opacity(0.9)
         case .light:
             Color.black.opacity(0.7)
         case .transparent:
-            Color.white
-                .shadow(color: .black.opacity(0.1), radius: 10)
+            TB.Palette.surface1
+                .tbShadow(.md)
         }
     }
 }
@@ -221,7 +220,7 @@ struct LoadingButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.accentColor)
+            .background(TB.Palette.clay)
             .foregroundStyle(.white)
             .font(.headline)
             .clipShape(RoundedRectangle(cornerRadius: 12))
