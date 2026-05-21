@@ -1,9 +1,15 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from './supabaseClient';
-import type { User } from '@supabase/supabase-js';
+import React, { createContext, useContext } from 'react';
+import { useUser, useClerk } from '@clerk/clerk-react';
+
+// Minimal user shape consumers care about. Kept stable so swapping auth
+// providers again doesn't ripple through the app.
+export interface AuthUser {
+  id: string;
+  email: string | null;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -16,40 +22,37 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+const hasClerk = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
-  useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
+// Clerk hooks throw outside a ClerkProvider, so isolate them in a child
+// component that only mounts when the publishable key is configured.
+const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user: clerkUser, isLoaded } = useUser();
+  const { signOut: clerkSignOut } = useClerk();
 
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const user: AuthUser | null = clerkUser
+    ? {
+        id: clerkUser.id,
+        email: clerkUser.primaryEmailAddress?.emailAddress ?? null,
+      }
+    : null;
 
   const signOut = async () => {
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    setUser(null);
+    await clerkSignOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ user, loading: !isLoaded, signOut }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
+const NoAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <AuthContext.Provider value={{ user: null, loading: false, signOut: async () => {} }}>
+    {children}
+  </AuthContext.Provider>
+);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
+  hasClerk ? <ClerkAuthProvider>{children}</ClerkAuthProvider> : <NoAuthProvider>{children}</NoAuthProvider>;

@@ -1,0 +1,19 @@
+{
+  "name": "Tabby — Split Bills Smart",
+  "short_name": "Tabby",
+  "description": "Split restaurant bills easily with AI-powered receipt scanning",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#FF9500",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

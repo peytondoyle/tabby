@@ -3,7 +3,7 @@
  * Ensures design tokens are used consistently
  */
 
-module.exports = {
+const rule = {
   meta: {
     type: 'suggestion',
     docs: {
@@ -93,4 +93,6 @@ module.exports = {
       },
     }
   },
-}
+};
+
+export { rule };
