@@ -18,7 +18,12 @@ export const PersonSchema = z.object({
 });
 
 /**
- * ReceiptCreateSchema mirrors the backend contract expected by /api/receipts/create
+ * ReceiptCreateSchema describes the payload the FRONTEND sends to
+ * /api/receipts/create. The backend validates with its own (more permissive)
+ * CreateReceiptRequestSchema in api/_utils/schemas.ts. A contract test in
+ * schemas.contract.test.ts asserts frontend-built payloads always pass
+ * backend validation — keep that test green or fix the drift.
+ *
  * Fields allowed to be null on create are typed as nullable() here.
  */
 export const ReceiptCreateSchema = z.object({

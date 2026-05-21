@@ -5,8 +5,8 @@ import { getReceipt } from '../_utils/memoryDb.js'
 import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare } from '../../src/lib/computeTotals.js'
 
 // Server-side Supabase client using secret key
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
 
 const supabaseAdmin = SUPABASE_URL && SUPABASE_KEY
   ? createClient(

@@ -1,10 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 // Environment variables with fallbacks
-const SB_URL: string | undefined = 
+const SB_URL: string | undefined =
   process.env.SUPABASE_URL ||
-  process.env.VITE_SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL
+  process.env.VITE_SUPABASE_URL
 
 const SB_SECRET: string | undefined = process.env.SUPABASE_SECRET_KEY
 

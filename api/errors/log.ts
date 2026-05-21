@@ -3,10 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import { applyCors } from '../_utils/cors.js'
 
 // Environment variables with fallbacks
-const SB_URL = 
+const SB_URL =
   process.env.SUPABASE_URL ||
-  process.env.VITE_SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL
+  process.env.VITE_SUPABASE_URL
 
 const SB_SECRET = process.env.SUPABASE_SECRET_KEY
 
