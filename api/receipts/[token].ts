@@ -2,7 +2,7 @@ import { type VercelRequest, type VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 import { applyCors } from '../_utils/cors.js'
 import { getReceipt } from '../_utils/memoryDb.js'
-import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare } from '../_lib/computeTotals.js'
+import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare } from '../../src/lib/computeTotals.js'
 
 // Server-side Supabase client using secret key
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
