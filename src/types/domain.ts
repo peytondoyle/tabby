@@ -3,17 +3,27 @@
 
 export interface Receipt {
   id: string
-  token: string
+  token?: string
+  editor_token?: string
+  viewer_token?: string
   title: string
+  place?: string | null
+  date?: string | null
   total: number
+  total_amount?: number | null
   subtotal: number
   tax: number
+  sales_tax?: number | null
   tip: number
+  discount?: number | null
+  service_fee?: number | null
   created_at: string
-  updated_at: string
+  updated_at?: string
   storage_path?: string | null
   ocr_json?: OcrParsedReceipt | null
 }
+
+export type Bill = Receipt
 
 export interface NewReceiptInput {
   title: string
@@ -76,6 +86,8 @@ export interface OcrParsedReceipt {
   tax_cents?: number
   tip: number
   tip_cents?: number
+  discount?: number | null
+  service_fee?: number | null
 }
 
 // API Response Types

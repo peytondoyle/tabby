@@ -1,10 +1,10 @@
 /*
- * Tabby brand tokens — "Cream Modern"
+ * Tabby brand tokens — "Ledger Modern"
  *
  * Light, warm, confident. Cream background (not clinical white), coral CTA,
  * butter accents on totals. Borders are almost invisible — separation comes
- * from soft warm shadows. Typography is Inter variable for UI, Fraunces for
- * the wordmark + hero moments only, Courier Prime for money.
+ * from soft warm shadows. Typography uses a native humanist sans for UI,
+ * Fraunces for the wordmark + hero moments only, Courier Prime for money.
  */
 
 :root {
@@ -14,6 +14,19 @@
   --tb-surface-2: #F3EDE1;       /* hover / section well */
   --tb-surface-3: #E8E0D2;       /* pressed / divider */
   --tb-surface-glass: rgba(255, 255, 255, 0.84);
+  --tb-white: #FFFFFF;
+  --tb-overlay: rgba(31, 22, 18, 0.72);
+
+  /* Inverse surfaces for legacy dark receipt screens */
+  --tb-inverse-bg: #140B09;
+  --tb-inverse-text: #FFFFFF;
+  --tb-inverse-muted: rgba(255, 255, 255, 0.62);
+  --tb-inverse-dim: rgba(255, 255, 255, 0.48);
+  --tb-inverse-border: rgba(255, 255, 255, 0.12);
+  --tb-inverse-border-strong: rgba(255, 255, 255, 0.22);
+  --tb-inverse-surface-subtle: rgba(255, 255, 255, 0.05);
+  --tb-inverse-surface: rgba(255, 255, 255, 0.10);
+  --tb-inverse-surface-hover: rgba(255, 255, 255, 0.16);
 
   /* Ink — deep warm brown-black, not pure */
   --tb-ink: #1F1612;             /* primary text */
@@ -22,22 +35,36 @@
   --tb-ink-dim: #9C897B;         /* tertiary / placeholders */
 
   /* Accent — coral primary (same as before, lets the brand stay consistent) */
-  --tb-accent: #FF5A5F;
-  --tb-accent-hover: #FF7377;
-  --tb-accent-press: #E04248;
-  --tb-accent-tint: rgba(255, 90, 95, 0.12);
-  --tb-accent-glow: rgba(255, 90, 95, 0.28);
+  --tb-accent: #B4232A;
+  --tb-accent-hover: #8F1D23;
+  --tb-accent-press: #6F151A;
+  --tb-accent-tint: rgba(180, 35, 42, 0.12);
+  --tb-accent-glow: rgba(180, 35, 42, 0.24);
+  --tb-accent-border: rgba(180, 35, 42, 0.32);
 
   /* Butter — secondary highlight / "paid" / money */
-  --tb-butter: #E8A61D;          /* darker than dark-mode version so it's
+  --tb-butter: #8A5A00;          /* darker than dark-mode version so it's
                                     legible on cream */
-  --tb-butter-tint: rgba(232, 166, 29, 0.12);
+  --tb-butter-tint: rgba(138, 90, 0, 0.12);
 
   /* Semantic */
   --tb-success: #2F9E55;
   --tb-warning: #E8A61D;
   --tb-danger: #D13C41;
   --tb-danger-tint: rgba(209, 60, 65, 0.10);
+  --tb-danger-border: rgba(209, 60, 65, 0.30);
+
+  /* Person chips */
+  --tb-person-1: #B4232A;
+  --tb-person-2: #0F766E;
+  --tb-person-3: #8A5A00;
+  --tb-person-4: #7C3AED;
+  --tb-person-5: #C2410C;
+  --tb-person-6: #0369A1;
+  --tb-person-7: #BE185D;
+  --tb-person-8: #047857;
+  --tb-person-9: #2563EB;
+  --tb-person-10: #A16207;
 
   /* Borders — almost invisible; shadow does the work */
   --tb-border: rgba(31, 22, 18, 0.06);
@@ -53,17 +80,17 @@
                       0 2px 6px rgba(255, 90, 95, 0.18);
 
   /* Radii — bigger, rounder, more confident */
-  --tb-r-sm: 10px;
-  --tb-r-md: 16px;
-  --tb-r-lg: 22px;
-  --tb-r-xl: 28px;
+  --tb-r-sm: 8px;
+  --tb-r-md: 10px;
+  --tb-r-lg: 12px;
+  --tb-r-xl: 14px;
   --tb-r-pill: 999px;
 
   /* Typography */
   --tb-font-display: 'Fraunces', 'Iowan Old Style', 'Georgia', serif;
-  --tb-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --tb-font-body: 'Avenir Next', 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --tb-font-mono: 'Courier Prime', 'Courier New', 'Courier', monospace;
-  --tb-font-numeric: 'Inter', -apple-system, system-ui, sans-serif; /* for big display numbers with tnum */
+  --tb-font-numeric: 'Avenir Next', 'Segoe UI', -apple-system, system-ui, sans-serif; /* for big display numbers with tnum */
 
   /* Motion */
   --tb-ease-out: cubic-bezier(0.22, 1, 0.36, 1);

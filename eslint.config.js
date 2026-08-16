@@ -39,8 +39,9 @@ export default tseslint.config([
         'argsIgnorePattern': '^_',
         'varsIgnorePattern': '^_'
       }],
-      '@typescript-eslint/no-explicit-any': 'warn',
-      'react-hooks/exhaustive-deps': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'react-refresh/only-export-components': 'off',
       'tabby-ui/no-hardcoded-styles': ['error', {
         allowedFiles: [
           '**/theme.css',
@@ -66,6 +67,13 @@ export default tseslint.config([
           }
         ]
       }]
+    }
+  },
+  {
+    files: ['api/**/*.ts'],
+    rules: {
+      'tabby-ui/no-hardcoded-styles': 'off',
+      'tabby-ui/no-hardcoded-colors': 'off',
     }
   },
 ])

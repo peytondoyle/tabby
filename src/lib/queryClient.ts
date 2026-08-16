@@ -1,18 +1,9 @@
-import { QueryClient } from '@tanstack/react-query'
+import { queryClient } from './queryClientInstance'
+export { queryClient } from './queryClientInstance'
 import { supabase, isSupabaseAvailable } from './supabaseClient'
 import { logServer } from './errorLogger'
 import { validateWeight, validateItemWeights, findExistingShare, validateAllItemWeights, type ItemShare } from './computeTotals'
 // import { getBillByToken } from './billUtils' // unused
-
-// Create a client
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
-    },
-  },
-})
 
 // Custom hooks for data fetching
 

@@ -3,7 +3,7 @@
  * GlassCardV2 provides better glass effects, improved motion, and enhanced accessibility.
  */
 import React from 'react';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface GlassCardProps {

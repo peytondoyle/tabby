@@ -33,7 +33,10 @@ export const CreateReceiptRequestSchema = z.object({
   people: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    items: z.array(z.string()).default([]) // Array of item IDs assigned to this person
+    items: z.array(z.string()).default([]), // Array of item IDs assigned to this person
+    headcount: z.coerce.number().int().positive().default(1),
+    personal_credit: z.coerce.number().finite().min(0).optional().default(0),
+    credit_note: z.string().nullable().optional()
   })).default([]),
   tax: z.number().default(0),
   tip: z.number().default(0),
@@ -88,7 +91,11 @@ export const ReceiptDetailResponseSchema = z.object({
   people: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    avatar_url: z.string().nullable()
+    avatar_url: z.string().nullable(),
+    venmo_handle: z.string().nullable().optional(),
+    headcount: z.number().int().positive().default(1),
+    personal_credit: z.number().optional().default(0),
+    credit_note: z.string().nullable().optional()
   })).optional(),
   shares: z.array(z.object({
     item_id: z.string(),

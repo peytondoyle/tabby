@@ -61,6 +61,7 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
 
       // Render page to canvas
       const renderContext = {
+        canvas: pageCanvas,
         canvasContext: pageContext,
         viewport: scaledViewport,
       }
@@ -86,7 +87,8 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
     combinedCanvas.height = totalHeight + (pageGap * (pageCanvases.length - 1))
 
     // Fill background with white
-    combinedContext.fillStyle = '#FFFFFF'
+    const rootStyles = getComputedStyle(document.documentElement)
+    combinedContext.fillStyle = rootStyles.getPropertyValue('--tb-white').trim()
     combinedContext.fillRect(0, 0, combinedCanvas.width, combinedCanvas.height)
 
     // Draw all pages vertically
@@ -97,7 +99,7 @@ export async function convertPdfToImage(pdfFile: File): Promise<File> {
 
       // Add subtle separator line between pages
       if (currentY < combinedCanvas.height) {
-        combinedContext.strokeStyle = '#E0E0E0'
+        combinedContext.strokeStyle = rootStyles.getPropertyValue('--tb-border-strong').trim()
         combinedContext.lineWidth = 1
         combinedContext.beginPath()
         combinedContext.moveTo(0, currentY - pageGap / 2)

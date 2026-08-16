@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { ItemChip, type ItemData } from './ItemChip'
 import type { PersonData } from './PeoplePills'
 import { Package } from 'lucide-react'

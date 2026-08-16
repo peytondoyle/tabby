@@ -18,7 +18,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSkip })
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0, 0, 0, 0.8)',
+        background: 'var(--tb-overlay)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -36,15 +36,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSkip })
         ) : (
           <div
             style={{
-              background: '#1a1a1a',
+              background: 'var(--tb-inverse-bg)',
               borderRadius: 16,
               padding: 32,
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'var(--tb-inverse-text)',
+              border: '1px solid var(--tb-inverse-border)',
             }}
           >
             <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 12 }}>Auth not configured</h2>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 24, lineHeight: 1.5 }}>
+            <p style={{ fontSize: 14, color: 'var(--tb-inverse-muted)', marginBottom: 24, lineHeight: 1.5 }}>
               Set <code>VITE_CLERK_PUBLISHABLE_KEY</code> in <code>.env.local</code> to enable sign-in.
             </p>
             <button
@@ -52,10 +52,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSkip })
               style={{
                 width: '100%',
                 padding: 14,
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'var(--tb-inverse-surface)',
+                border: '1px solid var(--tb-inverse-border-strong)',
                 borderRadius: 8,
-                color: '#fff',
+                color: 'var(--tb-inverse-text)',
                 fontSize: 16,
                 fontWeight: 600,
                 cursor: 'pointer',

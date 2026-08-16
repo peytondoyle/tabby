@@ -9,7 +9,7 @@ interface Item {
   id: string;
   label: string;  // API/database field name
   price: number;
-  emoji?: string;
+  emoji: string;
 }
 
 interface ItemShare {
@@ -21,6 +21,7 @@ interface ItemShare {
 interface Person {
   id: string;
   name: string;
+  headcount?: number;
   items: string[];
   itemShares?: ItemShare[];  // Includes weight and calculated share amount
   total: number;
@@ -128,6 +129,7 @@ export const ReceiptPage: React.FC = () => {
           const computePeople: ComputePerson[] = (billData.people || []).map((person: any) => ({
             id: person.id,
             name: person.name,
+            headcount: person.headcount,
             is_paid: false
           }));
 
@@ -208,8 +210,8 @@ export const ReceiptPage: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#000',
-          color: '#fff'
+          background: 'var(--tb-inverse-bg)',
+          color: 'var(--tb-inverse-text)'
         }}>
           <div>Loading receipt...</div>
         </div>
@@ -227,8 +229,8 @@ export const ReceiptPage: React.FC = () => {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#000',
-          color: '#fff',
+          background: 'var(--tb-inverse-bg)',
+          color: 'var(--tb-inverse-text)',
           gap: '20px'
         }}>
           <div>{error || 'Receipt not found'}</div>
@@ -236,8 +238,8 @@ export const ReceiptPage: React.FC = () => {
             onClick={() => navigate('/')}
             style={{
               padding: '12px 24px',
-              background: '#007AFF',
-              color: '#fff',
+              background: 'var(--tb-accent)',
+              color: 'var(--tb-inverse-text)',
               border: 'none',
               borderRadius: '8px',
               fontSize: '16px',

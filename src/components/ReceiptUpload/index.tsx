@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { Upload, FileImage, X, Camera, Loader } from '@/lib/icons'
 import { logServer } from '@/lib/errorLogger'
 

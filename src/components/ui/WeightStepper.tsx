@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { Plus, Minus } from '@/lib/icons'
 import { Button } from './Button'
 import { WeightSchema } from '@/lib/schemas'

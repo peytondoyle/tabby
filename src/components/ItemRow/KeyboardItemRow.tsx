@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { m as motion } from 'framer-motion'
 import { useReducedMotion, getMotionVariants, getOptimizedTransform, getShadowStyles } from '@/lib/accessibility'
 import { useRovingTabIndex, useKeyboardSelection, KEYBOARD_NAVIGATION } from '@/lib/keyboardNavigation'
 import { ItemRow } from './index'

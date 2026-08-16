@@ -472,6 +472,47 @@ describe('buildSharesFromPeopleItems', () => {
     expect(shares[1]).toEqual({ item_id: '1', person_id: 'p2', weight: 0.5 })
   })
 
+  it('should weight split by implied people in combined name entries', () => {
+    const people = [
+      { id: 'p1', name: 'Louton, Doddley', items: ['1'] },
+      { id: 'p2', name: 'M', items: ['1'] }
+    ]
+
+    const shares = buildSharesFromPeopleItems([{ id: '1', price: 30.00 }], people)
+
+    expect(shares).toHaveLength(2)
+    expect(shares[0]).toEqual({ item_id: '1', person_id: 'p1', weight: 2 / 3 })
+    expect(shares[1]).toEqual({ item_id: '1', person_id: 'p2', weight: 1 / 3 })
+  })
+
+  it('should prefer explicit headcount over combined-name parsing', () => {
+    const people = [
+      { id: 'p1', name: 'Louton, Doddley', headcount: 2, items: ['1'] },
+      { id: 'p2', name: 'M', headcount: 3, items: ['1'] },
+    ]
+
+    const shares = buildSharesFromPeopleItems([{ id: '1', price: 30.00 }], people)
+
+    expect(shares).toHaveLength(2)
+    expect(shares[0]).toEqual({ item_id: '1', person_id: 'p1', weight: 2 / 5 })
+    expect(shares[1]).toEqual({ item_id: '1', person_id: 'p2', weight: 3 / 5 })
+  })
+
+  it('should support multiple implied groups in one split', () => {
+    const people = [
+      { id: 'p1', name: 'Louton and Doddley', items: ['1'] },
+      { id: 'p2', name: 'Maggie and Tom', items: ['1'] },
+      { id: 'p3', name: 'Jules', items: ['1'] }
+    ]
+
+    const shares = buildSharesFromPeopleItems([{ id: '1', price: 10.00 }], people)
+
+    expect(shares).toHaveLength(3)
+    expect(shares[0].weight).toBeCloseTo(0.4, 5)
+    expect(shares[1].weight).toBeCloseTo(0.4, 5)
+    expect(shares[2].weight).toBeCloseTo(0.2, 5)
+  })
+
   it('should handle three-way split correctly', () => {
     const people = [
       { id: 'p1', items: ['1'] },

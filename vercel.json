@@ -1,10 +1,5 @@
 {
   "rewrites": [
     { "source": "/((?!api).*)", "destination": "/" }
-  ],
-  "functions": {
-    "api/**/*.ts": {
-      "includeFiles": "node_modules/typescript/**"
-    }
-  }
+  ]
 }

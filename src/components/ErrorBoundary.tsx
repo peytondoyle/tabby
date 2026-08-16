@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from '@/components/design-system';
 
 interface Props {
   children: React.ReactNode;
@@ -80,12 +79,12 @@ class ErrorBoundary extends React.Component<Props, State> {
             )}
 
             <div className="flex gap-3 justify-center">
-              <Button variant="secondary" onClick={this.handleReset}>
+              <button className="tb-error-button tb-error-button--secondary" type="button" onClick={this.handleReset}>
                 Try Again
-              </Button>
-              <Button onClick={this.handleReload}>
+              </button>
+              <button className="tb-error-button" type="button" onClick={this.handleReload}>
                 Reload Page
-              </Button>
+              </button>
             </div>
 
             <p className="text-xs text-[var(--ui-text-dim)] mt-4">

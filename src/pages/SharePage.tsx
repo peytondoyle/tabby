@@ -1,12 +1,9 @@
 import React, { useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { m as motion } from 'framer-motion'
 import { ShareCard } from '../components/ShareCard'
 import { ExternalLink } from '@/lib/icons'
 
-// Performance optimization imports
-import VirtualizedListErrorBoundary from '@/components/ErrorBoundary/VirtualizedListErrorBoundary'
-import ListSuspenseWrapper from '@/components/Suspense/ListSuspenseWrapper'
 import { deviceDetector } from '@/lib/deviceCapabilities'
 
 export const SharePage: React.FC = () => {
@@ -82,31 +79,20 @@ export const SharePage: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Share Card with Error Boundaries */}
-        <VirtualizedListErrorBoundary 
-          listType="dnd-container"
-          onError={(error, errorInfo) => {
-            console.error('[share_page] ShareCard error:', error, errorInfo)
-            // Could send to analytics here
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{
+            duration: device.processingPower === 'low' ? 0.3 : 0.5,
+            delay: 0.2
           }}
         >
-          <ListSuspenseWrapper listType="dnd-container">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ 
-                duration: device.processingPower === 'low' ? 0.3 : 0.5, 
-                delay: 0.2 
-              }}
-            >
-              <ShareCard
-                billToken={id}
-                mode={mode}
-                isExport={true}
-              />
-            </motion.div>
-          </ListSuspenseWrapper>
-        </VirtualizedListErrorBoundary>
+          <ShareCard
+            billToken={id}
+            mode={mode}
+            isExport={true}
+          />
+        </motion.div>
 
         {/* Editor CTA */}
         {isEditor && (

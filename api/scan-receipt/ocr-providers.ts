@@ -312,12 +312,12 @@ Extract ACTUAL VALUES from this receipt image.`
     const calculatedSubtotal = items.reduce((sum: number, item: { price: number }) => sum + (item.price || 0), 0);
     const subtotal = parsed.subtotal || 0;
     const tax = parsed.tax || 0;
-    let tip = parsed.tip || 0;
+    const tip = parsed.tip || 0;
     const discount = parsed.discount || 0;
     let serviceFee = parsed.service_fee || 0;
     const total = parsed.total || 0;
     const handwrittenFields: string[] = parsed.handwrittenFields || [];
-    const fieldConfidence = { ...parsed.fieldConfidence } || {};
+    const fieldConfidence = { ...(parsed.fieldConfidence ?? {}) };
 
     // #1: TIERED VALIDATION TOLERANCE based on subtotal amount
     const getToleranceForAmount = (amount: number): number => {
@@ -341,7 +341,9 @@ Extract ACTUAL VALUES from this receipt image.`
     let calculatedTotal = subtotal - discount + serviceFee + tax + tip;
     const feeGap = total - calculatedTotal;
     const feePatchCap = Math.max(5, total * 0.25);
-    if (total > 0 && feeGap > Math.max(0.05, totalTolerance) && feeGap <= feePatchCap) {
+    const possibleTipBeforeFeePatch = total - subtotal - tax - serviceFee + discount;
+    const likelyMissingTip = parsed.receiptType === 'customer_copy' && tip === 0 && possibleTipBeforeFeePatch > 0;
+    if (total > 0 && !likelyMissingTip && feeGap > Math.max(0.05, totalTolerance) && feeGap <= feePatchCap) {
       const patched = Math.round((serviceFee + feeGap) * 100) / 100;
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[openai_ocr] Patching missing fees into service_fee: $${serviceFee.toFixed(2)} + $${feeGap.toFixed(2)} = $${patched.toFixed(2)}`);

@@ -50,6 +50,7 @@ export class FocusTrap {
   private container: HTMLElement
   private firstFocusable: HTMLElement | null = null
   private lastFocusable: HTMLElement | null = null
+  private boundTrap = (event: KeyboardEvent) => this.trap(event)
 
   constructor(container: HTMLElement) {
     this.container = container
@@ -82,12 +83,12 @@ export class FocusTrap {
   }
 
   activate() {
-    this.container.addEventListener('keydown', this.trap.bind(this))
+    this.container.addEventListener('keydown', this.boundTrap)
     this.firstFocusable?.focus()
   }
 
   deactivate() {
-    this.container.removeEventListener('keydown', this.trap.bind(this))
+    this.container.removeEventListener('keydown', this.boundTrap)
   }
 }
 
@@ -120,7 +121,7 @@ export const checkContrast = (foreground: string, background: string): boolean =
  * Generate focus ring styles
  */
 export const getFocusRingStyles = () => ({
-  outline: '2px solid #0A84FF',
+  outline: '2px solid var(--tb-accent)',
   outlineOffset: '3px'
 })
 

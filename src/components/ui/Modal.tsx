@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import { Card } from "./Card";
 import { IconButton } from "./IconButton";
 import { getMotionConfig, safeTransition } from "@/lib/motionUtils";

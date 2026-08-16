@@ -18,6 +18,7 @@ interface UseBillTotalsInput {
     id: string
     name: string
     items?: (string | { id: string })[]
+    headcount?: number
     personal_credit?: number
     credit_note?: string
   }[]
@@ -66,6 +67,7 @@ export function useBillTotals(input: UseBillTotalsInput): BillTotals | null {
     const normalizedPeople: ComputePerson[] = people.map(p => ({
       id: p.id,
       name: p.name,
+      headcount: p.headcount,
       is_paid: false,
       personal_credit: p.personal_credit,
       credit_note: p.credit_note

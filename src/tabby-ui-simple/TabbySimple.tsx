@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m as motion, AnimatePresence } from 'framer-motion';
 import { parseReceipt, createReceiptFromReceipt, type ParseResult } from '../lib/receiptScanning';
 import { LazyShareReceiptModal as ShareReceiptModal } from '../components/ShareReceiptModal/LazyShareReceiptModal';
 import { FoodIcon } from '../lib/foodIcons';
+import { parsePersonHeadcount } from '../lib/computeTotals';
 import { getReceiptHistory } from '../lib/receiptHistory';
 import { useAuth } from '../lib/authContext';
 import { AuthModal } from '../components/AuthModal';
@@ -12,12 +13,13 @@ import { fetchReceiptByToken, updateReceiptMetadata, updateReceiptAssignments } 
 import { trackPersonName, getQuickAddSuggestions, getUserIdentity, setUserIdentity } from '../lib/peopleHistory';
 import { UnifiedEditModal } from '../components/UnifiedEditModal';
 import { useBillTotals, getPersonTotal, getPersonBreakdown } from '../lib/useBillTotals';
-import { openVenmoRequest, buildVenmoChargeUrl } from '../lib/venmo';
+import { openVenmoRequest } from '../lib/venmo';
 import { ProgressSteps } from '../components/design-system/ProgressSteps';
 import './TabbySimple.css';
 
 interface Item {
   id: string;
+  sourceId?: string;
   emoji: string;
   name: string;        // Display name (maps to 'label' in database)
   price: number;       // LINE TOTAL (unit_price * quantity)
@@ -27,33 +29,252 @@ interface Item {
   splitBetween?: string[]; // Array of person IDs sharing this item
 }
 
+interface SourceItemInput {
+  id?: string;
+  emoji?: string;
+  label?: string;
+  name?: string;
+  price: number;
+  quantity?: number;
+  unit_price?: number;
+}
+
+function toUniqueItems(items: SourceItemInput[]): Item[] {
+  const itemCountsBySource = new Map<string, number>();
+  const output: Item[] = [];
+
+  items.forEach((item, index) => {
+    const sourceId = (item.id && String(item.id).trim()) || `item-${index}`;
+    const price = Number(item.price) || 0;
+    const quantity = Math.max(1, Math.round(Number(item.quantity) || 1));
+    const unitPrice = Number(item.unit_price) || (quantity > 0 ? price / quantity : price);
+
+    for (let i = 0; i < quantity; i++) {
+      const instance = itemCountsBySource.get(sourceId) ?? 0;
+      itemCountsBySource.set(sourceId, instance + 1);
+
+      output.push({
+        id: instance === 0 ? sourceId : `${sourceId}::dup-${instance}`,
+        sourceId,
+        emoji: item.emoji || '🍽️',
+        name: item.name || item.label || 'Item',
+        price: unitPrice,
+        quantity: 1,
+        unit_price: unitPrice,
+        assignedTo: undefined,
+        splitBetween: undefined
+      });
+    }
+  });
+
+  return output;
+}
+
+function buildItemIdPool(items: Item[]): Map<string, string[]> {
+  const pool = new Map<string, string[]>();
+
+  for (const item of items) {
+    const sourceId = item.sourceId || item.id;
+    const existing = pool.get(sourceId) ?? [];
+    existing.push(item.id);
+    pool.set(sourceId, existing);
+  }
+
+  return pool;
+}
+
+function resolveItemIdFromAssignments(
+  itemId: string,
+  itemById: Map<string, Item>,
+  itemPool: Map<string, string[]>,
+  sourceUsage: Map<string, number>
+): string | null {
+  const directMatch = itemById.get(itemId);
+  if (directMatch) return directMatch.id;
+
+  const idsForSource = itemPool.get(itemId);
+  if (!idsForSource || idsForSource.length === 0) {
+    return null;
+  }
+
+  const index = sourceUsage.get(itemId) ?? 0;
+  const safeIndex = Math.min(index, idsForSource.length - 1);
+  sourceUsage.set(itemId, index + 1);
+  return idsForSource[safeIndex];
+}
+
+function toPersistItemId(item: Item): string {
+  return item.sourceId || item.id;
+}
+
+type PersistedAssignment = {
+  itemId: string;
+  personId: string;
+  weight: number;
+};
+
+function normalizeAssignments(rawAssignments: unknown, sourceQuantityById?: Map<string, number>): PersistedAssignment[] {
+  if (!rawAssignments) return [];
+
+  if (Array.isArray(rawAssignments)) {
+    return rawAssignments.flatMap((entry): PersistedAssignment[] => {
+      if (!entry || typeof entry !== 'object') return [];
+      const itemId = String((entry as any).itemId || '').trim();
+      const personId = String((entry as any).personId || '').trim();
+      const weight = Number((entry as any).weight);
+      if (!itemId || !personId) return [];
+      const defaultWeight = Math.max(1, Math.floor(sourceQuantityById?.get(itemId) ?? 1));
+      const normalizedWeight = Number.isFinite(weight)
+        ? Math.max(1, Math.floor(weight))
+        : defaultWeight;
+      return [{ itemId, personId, weight: normalizedWeight }];
+    });
+  }
+
+  if (typeof rawAssignments === 'object') {
+    const sourceEntries = rawAssignments as Record<string, unknown>;
+    const output: PersistedAssignment[] = [];
+
+    for (const [itemId, personId] of Object.entries(sourceEntries)) {
+      const normalizedItemId = itemId.trim();
+      const normalizedPersonId = String(personId || '').trim();
+      if (!normalizedItemId || !normalizedPersonId) continue;
+
+      const parsedWeight = Math.max(
+        1,
+        Math.floor(sourceQuantityById?.get(normalizedItemId) ?? 1)
+      );
+      output.push({
+        itemId: normalizedItemId,
+        personId: normalizedPersonId,
+        weight: parsedWeight
+      });
+    }
+
+    return output;
+  }
+
+  return [];
+}
+
+function buildPersistedAssignments(items: Item[]): PersistedAssignment[] {
+  return items.flatMap(item => {
+    const participants = getItemParticipants(item);
+    return participants.map(personId => ({
+      itemId: item.id,
+      personId,
+      weight: 1
+    }));
+  });
+}
+
+function shareCountFromWeight(weight: unknown, maxCopies: number): number {
+  const numeric = typeof weight === 'number' ? weight : Number(weight);
+  if (!Number.isFinite(numeric)) return 1;
+  const rounded = Math.max(1, Math.floor(numeric + 1e-9));
+  return maxCopies > 0 ? Math.min(rounded, maxCopies) : rounded;
+}
+
 interface Person {
   id: string;
   name: string;
   items: string[];
   total: number;
   venmo_handle?: string | null;
+  headcount?: number;
   personal_credit?: number;
   credit_note?: string;
 }
 
+const ITEM_DRAG_MIME = 'application/x-tabby-item-id';
+const POINTER_DRAG_THRESHOLD = 8;
+
+type PendingPersist = { token: string | null; people: Person[]; items: Item[] };
+
+function splitAuditMessage(message: string) {
+  const [title, ...detailParts] = message.split(/\s+-\s+/);
+  return {
+    title: title.trim(),
+    detail: detailParts.join(' - ').trim(),
+  };
+}
+
 // Vibrant color palette for person avatars — pops on dark backgrounds
 const PERSON_COLORS = [
-  '#FF6B6B', // Coral
-  '#4ECDC4', // Teal
-  '#FFE66D', // Gold
-  '#A78BFA', // Violet
-  '#F97316', // Orange
-  '#06B6D4', // Cyan
-  '#F472B6', // Pink
-  '#34D399', // Emerald
-  '#60A5FA', // Blue
-  '#FBBF24', // Amber
+  'var(--tb-person-1)',
+  'var(--tb-person-2)',
+  'var(--tb-person-3)',
+  'var(--tb-person-4)',
+  'var(--tb-person-5)',
+  'var(--tb-person-6)',
+  'var(--tb-person-7)',
+  'var(--tb-person-8)',
+  'var(--tb-person-9)',
+  'var(--tb-person-10)',
 ];
+
+function normalizeHeadcount(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(1, Math.floor(parsed));
+}
+
+function getPersonHeadcount(person?: Pick<Person, 'headcount' | 'name'> | null): number {
+  if (!person) return 1;
+  if (person.headcount !== undefined && person.headcount !== null) {
+    return normalizeHeadcount(person.headcount);
+  }
+  return parsePersonHeadcount(person.name);
+}
 
 const getPersonColor = (index: number): string => {
   return PERSON_COLORS[index % PERSON_COLORS.length];
 };
+
+function getPersonHeadcountById(people: Person[], personId: string): number {
+  const person = people.find(p => p.id === personId);
+  return getPersonHeadcount(person);
+}
+
+function getItemParticipants(item: Item): string[] {
+  if (item.splitBetween && item.splitBetween.length > 0) return item.splitBetween;
+  return item.assignedTo ? [item.assignedTo] : [];
+}
+
+function getItemShareDenominator(item: Item, people: Person[]): number {
+  const participants = getItemParticipants(item);
+  if (participants.length === 0) return 0;
+
+  return participants.reduce((sum, personId) => {
+    return sum + getPersonHeadcountById(people, personId);
+  }, 0);
+}
+
+function getPersonShareWeight(item: Item, personId: string, people: Person[]): number {
+  const participants = getItemParticipants(item);
+  if (participants.length === 0) return 0;
+  if (!participants.includes(personId)) return 0;
+
+  return getPersonHeadcountById(people, personId);
+}
+
+function removePersonFromItem(item: Item, personId: string): Item {
+  if (!item.splitBetween || item.splitBetween.length === 0) {
+    if (item.assignedTo === personId) {
+      return { ...item, assignedTo: undefined };
+    }
+    return item;
+  }
+
+  const remaining = item.splitBetween.filter(id => id !== personId);
+  if (remaining.length === item.splitBetween.length) return item;
+
+  if (remaining.length === 0) {
+    return { ...item, splitBetween: undefined, assignedTo: undefined };
+  }
+
+  return { ...item, splitBetween: remaining, assignedTo: remaining[0] };
+}
 
 /**
  * Helper to persist people and assignments to the database
@@ -75,15 +296,39 @@ async function persistPeopleAndShares(
       id: p.id,
       name: p.name,
       avatar_url: null,
-      venmo_handle: p.venmo_handle ?? null
+      venmo_handle: p.venmo_handle ?? null,
+      headcount: getPersonHeadcount(p),
+      personal_credit: p.personal_credit ?? 0,
+      credit_note: p.credit_note ?? null
     }));
 
-    // Build shares array - we'll update it with Supabase UUIDs after the API call
-    const sharesPayload = people.flatMap(person =>
-      person.items.map(itemId => ({
+    // Build weighted shares array - each person-tab contributes their implied headcount
+    const shareWeightsByPerson = new Map<string, Map<string, number>>();
+
+    const addShare = (personId: string, itemId: string, weight: number) => {
+      const weightsByItem = shareWeightsByPerson.get(personId) ?? new Map<string, number>();
+      weightsByItem.set(itemId, (weightsByItem.get(itemId) || 0) + weight);
+      shareWeightsByPerson.set(personId, weightsByItem);
+    };
+
+    const itemById = new Map(items.map(item => [item.id, item]));
+
+    for (const person of people) {
+      const personWeight = getPersonHeadcount(person);
+      const assignedItemIds = new Set(person.items);
+
+      for (const itemId of assignedItemIds) {
+        const item = itemById.get(itemId);
+        if (!item) continue;
+        addShare(person.id, toPersistItemId(item), personWeight);
+      }
+    }
+
+    const sharesPayload = Array.from(shareWeightsByPerson).flatMap(([personId, weightsByItem]) =>
+      Array.from(weightsByItem, ([itemId, weight]) => ({
         item_id: itemId,
-        person_id: person.id, // Client-side ID for now
-        weight: items.find(i => i.id === itemId)?.splitBetween?.length || 1
+        person_id: personId,
+        weight
       }))
     );
 
@@ -92,13 +337,18 @@ async function persistPeopleAndShares(
 
     // Update people with Supabase UUIDs - match by name to preserve items
     const updatedPeople: Person[] = response.people.map((apiPerson: any) => {
-      const originalPerson = people.find(p => p.name === apiPerson.name);
+      const originalPerson =
+        people.find(p => p.id === apiPerson.client_id) ||
+        people.find(p => p.name === apiPerson.name);
       return {
         id: apiPerson.id, // Supabase UUID
         name: apiPerson.name,
         items: originalPerson?.items || [],
         total: originalPerson?.total || 0,
-        venmo_handle: apiPerson.venmo_handle ?? originalPerson?.venmo_handle ?? null
+        venmo_handle: apiPerson.venmo_handle ?? originalPerson?.venmo_handle ?? null,
+        headcount: getPersonHeadcount(apiPerson as Person),
+        personal_credit: Number(apiPerson.personal_credit ?? originalPerson?.personal_credit ?? 0) || undefined,
+        credit_note: apiPerson.credit_note ?? originalPerson?.credit_note
       };
     });
 
@@ -125,9 +375,16 @@ export const TabbySimple: React.FC = () => {
   const [showSplitItem, setShowSplitItem] = useState(false);
   const [showUnifiedEdit, setShowUnifiedEdit] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [creditPersonId, setCreditPersonId] = useState<string | null>(null);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditNote, setCreditNote] = useState('');
   const [splitPeople, setSplitPeople] = useState<string[]>([]);
   const [newPersonName, setNewPersonName] = useState('');
   const [newVenmoHandle, setNewVenmoHandle] = useState('');
+  const [newPersonHeadcount, setNewPersonHeadcount] = useState('1');
+  const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
+  const [editingPersonName, setEditingPersonName] = useState('');
+  const [editingPersonHeadcount, setEditingPersonHeadcount] = useState('1');
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverPerson, setDragOverPerson] = useState<string | null>(null);
   const [restaurantName, setRestaurantName] = useState('');
@@ -150,16 +407,22 @@ export const TabbySimple: React.FC = () => {
   const [editableSubtotal, setEditableSubtotal] = useState('0');
   const [editableTax, setEditableTax] = useState('0');
   const [editableTip, setEditableTip] = useState('0');
+  const [editableDiscount, setEditableDiscount] = useState('0');
+  const [editableServiceFee, setEditableServiceFee] = useState('0');
   const [showDragTooltip, setShowDragTooltip] = useState(false);
   const [toasts, setToasts] = useState<{id: string, emoji: string, item: string, person: string, color: string}[]>([]);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [scanAudit, setScanAudit] = useState<Pick<ParseResult, 'subtotal' | 'total' | 'validation' | 'fieldConfidence' | 'suggestedCorrections' | 'confidence'> | null>(null);
+  const [totalsVerified, setTotalsVerified] = useState(false);
   const prevAllAssignedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Debounce timer for database persistence (prevents race conditions)
   const persistTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPersistingRef = useRef<boolean>(false);
-  const pendingPersistRef = useRef<{ token: string | null, people: Person[], items: Item[] } | null>(null);
+  const pendingPersistRef = useRef<PendingPersist | null>(null);
+  const pointerDragStartRef = useRef<{ itemId: string; x: number; y: number; pointerId: number } | null>(null);
+  const suppressNextClickRef = useRef(false);
 
   // SINGLE SOURCE OF TRUTH: Computed bill totals with penny reconciliation
   // This hook automatically recalculates person totals when items/people/fees change
@@ -211,9 +474,10 @@ export const TabbySimple: React.FC = () => {
           isPersistingRef.current = false;
 
           // If there's pending data, schedule another persist
-          if (pendingPersistRef.current) {
+          const pending = pendingPersistRef.current as PendingPersist | null;
+          if (pending) {
             console.log('[debouncedPersist] Found pending data, scheduling another persist');
-            debouncedPersist(pendingPersistRef.current.token, pendingPersistRef.current.people, pendingPersistRef.current.items, onError);
+            debouncedPersist(pending.token, pending.people, pending.items, onError);
           }
         }
       } else {
@@ -230,6 +494,24 @@ export const TabbySimple: React.FC = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!showAddPerson && !showSplitItem && !showUnifiedEdit && !showShareReceipt && !showAuthModal && !creditPersonId) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setShowAddPerson(false);
+      setShowSplitItem(false);
+      setShowUnifiedEdit(false);
+      setShowShareReceipt(false);
+      setShowAuthModal(false);
+      setCreditPersonId(null);
+      closePersonEditor();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showAddPerson, showSplitItem, showUnifiedEdit, showShareReceipt, showAuthModal, creditPersonId]);
 
   // Determine step from URL
   useEffect(() => {
@@ -250,6 +532,8 @@ export const TabbySimple: React.FC = () => {
       setPeople([]);
       setBillToken(null);
       setRestaurantName('');
+      setScanAudit(null);
+      setTotalsVerified(false);
     }
   }, [urlToken, location.pathname]);
 
@@ -264,6 +548,7 @@ export const TabbySimple: React.FC = () => {
           name: myName,
           items: [],
           total: 0,
+          headcount: 1,
         };
         setPeople([newPerson]);
       }
@@ -297,9 +582,10 @@ export const TabbySimple: React.FC = () => {
         setIsLoadingBill(true);
         try {
           const billData = await fetchReceiptByToken(urlToken);
+          if (!billData) return;
 
           // Handle both 'bill' and 'receipt' keys from API
-          const receiptData = billData.bill || billData.receipt;
+          const receiptData = ((billData as any).bill || billData.receipt) as any;
 
           if (billData && receiptData) {
             // Coerce to a finite number — protects against undefined/null/NaN
@@ -309,21 +595,25 @@ export const TabbySimple: React.FC = () => {
               return Number.isFinite(n) ? n : 0;
             };
 
-            const loadedItems: Item[] = (billData.items || []).map((item: any) => {
+            const sourceItems = Array.isArray(billData.items) ? billData.items : [];
+            const sourceQuantitiesById = new Map<string, number>();
+            const normalizedSourceItems = sourceItems.map((item: any): SourceItemInput => {
               const quantity = Math.max(1, Math.round(safeNum(item.quantity) || 1));
               const unit_price = safeNum(item.unit_price);
-              const price = safeNum(item.price ?? (unit_price * quantity));
+              const sourceId = item.id && String(item.id).trim();
+              if (sourceId) {
+                sourceQuantitiesById.set(sourceId, quantity);
+              }
               return {
                 id: item.id,
                 emoji: item.emoji || '🍽️',
-                name: item.label || item.name || 'Item',
-                price,
+                label: item.label || item.name || 'Item',
+                price: safeNum(item.price ?? (unit_price * quantity)),
                 quantity,
-                unit_price: unit_price || (quantity > 0 ? price / quantity : price),
-                assignedTo: undefined,
-                splitBetween: undefined
+                unit_price
               };
             });
+            const loadedItems = toUniqueItems(normalizedSourceItems);
 
             setItems(loadedItems);
             setRestaurantName(receiptData.place || receiptData.title || 'Restaurant');
@@ -333,66 +623,173 @@ export const TabbySimple: React.FC = () => {
             setServiceFee(safeNum(receiptData.service_fee));
             setBillToken(urlToken);
 
-            // Load people from API if available
-            if (billData.people && billData.people.length > 0) {
-              console.log('[TabbySimple] Loading people from API:', billData.people);
+            let resolvedShareData: any | null = null;
+            const localShareData = localStorage.getItem(`bill-share-${urlToken}`);
+            if (localShareData) {
+              try {
+                resolvedShareData = JSON.parse(localShareData);
+              } catch (error) {
+                console.error('Error loading local share data:', error);
+              }
+            }
 
-              // First, apply item assignments from people data
-              const updatedItems = loadedItems.map(item => {
-                // Find which person(s) have this item
-                const assignedPeople = billData.people.filter((p: Person) =>
-                  p.items.includes(item.id)
-                );
+            const loadedPeople = (billData.people ?? []).map((person: any) => ({
+              ...person,
+              headcount: getPersonHeadcount(person)
+            }));
+            const loadedPersonById = new Map<string, any>(loadedPeople.map(person => [person.id, person]));
+            const itemById = new Map(loadedItems.map(item => [item.id, item]));
+            const itemPool = buildItemIdPool(loadedItems);
 
-                if (assignedPeople.length > 1) {
-                  // Item is split between multiple people
-                  return {
-                    ...item,
-                    assignedTo: assignedPeople[0].id,
-                    splitBetween: assignedPeople.map((p: Person) => p.id)
-                  };
-                } else if (assignedPeople.length === 1) {
-                  // Item assigned to one person
-                  return {
-                    ...item,
-                    assignedTo: assignedPeople[0].id
-                  };
-                }
-                return item;
-              });
+            const localAssignments = normalizeAssignments(resolvedShareData?.assignments, sourceQuantitiesById);
+            const apiAssignments: PersistedAssignment[] = [];
+            const apiShares = Array.isArray((billData as any).shares) ? (billData as any).shares as Array<any> : [];
 
-              setItems(updatedItems);
+            for (const share of apiShares) {
+              if (!share || typeof share !== 'object') continue;
 
-              // Recalculate person totals with actual item prices
-              // Set people - totals will be computed by useBillTotals hook
-              const peopleWithItems = billData.people.map((person: Person) => ({
-                ...person,
-                total: 0 // Will be computed by billTotals hook after state update
-              }));
+              const rawItemId = String((share as any).item_id || '').trim();
+              const personId = String((share as any).person_id || '').trim();
+              if (!rawItemId || !personId) continue;
 
-              setPeople(peopleWithItems);
-              console.log('[TabbySimple] Loaded people from API (totals computed by hook):', peopleWithItems);
-            } else {
-              // Fallback to localStorage if no people in API response
-              const localShareData = localStorage.getItem(`bill-share-${urlToken}`);
-              if (localShareData) {
-                try {
-                  const shareData = JSON.parse(localShareData);
-                  if (shareData.people) {
-                    setPeople(shareData.people);
-                  }
-                  if (shareData.assignments) {
-                    // Apply assignments to items
-                    setItems(prevItems => prevItems.map(item => ({
-                      ...item,
-                      assignedTo: shareData.assignments[item.id]
-                    })));
-                  }
-                } catch (e) {
-                  console.error('Error loading share data:', e);
+              const maxCopies = sourceQuantitiesById.get(rawItemId) ?? 1;
+              const shareCount = shareCountFromWeight((share as any).weight, maxCopies);
+
+              for (let i = 0; i < shareCount; i++) {
+                apiAssignments.push({ itemId: rawItemId, personId, weight: 1 });
+              }
+            }
+
+            const assignments: PersistedAssignment[] = localAssignments.length > 0
+              ? localAssignments
+              : apiAssignments;
+
+            if (assignments.length === 0 && loadedPeople.length > 0) {
+              for (const person of loadedPeople) {
+                const personItems = Array.isArray(person.items) ? person.items : [];
+                for (const itemId of personItems) {
+                  assignments.push({
+                    itemId: String(itemId),
+                    personId: person.id,
+                    weight: Math.max(1, Math.floor(sourceQuantitiesById.get(String(itemId)) ?? 1))
+                  });
                 }
               }
             }
+
+            const sourceUsage = new Map<string, number>();
+            const ownersByItemId = new Map<string, string[]>();
+
+            for (const assignment of assignments) {
+              const shareCount = shareCountFromWeight(assignment.weight, sourceQuantitiesById.get(assignment.itemId) ?? 1);
+              if (shareCount <= 0) continue;
+              for (let i = 0; i < shareCount; i++) {
+                const resolvedItemId = resolveItemIdFromAssignments(
+                  assignment.itemId,
+                  itemById,
+                  itemPool,
+                  sourceUsage
+                );
+                if (!resolvedItemId) continue;
+
+                const owners = ownersByItemId.get(resolvedItemId) ?? [];
+                if (!owners.includes(assignment.personId)) owners.push(assignment.personId);
+                ownersByItemId.set(resolvedItemId, owners);
+              }
+            }
+
+            const assignmentItems = loadedItems.map(item => {
+              const assignedPeople = ownersByItemId.get(item.id) ?? [];
+              if (assignedPeople.length > 1) {
+                return {
+                  ...item,
+                  assignedTo: assignedPeople[0],
+                  splitBetween: assignedPeople
+                };
+              }
+              if (assignedPeople.length === 1) {
+                return {
+                  ...item,
+                  assignedTo: assignedPeople[0],
+                  splitBetween: undefined
+                };
+              }
+              return item;
+            });
+
+            setItems(assignmentItems);
+
+            const peopleWithAssignments = new Map<string, Person>();
+
+            const normalizedLocalPeople = Array.isArray(resolvedShareData?.people)
+              ? (resolvedShareData.people as Person[]).map((person: any): Person => ({
+                  ...person,
+                  headcount: getPersonHeadcount(person),
+                  items: person.items || [],
+                  total: person.total || 0
+                }))
+              : [];
+
+            const seedPeople = normalizedLocalPeople.length > 0
+              ? normalizedLocalPeople
+              : loadedPeople;
+
+            for (const person of seedPeople) {
+              const existing = peopleWithAssignments.get(person.id);
+              if (!existing) {
+                const baseItems = Array.isArray(person.items)
+                  ? person.items.map((itemId: string) => String(itemId))
+                  : [];
+                peopleWithAssignments.set(person.id, {
+                  ...person,
+                  items: baseItems,
+                  total: person.total || 0
+                });
+              }
+
+              const filteredItems = assignmentItems
+                .filter(item =>
+                  (ownersByItemId.get(item.id) ?? []).includes(person.id)
+                )
+                .map(item => item.id);
+
+              if (filteredItems.length > 0) {
+                const updatedPerson = peopleWithAssignments.get(person.id);
+                if (updatedPerson) {
+                  updatedPerson.items = filteredItems;
+                }
+              }
+            }
+
+            if (peopleWithAssignments.size === 0 && assignments.length > 0) {
+              for (const item of assignmentItems) {
+                for (const personId of item.splitBetween || []) {
+                  if (!personId) continue;
+                  const existing = peopleWithAssignments.get(personId);
+
+                  if (existing) {
+                    if (!existing.items.includes(item.id)) {
+                      existing.items.push(item.id);
+                    }
+                  } else {
+                    const basePerson = loadedPersonById.get(personId) || {
+                      id: personId,
+                      name: personId,
+                      items: [],
+                      total: 0
+                    };
+
+                    peopleWithAssignments.set(personId, {
+                      ...basePerson,
+                      items: [item.id],
+                      total: 0
+                    });
+                  }
+                }
+              }
+            }
+
+            setPeople(Array.from(peopleWithAssignments.values()));
           }
         } catch (error) {
           console.error('Error loading bill:', error);
@@ -429,14 +826,15 @@ export const TabbySimple: React.FC = () => {
 
       // Convert to our item format (quantity metadata comes from the server's
       // parseQuantityItems — one row per receipt line, never N copies).
-      const scannedItems: Item[] = result.items.map(item => ({
+      const scannedItems = toUniqueItems((result.items || []).map((item): SourceItemInput => ({
         id: item.id,
         emoji: item.emoji || '🍽️',
         name: item.label,
-        price: item.price,
+        label: item.label,
+        price: Number(item.price) || 0,
         quantity: item.quantity ?? 1,
         unit_price: item.unit_price ?? item.price,
-      }));
+      })));
 
       setItems(scannedItems);
       setRestaurantName(result.place || 'Restaurant');
@@ -444,6 +842,15 @@ export const TabbySimple: React.FC = () => {
       setTip(result.tip || 0);
       setDiscount(result.discount || 0);
       setServiceFee(result.service_fee || 0);
+      setScanAudit({
+        subtotal: result.subtotal,
+        total: result.total,
+        validation: result.validation,
+        fieldConfidence: result.fieldConfidence,
+        suggestedCorrections: result.suggestedCorrections,
+        confidence: result.confidence
+      });
+      setTotalsVerified(false);
 
       // Log what was scanned for debugging
       console.log('[TabbySimple] Scan results:', {
@@ -488,19 +895,15 @@ export const TabbySimple: React.FC = () => {
           const supabaseItems = JSON.parse(supabaseItemsJson);
           console.log('[TabbySimple] Loaded items with Supabase UUIDs:', supabaseItems);
           // Update items with Supabase UUIDs
-          const updatedItems: Item[] = supabaseItems.map((item: any) => {
-            const quantity = Math.max(1, Math.round(Number(item.quantity) || 1));
-            const unit_price = Number(item.unit_price) || 0;
-            const price = Number(item.price) || (unit_price * quantity) || 0;
-            return {
-              id: item.id, // Supabase UUID
-              emoji: item.emoji || '🍽️',
-              name: item.label || item.name || 'Item',
-              price,
-              quantity,
-              unit_price: unit_price || (quantity > 0 ? price / quantity : price),
-            };
-          });
+          const updatedItems = toUniqueItems((supabaseItems || []).map((item: any): SourceItemInput => ({
+            id: item.id, // Supabase UUID
+            emoji: item.emoji || '🍽️',
+            name: item.label || item.name || 'Item',
+            label: item.label || item.name || 'Item',
+            price: Number(item.price) || (Number(item.unit_price || 0) * Math.max(1, Math.round(Number(item.quantity) || 1))),
+            quantity: item.quantity,
+            unit_price: item.unit_price
+          })));
           setItems(updatedItems);
         } catch (error) {
           console.error('[TabbySimple] Failed to load Supabase items:', error);
@@ -552,6 +955,8 @@ export const TabbySimple: React.FC = () => {
     setItems([]);
     setRestaurantName('');
     setTax(0); setTip(0); setDiscount(0); setServiceFee(0);
+    setScanAudit(null);
+    setTotalsVerified(false);
     setScanError('');
     setIsEditingRestaurantName(true);
     setEditableRestaurantName('');
@@ -571,28 +976,66 @@ export const TabbySimple: React.FC = () => {
     }
   };
 
-  const handleAddPerson = async (name?: string) => {
+  const handleAddPerson = async (name?: string, headcount?: number) => {
     // Ensure name is a string before calling trim()
     const nameStr = typeof name === 'string' ? name.trim() : newPersonName.trim();
     if (nameStr) {
       const venmoStr = newVenmoHandle.trim().replace(/^@/, '');
+      const resolvedHeadcount = normalizeHeadcount(headcount ?? newPersonHeadcount);
       const newPerson: Person = {
         id: `person-${Date.now()}`,
         name: nameStr,
         items: [],
         total: 0,
         venmo_handle: venmoStr || null,
+        headcount: resolvedHeadcount
       };
       const updatedPeople = [...people, newPerson];
       setPeople(updatedPeople);
       trackPersonName(nameStr); // Track for future suggestions
       setNewPersonName('');
       setNewVenmoHandle('');
+      setNewPersonHeadcount('1');
       setShowAddPerson(false);
 
       // Persist to database (debounced to prevent race conditions)
       debouncedPersist(billToken, updatedPeople, items);
     }
+  };
+
+  const openPersonEditor = (person: Person) => {
+    setEditingPersonId(person.id);
+    setEditingPersonName(person.name);
+    setEditingPersonHeadcount(String(getPersonHeadcount(person)));
+  };
+
+  const closePersonEditor = () => {
+    setEditingPersonId(null);
+    setEditingPersonName('');
+    setEditingPersonHeadcount('1');
+  };
+
+  const savePersonEdit = () => {
+    if (!editingPersonId) return;
+
+    const personName = editingPersonName.trim();
+    if (!personName) return;
+
+    const headcount = normalizeHeadcount(editingPersonHeadcount);
+    const updatedPeople = people.map(person => {
+      if (person.id !== editingPersonId) return person;
+
+      const originalName = person.name;
+      if (originalName !== personName) {
+        trackPersonName(personName);
+      }
+
+      return { ...person, name: personName, headcount };
+    });
+
+    setPeople(updatedPeople);
+    debouncedPersist(billToken, updatedPeople, items);
+    closePersonEditor();
   };
 
   // Unified Edit Modal Handlers
@@ -622,21 +1065,27 @@ export const TabbySimple: React.FC = () => {
   const handleUnifiedItemsSave = (newItems: Item[]) => {
     rebaseTaxTip(newItems);
     setItems(newItems);
+    if (scanAudit) setTotalsVerified(false);
     // Subtotal, total, and person totals are all derived by useBillTotals.
   };
 
-  const handleUnifiedBillTotalsSave = async (data: { subtotal: number; tax: number; tip: number }) => {
+  const handleUnifiedBillTotalsSave = async (data: { subtotal: number; tax: number; tip: number; discount: number; serviceFee: number }) => {
     // Subtotal is derived from items — ignore any subtotal edit from the modal.
-    const { tax: newTax, tip: newTip } = data;
+    const { tax: newTax, tip: newTip, discount: newDiscount, serviceFee: newServiceFee } = data;
     setTax(newTax);
     setTip(newTip);
+    setDiscount(newDiscount);
+    setServiceFee(newServiceFee);
+    if (scanAudit) setTotalsVerified(false);
 
     if (billToken) {
       try {
         await updateReceiptMetadata(billToken, {
           subtotal: billTotals?.subtotal ?? 0,
           sales_tax: newTax,
-          tip: newTip
+          tip: newTip,
+          discount: newDiscount,
+          service_fee: newServiceFee
         });
       } catch (error) {
         console.error('[TabbySimple] Failed to update bill totals:', error);
@@ -645,46 +1094,40 @@ export const TabbySimple: React.FC = () => {
     }
   };
 
-  // Prompt-based credit editor. Enter nothing (or 0) to clear.
   const handleEditCredit = (personId: string) => {
     const person = people.find(p => p.id === personId);
     if (!person) return;
 
-    const existing = person.personal_credit ?? 0;
-    const raw = window.prompt(
-      `Personal credit for ${person.name} (e.g. Amex dinner $15). Blank or 0 clears.`,
-      existing ? existing.toFixed(2) : ''
-    );
-    if (raw === null) return; // cancelled
+    setCreditPersonId(personId);
+    setCreditAmount(person.personal_credit ? person.personal_credit.toFixed(2) : '');
+    setCreditNote(person.credit_note ?? '');
+  };
 
-    const trimmed = raw.trim().replace(/^\$/, '');
+  const handleSaveCredit = () => {
+    if (!creditPersonId) return;
+
+    const trimmed = creditAmount.trim().replace(/^\$/, '');
     const amount = trimmed === '' ? 0 : parseFloat(trimmed);
     if (!Number.isFinite(amount) || amount < 0) return;
 
-    let note = person.credit_note;
-    if (amount > 0) {
-      const noteInput = window.prompt(
-        `Note for the credit (optional):`,
-        note ?? 'Credit'
-      );
-      if (noteInput !== null) note = noteInput.trim() || undefined;
-    } else {
-      note = undefined;
-    }
+    const note = amount > 0 ? creditNote.trim() || undefined : undefined;
 
     const updatedPeople = people.map(p =>
-      p.id === personId
+      p.id === creditPersonId
         ? { ...p, personal_credit: amount || undefined, credit_note: note }
         : p
     );
     setPeople(updatedPeople);
+    debouncedPersist(billToken, updatedPeople, items);
+    setCreditPersonId(null);
+    setCreditAmount('');
+    setCreditNote('');
   };
 
   const handleUnifiedPersonRemove = async (personId: string) => {
     // Remove person and unassign their items
     const updatedPeople = people.filter(p => p.id !== personId);
-    const updatedItems = items.map(item =>
-      item.assignedTo === personId ? { ...item, assignedTo: undefined } : item
+    const updatedItems = items.map(item => removePersonFromItem(item, personId)
     );
     setPeople(updatedPeople);
     setItems(updatedItems);
@@ -697,6 +1140,7 @@ export const TabbySimple: React.FC = () => {
     rebaseTaxTip(editableItems);
     setItems(editableItems);
     setIsEditingReceipt(false);
+    if (scanAudit) setTotalsVerified(false);
     // Subtotal and total are derived by useBillTotals.
   };
 
@@ -704,16 +1148,23 @@ export const TabbySimple: React.FC = () => {
     // Subtotal edits are ignored — subtotal is derived from items.
     const newTax = parseFloat(editableTax) || 0;
     const newTip = parseFloat(editableTip) || 0;
+    const newDiscount = parseFloat(editableDiscount) || 0;
+    const newServiceFee = parseFloat(editableServiceFee) || 0;
     setTax(newTax);
     setTip(newTip);
+    setDiscount(newDiscount);
+    setServiceFee(newServiceFee);
     setIsEditingBill(false);
+    if (scanAudit) setTotalsVerified(false);
 
     if (billToken) {
       try {
         await updateReceiptMetadata(billToken, {
           subtotal: billTotals?.subtotal ?? 0,
           sales_tax: newTax,
-          tip: newTip
+          tip: newTip,
+          discount: newDiscount,
+          service_fee: newServiceFee
         });
       } catch (error) {
         console.error('[TabbySimple] Failed to update bill totals:', error);
@@ -740,8 +1191,12 @@ export const TabbySimple: React.FC = () => {
     prevAllAssignedRef.current = allAssigned;
   }, [items]);
 
-  const handleDragStart = (itemId: string) => {
+  const handleDragStart = (e: React.DragEvent, itemId: string) => {
     setDraggedItem(itemId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(ITEM_DRAG_MIME, itemId);
+    e.dataTransfer.setData('text/plain', itemId);
+
     // Hide tooltip after first drag
     if (showDragTooltip) {
       setShowDragTooltip(false);
@@ -749,12 +1204,85 @@ export const TabbySimple: React.FC = () => {
     }
   };
 
-  const handleDragEnd = () => {
+  const clearDragState = useCallback(() => {
+    pointerDragStartRef.current = null;
     setDraggedItem(null);
+    setDragOverPerson(null);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('dragend', clearDragState);
+    window.addEventListener('drop', clearDragState);
+    window.addEventListener('pointerup', clearDragState);
+    window.addEventListener('pointercancel', clearDragState);
+    window.addEventListener('blur', clearDragState);
+
+    return () => {
+      window.removeEventListener('dragend', clearDragState);
+      window.removeEventListener('drop', clearDragState);
+      window.removeEventListener('pointerup', clearDragState);
+      window.removeEventListener('pointercancel', clearDragState);
+      window.removeEventListener('blur', clearDragState);
+    };
+  }, [clearDragState]);
+
+  const handleDragEnd = clearDragState;
+
+  const getDropPersonId = useCallback((x: number, y: number) => {
+    const element = document.elementFromPoint(x, y);
+    return (element?.closest('[data-person-id]') as HTMLElement | null)?.dataset.personId ?? null;
+  }, []);
+
+  const handlePointerDragStart = (e: React.PointerEvent<HTMLElement>, itemId: string) => {
+    if (e.button !== 0) return;
+    pointerDragStartRef.current = { itemId, x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
+  const handlePointerDragMove = (e: React.PointerEvent<HTMLElement>) => {
+    const start = pointerDragStartRef.current;
+    if (!start) return;
+
+    const distance = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+    if (distance < POINTER_DRAG_THRESHOLD) return;
+
+    setDraggedItem(start.itemId);
+    setDragOverPerson(getDropPersonId(e.clientX, e.clientY));
+  };
+
+  const handlePointerDragEnd = (e: React.PointerEvent<HTMLElement>) => {
+    const start = pointerDragStartRef.current;
+    if (!start) return;
+
+    e.currentTarget.releasePointerCapture?.(start.pointerId);
+    const distance = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+    const personId = distance >= POINTER_DRAG_THRESHOLD ? getDropPersonId(e.clientX, e.clientY) : null;
+
+    if (personId) {
+      suppressNextClickRef.current = true;
+      assignItemToPerson(start.itemId, personId);
+      e.preventDefault();
+      e.stopPropagation();
+      setTimeout(() => {
+        suppressNextClickRef.current = false;
+      }, 0);
+    }
+
+    clearDragState();
+  };
+
+  const handlePointerDragCancel = (e: React.PointerEvent<HTMLElement>) => {
+    const start = pointerDragStartRef.current;
+    if (start) {
+      e.currentTarget.releasePointerCapture?.(start.pointerId);
+    }
+
+    clearDragState();
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDragEnter = (personId: string) => {
@@ -767,17 +1295,19 @@ export const TabbySimple: React.FC = () => {
 
   const handleDrop = (e: React.DragEvent, personId: string) => {
     e.preventDefault();
-    if (draggedItem) {
-      assignItemToPerson(draggedItem, personId);
+    const itemId = e.dataTransfer.getData(ITEM_DRAG_MIME) || e.dataTransfer.getData('text/plain') || draggedItem;
+    if (itemId) {
+      assignItemToPerson(itemId, personId);
     }
-    setDraggedItem(null);
-    setDragOverPerson(null);
+    clearDragState();
   };
 
   // NOTE: calculatePersonTotal has been removed - use getPersonTotal(billTotals, personId) instead
   // The useBillTotals hook at line ~153 is the SINGLE SOURCE OF TRUTH for all calculations
 
   const assignItemToPerson = async (itemId: string, personId: string) => {
+    clearDragState();
+
     // 🚀 OPTIMISTIC UPDATE - Update UI immediately for instant feedback
     const previousItems = items;
     const previousPeople = people;
@@ -835,7 +1365,121 @@ export const TabbySimple: React.FC = () => {
   const unassignedItems = items.filter(item =>
     !item.assignedTo && !(item.splitBetween && item.splitBetween.length > 0)
   );
-  const allItemsAssigned = unassignedItems.length === 0;
+  const itemById = new Map(items.map(item => [item.id, item]));
+  const itemsByPersonId = new Map(
+    people.map(person => [
+      person.id,
+      person.items
+        .map(itemId => itemById.get(itemId))
+        .filter((item): item is Item => Boolean(item))
+    ])
+  );
+  const allItemsAssigned = items.length > 0 && unassignedItems.length === 0;
+  const scanWarnings = scanAudit?.validation?.warnings ?? [];
+  const lowConfidenceFields = Object.entries(scanAudit?.fieldConfidence ?? {})
+    .filter(([, confidence]) => confidence === 'low')
+    .map(([field]) => field);
+  const canShare = allItemsAssigned && people.length > 0 && (!scanAudit || totalsVerified);
+  const mathReviewCard = scanAudit ? (
+    <section className={`math-review-card ${totalsVerified ? 'math-review-card--verified' : ''}`}>
+      <div className="math-review-header">
+        <div>
+          <p className="math-review-eyebrow">Receipt math</p>
+          <h2>{totalsVerified ? 'Totals reviewed' : 'Review before sharing'}</h2>
+        </div>
+        <button
+          type="button"
+          className="math-review-action"
+          onClick={() => setTotalsVerified(true)}
+        >
+          {totalsVerified ? 'Reviewed' : 'Mark reviewed'}
+        </button>
+      </div>
+      <div className="math-review-grid">
+        <div>
+          <span>Items sum</span>
+          <strong>${(billTotals?.subtotal ?? 0).toFixed(2)}</strong>
+        </div>
+        <div>
+          <span>Receipt subtotal</span>
+          <strong>${(scanAudit.subtotal ?? billTotals?.subtotal ?? 0).toFixed(2)}</strong>
+        </div>
+        <div>
+          <span>Receipt total</span>
+          <strong>${(scanAudit.total ?? billTotals?.receipt_total ?? 0).toFixed(2)}</strong>
+        </div>
+        <div>
+          <span>Split total</span>
+          <strong>${(billTotals?.grand_total ?? 0).toFixed(2)}</strong>
+        </div>
+      </div>
+      {(scanWarnings.length > 0 || lowConfidenceFields.length > 0 || (scanAudit.suggestedCorrections?.length ?? 0) > 0) && (
+        <div className="math-review-notes" role="list" aria-label="Receipt review notes">
+          {scanWarnings.map((warning) => {
+            const note = splitAuditMessage(warning);
+            return (
+              <div className="math-review-note math-review-note--warning" role="listitem" key={warning}>
+                <span className="math-review-note-icon" aria-hidden="true">!</span>
+                <p>
+                  <strong>{note.title}</strong>
+                  {note.detail && <span>{note.detail}</span>}
+                </p>
+              </div>
+            );
+          })}
+          {lowConfidenceFields.length > 0 && (
+            <div className="math-review-note math-review-note--muted" role="listitem">
+              <span className="math-review-note-icon" aria-hidden="true">?</span>
+              <p>
+                <strong>Low confidence fields</strong>
+                <span>{lowConfidenceFields.join(', ')}</span>
+              </p>
+            </div>
+          )}
+          {scanAudit.suggestedCorrections?.map((correction) => (
+            <div className="math-review-note math-review-note--suggestion" role="listitem" key={`${correction.field}-${correction.suggestedValue}`}>
+              <span className="math-review-note-icon" aria-hidden="true">↺</span>
+              <p>
+                <strong>Suggested {correction.field}</strong>
+                <span>{String(correction.suggestedValue)} · {correction.reason}</span>
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  ) : null;
+  const editPersonModal = editingPersonId ? (
+    <div className="modal-overlay" onClick={closePersonEditor}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="edit-person-title" onClick={(e) => e.stopPropagation()}>
+        <h3 id="edit-person-title">Edit Person</h3>
+        <input
+          type="text"
+          placeholder="Name"
+          value={editingPersonName}
+          onChange={(e) => setEditingPersonName(e.target.value)}
+          autoFocus
+        />
+        <input
+          type="number"
+          min="1"
+          step="1"
+          inputMode="numeric"
+          placeholder="Headcount"
+          value={editingPersonHeadcount}
+          onChange={(e) => setEditingPersonHeadcount(e.target.value)}
+        />
+        <div className="modal-actions">
+          <button onClick={savePersonEdit} disabled={!editingPersonName.trim()}>
+            Save
+          </button>
+          <button className="contacts-btn" onClick={closePersonEditor}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   // Show loading state when loading bill from URL
   if (isLoadingBill) {
@@ -955,7 +1599,7 @@ export const TabbySimple: React.FC = () => {
                   width: '100%',
                   padding: '14px 24px',
                   background: 'var(--tb-accent-tint)',
-                  border: '1px solid rgba(0, 122, 255, 0.3)',
+                  border: '1px solid var(--tb-accent-border)',
                   borderRadius: '12px',
                   color: 'var(--tb-accent)',
                   fontSize: '16px',
@@ -1090,7 +1734,7 @@ export const TabbySimple: React.FC = () => {
                       {person.name[0].toUpperCase()}
                     </div>
                     <span style={{ fontSize: '12px', color: 'var(--tb-ink-muted)' }}>
-                      {person.name}
+                      {person.name} ({getPersonHeadcount(person)}x)
                     </span>
                   </div>
                 ))}
@@ -1111,7 +1755,7 @@ export const TabbySimple: React.FC = () => {
                       style={{
                         padding: '8px 16px',
                         background: 'var(--tb-accent-tint)',
-                        border: '1px solid rgba(0, 122, 255, 0.3)',
+                        border: '1px solid var(--tb-accent-border)',
                         borderRadius: '20px',
                         color: 'var(--tb-accent)',
                         fontSize: '14px',
@@ -1127,7 +1771,7 @@ export const TabbySimple: React.FC = () => {
             )}
 
             {/* Input field */}
-            <div style={{ marginBottom: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: '8px', marginBottom: '12px' }}>
               <input
                 type="text"
                 placeholder="Type a name..."
@@ -1149,6 +1793,31 @@ export const TabbySimple: React.FC = () => {
                   outline: 'none'
                 }}
               />
+              <input
+                type="number"
+                min="1"
+                step="1"
+                inputMode="numeric"
+                placeholder="x"
+                value={newPersonHeadcount}
+                onChange={(e) => setNewPersonHeadcount(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && newPersonName.trim()) {
+                    handleAddPerson();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px 12px',
+                  background: 'var(--tb-surface-2)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: 'var(--tb-ink)',
+                  fontSize: '16px',
+                  outline: 'none',
+                  textAlign: 'center'
+                }}
+              />
             </div>
 
             {/* Action buttons */}
@@ -1159,10 +1828,10 @@ export const TabbySimple: React.FC = () => {
                 style={{
                   flex: 1,
                   padding: '12px',
-                  background: newPersonName.trim() ? 'var(--tb-accent-tint)' : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${newPersonName.trim() ? 'var(--tb-accent)' : 'rgba(255,255,255,0.1)'}`,
+                  background: newPersonName.trim() ? 'var(--tb-accent-tint)' : 'var(--tb-surface-2)',
+                  border: `1px solid ${newPersonName.trim() ? 'var(--tb-accent)' : 'var(--tb-border)'}`,
                   borderRadius: '12px',
-                  color: newPersonName.trim() ? 'var(--tb-accent)' : 'rgba(255,255,255,0.3)',
+                  color: newPersonName.trim() ? 'var(--tb-accent)' : 'var(--tb-ink-dim)',
                   fontSize: '15px',
                   cursor: newPersonName.trim() ? 'pointer' : 'not-allowed',
                   fontWeight: '600'
@@ -1371,6 +2040,8 @@ export const TabbySimple: React.FC = () => {
           />
         </div>
 
+        {mathReviewCard}
+
         <div className="people-step-container">
           <div className="people-circles">
             {people.map((person, index) => (
@@ -1399,7 +2070,7 @@ export const TabbySimple: React.FC = () => {
                     style={{
                       padding: '8px 16px',
                       background: 'var(--tb-accent-tint)',
-                      border: '1px solid rgba(0, 122, 255, 0.3)',
+                      border: '1px solid var(--tb-accent-border)',
                       borderRadius: '20px',
                       color: 'var(--tb-accent)',
                       fontSize: '14px',
@@ -1422,19 +2093,37 @@ export const TabbySimple: React.FC = () => {
                   <div className="person-avatar-small" style={{ background: getPersonColor(index) }}>
                     {person.name[0].toUpperCase()}
                   </div>
-                  <span className="person-name-text">{person.name}</span>
-                  <button
-                    className="remove-btn"
-                    onClick={() => {
-                      const updatedPeople = people.filter(p => p.id !== person.id);
-                      setPeople(updatedPeople);
+                  <span className="person-name-text">
+                    {person.name} ({getPersonHeadcount(person)}x)
+                  </span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => openPersonEditor(person)}
+                      style={{
+                        padding: '6px 10px',
+                        background: 'var(--tb-surface-2)',
+                        border: '1px solid var(--tb-border-strong)',
+                        borderRadius: '6px',
+                        color: 'var(--tb-ink)',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="remove-btn"
+                      onClick={() => {
+                        const updatedPeople = people.filter(p => p.id !== person.id);
+                        setPeople(updatedPeople);
 
-                      // Persist to database (debounced to prevent race conditions)
-                      debouncedPersist(billToken, updatedPeople, items);
-                    }}
-                  >
-                    Remove
-                  </button>
+                        // Persist to database (debounced to prevent race conditions)
+                        debouncedPersist(billToken, updatedPeople, items);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1453,6 +2142,8 @@ export const TabbySimple: React.FC = () => {
                 onClick={() => {
                   const name = prompt('What should we call you?');
                   if (name && name.trim()) {
+                    setNewPersonName(name.trim());
+                    setNewPersonHeadcount('1');
                     setUserIdentity(name.trim());
                     handleAddPerson(name.trim());
                   }
@@ -1481,9 +2172,13 @@ export const TabbySimple: React.FC = () => {
                   return {
                     id: person.id,
                     name: person.name,
+                    headcount: getPersonHeadcount(person),
                     items: person.items,
                     itemShares,
-                    total: getPersonTotal(billTotals, person.id)
+                    total: getPersonTotal(billTotals, person.id),
+                    venmo_handle: person.venmo_handle ?? null,
+                    personal_credit: person.personal_credit,
+                    credit_note: person.credit_note
                   };
                 });
 
@@ -1497,12 +2192,7 @@ export const TabbySimple: React.FC = () => {
                   discount,
                   serviceFee,
                   total: billTotals?.grand_total ?? 0,
-                  assignments: items.reduce((acc, item) => {
-                    if (item.assignedTo) {
-                      acc[item.id] = item.assignedTo;
-                    }
-                    return acc;
-                  }, {} as Record<string, string>)
+                  assignments: buildPersistedAssignments(items)
                 };
                 console.log('[TabbySimple] Saving to localStorage with itemShares:', peopleWithShares.map(p => ({ name: p.name, itemShares: p.itemShares })));
                 localStorage.setItem(`bill-share-${billToken}`, JSON.stringify(shareData));
@@ -1521,9 +2211,14 @@ export const TabbySimple: React.FC = () => {
 
         {/* Add Person Modal */}
         {showAddPerson && (
-          <div className="modal-overlay" onClick={() => { setShowAddPerson(false); setNewVenmoHandle(''); }}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <h3>Add People</h3>
+          <div className="modal-overlay" onClick={() => {
+            setShowAddPerson(false);
+            setNewPersonName('');
+            setNewVenmoHandle('');
+            setNewPersonHeadcount('1');
+          }}>
+            <div className="modal" role="dialog" aria-modal="true" aria-labelledby="add-people-title" onClick={(e) => e.stopPropagation()}>
+              <h3 id="add-people-title">Add People</h3>
               <input
                 type="text"
                 placeholder="Enter name"
@@ -1531,6 +2226,16 @@ export const TabbySimple: React.FC = () => {
                 onChange={(e) => setNewPersonName(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleAddPerson()}
                 autoFocus
+              />
+              <input
+                type="number"
+                min="1"
+                step="1"
+                inputMode="numeric"
+                value={newPersonHeadcount}
+                onChange={(e) => setNewPersonHeadcount(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddPerson()}
+                placeholder="Headcount"
               />
               <input
                 type="text"
@@ -1543,13 +2248,14 @@ export const TabbySimple: React.FC = () => {
                 autoCorrect="off"
               />
               <div className="modal-actions">
-                <button onClick={handleAddPerson} disabled={!newPersonName.trim()}>
+                <button onClick={() => handleAddPerson()} disabled={!newPersonName.trim()}>
                   Add Person
                 </button>
               </div>
             </div>
           </div>
         )}
+        {editPersonModal}
       </div>
     );
   }
@@ -1658,6 +2364,7 @@ export const TabbySimple: React.FC = () => {
 
       {/* Main Content */}
       <div className="main-content">
+        {mathReviewCard}
         {/* Combined Items and People View */}
         <div className="combined-view">
           {/* Unassigned Items Section */}
@@ -1674,12 +2381,18 @@ export const TabbySimple: React.FC = () => {
               </p>
               <div className="items-grid">
                 {unassignedItems.map((item, index) => (
-                  <div
+                  <button
+                    type="button"
                     key={item.id}
                     className={`item-card ${draggedItem === item.id ? 'dragging' : ''} ${showDragTooltip && index === 0 ? 'spotlight-hint' : ''}`}
                     draggable
-                    onDragStart={() => handleDragStart(item.id)}
+                    aria-label={`Assign or split ${item.name}, ${item.price.toFixed(2)} dollars`}
+                    onDragStart={(e) => handleDragStart(e, item.id)}
                     onDragEnd={handleDragEnd}
+                    onPointerDown={(e) => handlePointerDragStart(e, item.id)}
+                    onPointerMove={handlePointerDragMove}
+                    onPointerUp={handlePointerDragEnd}
+                    onPointerCancel={handlePointerDragCancel}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       setSelectedItem(item);
@@ -1687,6 +2400,10 @@ export const TabbySimple: React.FC = () => {
                       setShowSplitItem(true);
                     }}
                     onClick={() => {
+                      if (suppressNextClickRef.current) {
+                        suppressNextClickRef.current = false;
+                        return;
+                      }
                       // Desktop: drag suppresses click when the user actually drags.
                       // Touch: tap opens the assign/split picker since HTML5 DnD
                       // doesn't exist on touch.
@@ -1713,7 +2430,7 @@ export const TabbySimple: React.FC = () => {
                       </span>
                       <span className="item-price">${item.price.toFixed(2)}</span>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -1726,8 +2443,7 @@ export const TabbySimple: React.FC = () => {
               <div className="people-items-section">
                 {people.map((person) => {
                 const personIndex = people.findIndex(p => p.id === person.id);
-                // Get all items for this person based on their items array
-                const personItems = items.filter(item => person.items.includes(item.id));
+                const personItems = itemsByPersonId.get(person.id) ?? [];
 
                 // Get computed breakdown from billTotals (single source of truth)
                 const breakdown = getPersonBreakdown(billTotals, person.id);
@@ -1748,6 +2464,9 @@ export const TabbySimple: React.FC = () => {
                     onDragEnter={() => handleDragEnter(person.id)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, person.id)}
+                    data-person-id={person.id}
+                    role="group"
+                    aria-label={`${person.name} assigned items drop zone`}
                   >
                     <div className="person-header">
                       <span className="person-name-large">{person.name}</span>
@@ -1796,19 +2515,33 @@ export const TabbySimple: React.FC = () => {
                         </div>
                       ) : (
                         personItems.map(item => {
-                        const isSplit = item.splitBetween && item.splitBetween.length > 1;
-                        const splitCount = isSplit ? item.splitBetween!.length : 1;
-                        const displayPrice = item.price / splitCount;
+                        const splitParticipants = getItemParticipants(item);
+                        const splitDenominator = getItemShareDenominator(item, people);
+                        const splitWeight = getPersonShareWeight(item, person.id, people);
+                        const isSplit = splitParticipants.length > 1;
+                        const sharePrice = isSplit && splitDenominator > 0
+                          ? (item.price * splitWeight) / splitDenominator
+                          : item.price;
 
                         return (
-                          <div
+                          <button
+                            type="button"
                             key={item.id}
-                            className={`person-item ${draggedItem === item.id ? 'dragging' : ''}`}
+                            className="person-item"
                             style={{ borderLeft: `3px solid ${getPersonColor(personIndex)}` }}
                             draggable
-                            onDragStart={() => handleDragStart(item.id)}
+                            aria-label={`Remove ${item.name} from ${person.name}`}
+                            onDragStart={(e) => handleDragStart(e, item.id)}
                             onDragEnd={handleDragEnd}
+                            onPointerDown={(e) => handlePointerDragStart(e, item.id)}
+                            onPointerMove={handlePointerDragMove}
+                            onPointerUp={handlePointerDragEnd}
+                            onPointerCancel={handlePointerDragCancel}
                             onClick={() => {
+                              if (suppressNextClickRef.current) {
+                                suppressNextClickRef.current = false;
+                                return;
+                              }
                               // Unassign on click
                               let updatedItems;
                               if (isSplit) {
@@ -1845,8 +2578,11 @@ export const TabbySimple: React.FC = () => {
                                   // Recalculate total
                                   let newSubtotal = 0;
                                   remainingItemsData.forEach(ri => {
-                                    if (ri.splitBetween && ri.splitBetween.length > 0) {
-                                      newSubtotal += ri.price / ri.splitBetween.length;
+                                    const denominator = getItemShareDenominator(ri, updatedPeople);
+                                    const weight = getPersonShareWeight(ri, person.id, updatedPeople);
+
+                                    if (denominator > 0 && weight > 0) {
+                                      newSubtotal += (ri.price * weight) / denominator;
                                     } else {
                                       newSubtotal += ri.price;
                                     }
@@ -1874,13 +2610,14 @@ export const TabbySimple: React.FC = () => {
                               <FoodIcon itemName={item.name} emoji={item.emoji} size={18} />
                             </span>
                             <span className="item-name-small">
-                              {isSplit && `1/${splitCount} `}{item.name}
+                              {isSplit && splitWeight > 0 ? `${splitWeight}/${splitDenominator} ` : ''}
+                              {item.name}
                               {item.quantity && item.quantity > 1 && (
                                 <span className="item-qty"> ×{item.quantity}</span>
                               )}
                             </span>
-                            <span className="item-price-small">${displayPrice.toFixed(2)}</span>
-                          </div>
+                            <span className="item-price-small">${sharePrice.toFixed(2)}</span>
+                          </button>
                         );
                       })
                       )}
@@ -1977,7 +2714,7 @@ export const TabbySimple: React.FC = () => {
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: '#fff',
+                background: 'var(--tb-white)',
                 pointerEvents: 'none',
               }}
               initial={{ opacity: 0 }}
@@ -2034,15 +2771,17 @@ export const TabbySimple: React.FC = () => {
       {/* Bottom Navigation */}
       <div className="bottom-nav">
         <div className="status-text">
-          {unassignedItems.length > 0
+          {scanAudit && !totalsVerified && allItemsAssigned
+            ? 'Review math before sharing'
+            : unassignedItems.length > 0
             ? `${unassignedItems.length} items to assign`
             : 'Ready to share!'
           }
         </div>
 
         <button
-          className={`share-btn ${allItemsAssigned && people.length > 0 ? 'share-ready' : ''}`}
-          disabled={!allItemsAssigned || people.length === 0}
+          className={`share-btn ${canShare ? 'share-ready' : ''}`}
+          disabled={!canShare}
           onClick={() => setShowShareReceipt(true)}
           aria-label="Share bill"
         >
@@ -2055,9 +2794,14 @@ export const TabbySimple: React.FC = () => {
 
       {/* Add Person Modal */}
       {showAddPerson && (
-        <div className="modal-overlay" onClick={() => { setShowAddPerson(false); setNewVenmoHandle(''); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Add People</h3>
+        <div className="modal-overlay" onClick={() => {
+          setShowAddPerson(false);
+          setNewPersonName('');
+          setNewVenmoHandle('');
+          setNewPersonHeadcount('1');
+        }}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="add-people-title-assign" onClick={(e) => e.stopPropagation()}>
+            <h3 id="add-people-title-assign">Add People</h3>
 
             {/* Quick Add from Recent */}
             {(() => {
@@ -2075,7 +2819,7 @@ export const TabbySimple: React.FC = () => {
                         style={{
                           padding: '6px 12px',
                           background: 'var(--tb-accent-tint)',
-                          border: '1px solid rgba(0, 122, 255, 0.3)',
+                          border: '1px solid var(--tb-accent-border)',
                           borderRadius: '16px',
                           color: 'var(--tb-accent)',
                           fontSize: '13px',
@@ -2100,6 +2844,16 @@ export const TabbySimple: React.FC = () => {
               autoFocus
             />
             <input
+              type="number"
+              min="1"
+              step="1"
+              inputMode="numeric"
+              placeholder="Headcount"
+              value={newPersonHeadcount}
+              onChange={(e) => setNewPersonHeadcount(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleAddPerson()}
+            />
+            <input
               type="text"
               placeholder="Venmo handle (optional)"
               value={newVenmoHandle}
@@ -2110,7 +2864,7 @@ export const TabbySimple: React.FC = () => {
               autoCorrect="off"
             />
             <div className="modal-actions">
-              <button onClick={handleAddPerson} disabled={!newPersonName.trim()}>
+              <button onClick={() => handleAddPerson()} disabled={!newPersonName.trim()}>
                 Add Person
               </button>
             </div>
@@ -2118,11 +2872,47 @@ export const TabbySimple: React.FC = () => {
         </div>
       )}
 
-      {/* Split Item Modal */}
+      {editPersonModal}
+
+      {creditPersonId && (
+        <div className="modal-overlay" onClick={() => setCreditPersonId(null)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="credit-title" onClick={(e) => e.stopPropagation()}>
+            <h3 id="credit-title">Personal credit</h3>
+            <p className="modal-help-text">
+              {people.find(person => person.id === creditPersonId)?.name ?? 'This person'} gets this amount subtracted after tax, tip, and fees.
+            </p>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Amount"
+              value={creditAmount}
+              onChange={(e) => setCreditAmount(e.target.value)}
+              autoFocus
+            />
+            <input
+              type="text"
+              placeholder="Note (optional)"
+              value={creditNote}
+              onChange={(e) => setCreditNote(e.target.value)}
+            />
+            <div className="modal-actions">
+              <button onClick={handleSaveCredit}>
+                Save Credit
+              </button>
+              <button className="contacts-btn" onClick={() => setCreditPersonId(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign/Split Item Modal */}
       {showSplitItem && selectedItem && (
         <div className="modal-overlay" onClick={() => setShowSplitItem(false)}>
-          <div className="modal split-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Split {selectedItem.name}</h3>
+          <div className="modal split-modal" role="dialog" aria-modal="true" aria-labelledby="split-item-title" onClick={(e) => e.stopPropagation()}>
+            <h3 id="split-item-title">Assign {selectedItem.name}</h3>
             <div className="split-item-badge">
               <span className="item-emoji">
                 <FoodIcon itemName={selectedItem.name} emoji={selectedItem.emoji} size={24} />
@@ -2131,7 +2921,7 @@ export const TabbySimple: React.FC = () => {
               <span className="item-price">${selectedItem.price.toFixed(2)}</span>
             </div>
             <p style={{ color: 'var(--tb-ink-muted)', marginBottom: '16px', fontSize: '14px' }}>
-              Select at least 2 people to split this item
+              Choose one person to assign it, or several people to split it.
             </p>
             <div className="split-people-list">
               {people.map((person, index) => (
@@ -2161,7 +2951,12 @@ export const TabbySimple: React.FC = () => {
             <div className="modal-actions">
               <button
                 onClick={() => {
-                  if (splitPeople.length >= 2) {
+                  if (splitPeople.length === 1) {
+                    assignItemToPerson(selectedItem.id, splitPeople[0]);
+                    setShowSplitItem(false);
+                    setSelectedItem(null);
+                    setSplitPeople([]);
+                  } else if (splitPeople.length >= 2) {
                     // Mark item as split and assigned
                     const updatedItems = items.map(item =>
                       item.id === selectedItem.id
@@ -2192,9 +2987,19 @@ export const TabbySimple: React.FC = () => {
                     setSplitPeople([]);
                   }
                 }}
-                disabled={splitPeople.length < 2}
+                disabled={splitPeople.length < 1}
               >
-                Split Between {splitPeople.length} People
+                {splitPeople.length === 0
+                  ? 'Choose People'
+                  : splitPeople.length === 1
+                    ? `Assign to ${people.find(person => person.id === splitPeople[0])?.name ?? 'Person'}`
+                    : `Split Between ${
+                      splitPeople.reduce((sum, personId) => {
+                        const person = people.find(p => p.id === personId);
+                        return sum + getPersonHeadcount(person);
+                      }, 0)
+                    } People`
+                }
               </button>
             </div>
           </div>
@@ -2212,24 +3017,40 @@ export const TabbySimple: React.FC = () => {
                   <div className="person-avatar-small" style={{ background: getPersonColor(index) }}>
                     {person.name[0].toUpperCase()}
                   </div>
-                  <span className="person-name-text">{person.name}</span>
-                  <button
-                    className="remove-btn"
-                    onClick={() => {
-                      // Remove person and unassign their items
-                      const updatedPeople = people.filter(p => p.id !== person.id);
-                      const updatedItems = items.map(item =>
-                        item.assignedTo === person.id ? { ...item, assignedTo: undefined } : item
-                      );
-                      setPeople(updatedPeople);
-                      setItems(updatedItems);
+                  <span className="person-name-text">{person.name} ({getPersonHeadcount(person)}x)</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => openPersonEditor(person)}
+                      style={{
+                        padding: '6px 10px',
+                        background: 'var(--tb-surface-2)',
+                        border: '1px solid var(--tb-border-strong)',
+                        borderRadius: '6px',
+                        color: 'var(--tb-ink)',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="remove-btn"
+                      onClick={() => {
+                        // Remove person and unassign their items
+                        const updatedPeople = people.filter(p => p.id !== person.id);
+                        const updatedItems = items.map(item =>
+                          removePersonFromItem(item, person.id)
+                        );
+                        setPeople(updatedPeople);
+                        setItems(updatedItems);
 
-                      // Persist to database (debounced to prevent race conditions)
-                      debouncedPersist(billToken, updatedPeople, updatedItems);
-                    }}
-                  >
-                    Remove
-                  </button>
+                        // Persist to database (debounced to prevent race conditions)
+                        debouncedPersist(billToken, updatedPeople, updatedItems);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -2343,9 +3164,9 @@ export const TabbySimple: React.FC = () => {
                           width: '100%',
                           padding: '6px',
                           background: 'var(--tb-danger-tint)',
-                          border: '1px solid rgba(255,59,48,0.3)',
+                          border: '1px solid var(--tb-danger-border)',
                           borderRadius: '6px',
-                          color: '#FF3B30',
+                          color: 'var(--tb-danger)',
                           fontSize: '13px',
                           cursor: 'pointer'
                         }}
@@ -2497,7 +3318,7 @@ export const TabbySimple: React.FC = () => {
                   alignItems: 'center',
                   padding: '12px',
                   background: 'var(--tb-accent-tint)',
-                  border: '1px solid rgba(0, 122, 255, 0.3)',
+                  border: '1px solid var(--tb-accent-border)',
                   borderRadius: '8px'
                 }}>
                   <input
@@ -2524,7 +3345,7 @@ export const TabbySimple: React.FC = () => {
                         const btn = document.activeElement as HTMLButtonElement;
                         const originalText = btn.textContent;
                         btn.textContent = 'Copied!';
-                        btn.style.color = '#34C759';
+                        btn.style.color = 'var(--tb-success)';
                         setTimeout(() => {
                           btn.textContent = originalText;
                           btn.style.color = 'var(--tb-accent)';
@@ -2582,7 +3403,14 @@ export const TabbySimple: React.FC = () => {
                 </h4>
                 {!isEditingBill && (
                   <button
-                    onClick={() => setIsEditingBill(true)}
+                    onClick={() => {
+                      setEditableSubtotal((billTotals?.subtotal ?? 0).toFixed(2));
+                      setEditableTax(tax.toFixed(2));
+                      setEditableTip(tip.toFixed(2));
+                      setEditableDiscount(discount.toFixed(2));
+                      setEditableServiceFee(serviceFee.toFixed(2));
+                      setIsEditingBill(true);
+                    }}
                     style={{
                       background: 'transparent',
                       border: 'none',
@@ -2606,7 +3434,7 @@ export const TabbySimple: React.FC = () => {
                       type="number"
                       step="0.01"
                       value={editableSubtotal}
-                      onChange={(e) => setEditableSubtotal(e.target.value)}
+                      readOnly
                       style={{
                         width: '100px',
                         padding: '6px 8px',
@@ -2616,7 +3444,8 @@ export const TabbySimple: React.FC = () => {
                         color: 'var(--tb-ink)',
                         fontSize: '15px',
                         fontFamily: "'Courier New', 'Courier', monospace",
-                        textAlign: 'right'
+                        textAlign: 'right',
+                        opacity: 0.65
                       }}
                     />
                   </div>
@@ -2660,9 +3489,51 @@ export const TabbySimple: React.FC = () => {
                       }}
                     />
                   </div>
+                  <div className="bill-overview-row" style={{ marginBottom: '12px' }}>
+                    <span>Discount</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editableDiscount}
+                      onChange={(e) => setEditableDiscount(e.target.value)}
+                      style={{
+                        width: '100px',
+                        padding: '6px 8px',
+                        background: 'var(--tb-surface-2)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: 'var(--tb-ink)',
+                        fontSize: '15px',
+                        fontFamily: "'Courier New', 'Courier', monospace",
+                        textAlign: 'right'
+                      }}
+                    />
+                  </div>
+                  <div className="bill-overview-row" style={{ marginBottom: '12px' }}>
+                    <span>Service fee</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editableServiceFee}
+                      onChange={(e) => setEditableServiceFee(e.target.value)}
+                      style={{
+                        width: '100px',
+                        padding: '6px 8px',
+                        background: 'var(--tb-surface-2)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: 'var(--tb-ink)',
+                        fontSize: '15px',
+                        fontFamily: "'Courier New', 'Courier', monospace",
+                        textAlign: 'right'
+                      }}
+                    />
+                  </div>
                   <div className="bill-overview-row" style={{ borderTop: '1px solid var(--tb-border)', paddingTop: '12px', marginTop: '12px', fontWeight: '600' }}>
                     <span>Total</span>
-                    <span>${((parseFloat(editableSubtotal) || 0) + (parseFloat(editableTax) || 0) + (parseFloat(editableTip) || 0)).toFixed(2)}</span>
+                    <span>${((billTotals?.subtotal ?? 0) - (parseFloat(editableDiscount) || 0) + (parseFloat(editableServiceFee) || 0) + (parseFloat(editableTax) || 0) + (parseFloat(editableTip) || 0)).toFixed(2)}</span>
                   </div>
                 </>
               ) : (
@@ -2679,6 +3550,18 @@ export const TabbySimple: React.FC = () => {
                     <span>Tip</span>
                     <span>${tip.toFixed(2)}</span>
                   </div>
+                  {discount > 0.01 && (
+                    <div className="bill-overview-row">
+                      <span>Discount</span>
+                      <span>-${discount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {serviceFee > 0.01 && (
+                    <div className="bill-overview-row">
+                      <span>Service fee</span>
+                      <span>${serviceFee.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="bill-overview-row" style={{ borderTop: '1px solid var(--tb-border)', paddingTop: '12px', marginTop: '12px', fontWeight: '600' }}>
                     <span>Total</span>
                     <span>${(billTotals?.grand_total ?? 0).toFixed(2)}</span>
@@ -2700,6 +3583,8 @@ export const TabbySimple: React.FC = () => {
                       setEditableSubtotal((billTotals?.subtotal ?? 0).toFixed(2));
                       setEditableTax(tax.toFixed(2));
                       setEditableTip(tip.toFixed(2));
+                      setEditableDiscount(discount.toFixed(2));
+                      setEditableServiceFee(serviceFee.toFixed(2));
                     }}
                   >
                     Cancel
@@ -2728,15 +3613,14 @@ export const TabbySimple: React.FC = () => {
                         people: people.map(person => ({
                           id: person.id,
                           name: person.name,
+                          headcount: getPersonHeadcount(person),
                           items: person.items,
-                          total: getPersonTotal(billTotals, person.id) // Use computed total from hook
+                          total: getPersonTotal(billTotals, person.id), // Use computed total from hook
+                          venmo_handle: person.venmo_handle ?? null,
+                          personal_credit: person.personal_credit,
+                          credit_note: person.credit_note
                         })),
-                        assignments: items.reduce((acc, item) => {
-                          if (item.assignedTo) {
-                            acc[item.id] = item.assignedTo;
-                          }
-                          return acc;
-                        }, {} as Record<string, string>)
+                        assignments: buildPersistedAssignments(items)
                       };
 
                       localStorage.setItem(`bill-share-${billToken}`, JSON.stringify(shareData));
@@ -2780,12 +3664,13 @@ export const TabbySimple: React.FC = () => {
         items={items}
         onItemsSave={handleUnifiedItemsSave}
         people={people}
-        onPeopleUpdate={setPeople}
         onPersonAdd={handleAddPerson}
         onPersonRemove={handleUnifiedPersonRemove}
         subtotal={billTotals?.subtotal ?? 0}
         tax={tax}
         tip={tip}
+        discount={discount}
+        serviceFee={serviceFee}
         total={billTotals?.grand_total ?? 0}
         onBillTotalsSave={handleUnifiedBillTotalsSave}
         billToken={billToken}
@@ -2793,7 +3678,6 @@ export const TabbySimple: React.FC = () => {
       />
 
       {/* Share Receipt Modal */}
-      {showShareReceipt && console.log('[ShareReceipt] Modal opening, items:', items.map(i => ({ name: i.name, splitBetween: i.splitBetween })))}
       <ShareReceiptModal
         isOpen={showShareReceipt}
         onClose={() => setShowShareReceipt(false)}

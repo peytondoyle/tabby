@@ -1,5 +1,3 @@
-import { apiFetch } from "./apiClient";
-
 type Log = { level: "error" | "warn" | "info"; msg: string; meta?: any };
 
 const queue: Log[] = [];
@@ -17,10 +15,15 @@ async function flush() {
     while (queue.length) {
       const batch = queue.splice(0, 10);
       try {
-        await apiFetch("/api/errors/log", { method: "POST", body: { logs: batch } });
+        const response = await fetch("/api/errors/log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ logs: batch })
+        });
+        if (!response.ok) throw new Error(`LOG_FAILED_${response.status}`);
       } catch (e: any) {
         // If API offline, put items back and bail quietly
-        if (e?.message === "API_OFFLINE") {
+        if (e?.message === "API_OFFLINE" || e instanceof TypeError) {
           queue.unshift(...batch);
           break;
         }

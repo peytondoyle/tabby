@@ -16,6 +16,7 @@ interface Person {
   name: string;
   items: string[];
   total: number;
+  headcount?: number;
 }
 
 interface UnifiedEditModalProps {
@@ -32,16 +33,17 @@ interface UnifiedEditModalProps {
 
   // People data
   people: Person[];
-  onPeopleUpdate: (people: Person[]) => void;
-  onPersonAdd: (name: string) => Promise<void>;
+  onPersonAdd: (name: string, headcount?: number) => Promise<void>;
   onPersonRemove: (personId: string) => void;
 
   // Bill totals
   subtotal: number;
   tax: number;
   tip: number;
+  discount: number;
+  serviceFee: number;
   total: number;
-  onBillTotalsSave: (data: { subtotal: number; tax: number; tip: number }) => Promise<void>;
+  onBillTotalsSave: (data: { subtotal: number; tax: number; tip: number; discount: number; serviceFee: number }) => Promise<void>;
 
   // Receipt link
   billToken: string | null;
@@ -60,12 +62,13 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
   items,
   onItemsSave,
   people,
-  onPeopleUpdate,
   onPersonAdd,
   onPersonRemove,
   subtotal,
   tax,
   tip,
+  discount,
+  serviceFee,
   total,
   onBillTotalsSave,
   billToken,
@@ -82,11 +85,20 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
 
   // People editing
   const [newPersonName, setNewPersonName] = useState('');
+  const [newPersonHeadcount, setNewPersonHeadcount] = useState('1');
 
-  // Bill totals editing (subtotal is derived from items, so only tax/tip are editable)
+  // Bill totals editing (subtotal is derived from items)
   const [editableTax, setEditableTax] = useState(tax.toFixed(2));
   const [editableTip, setEditableTip] = useState(tip.toFixed(2));
+  const [editableDiscount, setEditableDiscount] = useState(discount.toFixed(2));
+  const [editableServiceFee, setEditableServiceFee] = useState(serviceFee.toFixed(2));
   const [isSavingTotals, setIsSavingTotals] = useState(false);
+
+  const normalizeHeadcount = (value: string) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.max(1, Math.floor(parsed));
+  };
 
   // Reset editable state when opening
   React.useEffect(() => {
@@ -95,9 +107,13 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
       setEditableItems([...items]);
       setEditableTax(tax.toFixed(2));
       setEditableTip(tip.toFixed(2));
+      setEditableDiscount(discount.toFixed(2));
+      setEditableServiceFee(serviceFee.toFixed(2));
+      setNewPersonName('');
+      setNewPersonHeadcount('1');
       setActiveSection('overview');
     }
-  }, [isOpen, restaurantName, items, subtotal, tax, tip]);
+  }, [isOpen, restaurantName, items, subtotal, tax, tip, discount, serviceFee]);
 
   const handleRestaurantSave = async () => {
     if (!editableRestaurantName.trim()) return;
@@ -122,7 +138,9 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
         // Parent ignores subtotal (derived from items); pass current for API shape.
         subtotal,
         tax: parseFloat(editableTax) || 0,
-        tip: parseFloat(editableTip) || 0
+        tip: parseFloat(editableTip) || 0,
+        discount: parseFloat(editableDiscount) || 0,
+        serviceFee: parseFloat(editableServiceFee) || 0
       });
       setActiveSection('overview');
     } finally {
@@ -132,15 +150,27 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
 
   const handleAddPerson = async () => {
     if (!newPersonName.trim()) return;
-    await onPersonAdd(newPersonName.trim());
+    await onPersonAdd(newPersonName.trim(), normalizeHeadcount(newPersonHeadcount));
     setNewPersonName('');
+    setNewPersonHeadcount('1');
   };
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
     <div className="unified-edit-overlay" onClick={onClose}>
-      <div className="unified-edit-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="unified-edit-modal" role="dialog" aria-modal="true" aria-labelledby="unified-edit-title" onClick={(e) => e.stopPropagation()}>
         {/* Header with Navigation */}
         <div className="unified-edit-header">
           {activeSection !== 'overview' && (
@@ -151,7 +181,7 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
               ← Back
             </button>
           )}
-          <h2 className="unified-edit-title">
+          <h2 className="unified-edit-title" id="unified-edit-title">
             {activeSection === 'overview' && 'Bill Details'}
             {activeSection === 'restaurant' && 'Edit Restaurant'}
             {activeSection === 'items' && 'Edit Items'}
@@ -237,7 +267,10 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
                         >
                           {person.name[0].toUpperCase()}
                         </div>
-                        <span>{person.name}</span>
+                        <div className="unified-person-name">
+                          {person.name}
+                          {person.headcount && person.headcount > 1 ? ` (${person.headcount}x)` : ''}
+                        </div>
                       </div>
                       <span className="unified-person-total">${person.total.toFixed(2)}</span>
                     </div>
@@ -441,7 +474,10 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
                         {person.name[0].toUpperCase()}
                       </div>
                       <div>
-                        <div className="unified-person-name">{person.name}</div>
+                        <div className="unified-person-name">
+                          {person.name}
+                          {person.headcount && person.headcount > 1 ? ` (${person.headcount}x)` : ''}
+                        </div>
                         <div className="unified-person-items-count">
                           {person.items.length} items • ${person.total.toFixed(2)}
                         </div>
@@ -469,10 +505,20 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
                       className="unified-input"
                       placeholder="Enter name"
                     />
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={newPersonHeadcount}
+                      onChange={(e) => setNewPersonHeadcount(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddPerson()}
+                      className="unified-input"
+                      placeholder="Headcount"
+                    />
                     <button
                       className="unified-btn unified-btn-primary"
                       onClick={handleAddPerson}
-                      disabled={!newPersonName.trim()}
+                      disabled={!newPersonName.trim() || normalizeHeadcount(newPersonHeadcount) < 1}
                     >
                       Add
                     </button>
@@ -520,15 +566,37 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
                   className="unified-input unified-money-input"
                 />
               </div>
+              <div className="unified-input-group">
+                <label className="unified-label">Discount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editableDiscount}
+                  onChange={(e) => setEditableDiscount(e.target.value)}
+                  className="unified-input unified-money-input"
+                />
+              </div>
+              <div className="unified-input-group">
+                <label className="unified-label">Service fee</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editableServiceFee}
+                  onChange={(e) => setEditableServiceFee(e.target.value)}
+                  className="unified-input unified-money-input"
+                />
+              </div>
               <div className="unified-total-preview">
                 <span>Total</span>
                 <span className="unified-total-amount">
-                  {/* Start from parent-provided total (already includes discount/serviceFee)
-                      and apply the delta between new and current tax/tip. */}
                   ${(
-                    total +
-                    ((parseFloat(editableTax) || 0) - tax) +
-                    ((parseFloat(editableTip) || 0) - tip)
+                    subtotal -
+                    (parseFloat(editableDiscount) || 0) +
+                    (parseFloat(editableServiceFee) || 0) +
+                    (parseFloat(editableTax) || 0) +
+                    (parseFloat(editableTip) || 0)
                   ).toFixed(2)}
                 </span>
               </div>
@@ -538,6 +606,8 @@ export const UnifiedEditModal: React.FC<UnifiedEditModalProps> = ({
                   onClick={() => {
                     setEditableTax(tax.toFixed(2));
                     setEditableTip(tip.toFixed(2));
+                    setEditableDiscount(discount.toFixed(2));
+                    setEditableServiceFee(serviceFee.toFixed(2));
                     setActiveSection('overview');
                   }}
                 >

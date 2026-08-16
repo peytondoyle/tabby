@@ -42,7 +42,7 @@ export async function generateFoodIcon(foodName: string): Promise<GeneratedIcon>
   const processingTime = Date.now() - startTime;
   console.log(`[iconGenerator] Generated icon in ${processingTime}ms`);
 
-  const imageUrl = response.data[0]?.url;
+  const imageUrl = response.data?.[0]?.url;
   if (!imageUrl) {
     throw new Error('No image URL returned from DALL-E 3');
   }

@@ -175,6 +175,13 @@
   max-width: 32ch;
 }
 
+.modal-help-text {
+  margin: -4px 0 14px;
+  color: var(--tb-ink-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .scan-failed-actions {
   width: 100%;
   display: flex;
@@ -499,6 +506,7 @@
 /* Item chip — soft white pill with a tiny shadow, no border. */
 .item-card {
   background: var(--tb-surface-1);
+  border: 0;
   border-radius: var(--tb-r-pill);
   padding: 10px 16px;
   display: inline-flex;
@@ -510,6 +518,7 @@
               background var(--tb-base) var(--tb-ease-out);
   white-space: nowrap;
   box-shadow: var(--tb-shadow-sm);
+  text-align: left;
 }
 
 .item-card:hover {
@@ -521,6 +530,14 @@
 .item-card:active {
   cursor: grabbing;
   transform: scale(0.98);
+}
+
+.item-card:focus-visible,
+.person-item:focus-visible,
+.math-review-action:focus-visible,
+.share-btn:focus-visible {
+  outline: 3px solid var(--tb-accent);
+  outline-offset: 3px;
 }
 
 .item-card.dragging {
@@ -607,6 +624,235 @@
   font-family: var(--tb-font-body);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+.math-review-card {
+  width: min(720px, calc(100% - 32px));
+  margin: 16px auto 8px;
+  padding: 16px;
+  background: var(--tb-surface-1);
+  border: 1px solid var(--tb-border-strong);
+  border-radius: var(--tb-r-md);
+  box-shadow: var(--tb-shadow-sm);
+}
+
+.math-review-card--verified {
+  border-color: color-mix(in srgb, var(--tb-success) 40%, var(--tb-border-strong));
+}
+
+.math-review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.math-review-eyebrow {
+  margin: 0 0 3px;
+  color: var(--tb-ink-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.math-review-header h2 {
+  margin: 0;
+  color: var(--tb-ink-strong);
+  font-size: 18px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.math-review-action {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--tb-r-pill);
+  background: var(--tb-ink-strong);
+  color: var(--tb-surface-1);
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.math-review-card--verified .math-review-action {
+  background: var(--tb-success);
+}
+
+.math-review-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.math-review-grid div {
+  padding: 10px;
+  border-radius: var(--tb-r-sm);
+  background: var(--tb-surface-2);
+}
+
+.math-review-grid span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--tb-ink-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.math-review-grid strong {
+  color: var(--tb-ink-strong);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.math-review-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.math-review-note {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--tb-border-strong) 70%, transparent);
+  border-radius: var(--tb-r-lg);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--tb-white) 86%, var(--tb-surface-2)),
+      color-mix(in srgb, var(--tb-surface-2) 56%, var(--tb-white))
+    ),
+    var(--tb-surface-1);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--tb-white) 74%, transparent),
+    var(--tb-shadow-sm);
+}
+
+.math-review-note--warning {
+  border-color: color-mix(in srgb, var(--tb-warning) 34%, var(--tb-border-strong));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--tb-warning) 9%, var(--tb-white)),
+      color-mix(in srgb, var(--tb-warning) 3%, var(--tb-white))
+    ),
+    var(--tb-surface-1);
+}
+
+.math-review-note--suggestion {
+  border-color: color-mix(in srgb, var(--tb-accent) 28%, var(--tb-border-strong));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--tb-accent) 7%, var(--tb-white)),
+      color-mix(in srgb, var(--tb-accent) 2%, var(--tb-white))
+    ),
+    var(--tb-surface-1);
+}
+
+.math-review-note--muted {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--tb-ink-muted) 6%, var(--tb-white)),
+      color-mix(in srgb, var(--tb-surface-2) 24%, var(--tb-white))
+    ),
+    var(--tb-surface-1);
+}
+
+.math-review-note-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--tb-r-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  margin-top: 1px;
+  background: color-mix(in srgb, var(--tb-warning) 15%, var(--tb-surface-1));
+  color: var(--tb-butter);
+  font-size: 0;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent);
+}
+
+.math-review-note-icon::before {
+  content: "!";
+  font-size: 16px;
+  line-height: 1;
+}
+
+.math-review-note--suggestion .math-review-note-icon {
+  background: color-mix(in srgb, var(--tb-accent) 10%, var(--tb-surface-1));
+  color: var(--tb-accent);
+}
+
+.math-review-note--suggestion .math-review-note-icon::before {
+  content: "↺";
+  font-size: 14px;
+}
+
+.math-review-note--muted .math-review-note-icon {
+  background: color-mix(in srgb, var(--tb-ink-muted) 10%, var(--tb-surface-1));
+  color: var(--tb-ink-muted);
+}
+
+.math-review-note--muted .math-review-note-icon::before {
+  content: "?";
+}
+
+.math-review-note p {
+  margin: 0;
+  min-width: 0;
+  color: color-mix(in srgb, var(--tb-ink-muted) 86%, var(--tb-ink-strong));
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+
+.math-review-note strong,
+.math-review-note span {
+  display: block;
+}
+
+.math-review-note strong {
+  margin-bottom: 3px;
+  color: var(--tb-ink-strong);
+  font-size: 14.5px;
+  font-weight: 750;
+  letter-spacing: 0;
+  line-height: 1.18;
+  text-wrap: pretty;
+}
+
+.math-review-note span {
+  max-width: 58ch;
+}
+
+@media (max-width: 560px) {
+  .math-review-header {
+    flex-direction: column;
+  }
+
+  .math-review-action {
+    width: 100%;
+  }
+
+  .math-review-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .math-review-note {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
 }
 
 /* .all-assigned banner removed — the bottom-bar status + share-btn pulse
@@ -706,11 +952,16 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: inherit;
   cursor: pointer;
   transition: all 0.2s ease;
   padding: 4px 4px 4px 8px;
   margin: -2px;
   border-radius: 6px;
+  text-align: left;
 }
 
 .person-item:hover {

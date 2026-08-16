@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { motion } from 'framer-motion'
+import { m as motion } from 'framer-motion'
 import { formatMoney, truncateText, normalizeEmoji, getEmojiClass, getInitials, getPersonColor } from '@/lib/format'
 import { designTokens } from '../../lib/styled'
 import type { PersonData } from './PeoplePills'

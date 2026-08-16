@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient'
 import { logServer } from '@/lib/errorLogger'
-import { SkeletonText, TextWithTooltip } from '@/components/design-system'
-import { Card } from '@/components/design-system'
 import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare as ComputeItemShare } from '../../lib/computeTotals'
 
 interface ShareCardProps {
@@ -52,6 +50,18 @@ interface PersonTotals {
   tax_share: number
   tip_share: number
   total: number
+}
+
+function CardShell({ className = '', children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <div className={`rounded-[var(--tb-radius-lg)] border border-[var(--tb-border)] bg-[var(--tb-surface)] shadow-[var(--tb-shadow-md)] ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+function SkeletonLine({ className = '' }: { className?: string }) {
+  return <div className={`h-4 rounded bg-[var(--tb-border-subtle)] ${className}`} />
 }
 
 export const ShareCard: React.FC<ShareCardProps> = ({
@@ -215,9 +225,11 @@ export const ShareCard: React.FC<ShareCardProps> = ({
     return (
       <CardShell className={`max-w-[560px] mx-auto p-4 sm:p-5 ${className}`}>
         <div className="space-y-4">
-          <SkeletonText lines={1} className="h-6" />
-          <SkeletonText lines={1} className="h-4 w-2/3" />
-          <SkeletonText lines={3} />
+          <SkeletonLine className="h-6 w-3/4" />
+          <SkeletonLine className="w-2/3" />
+          <SkeletonLine />
+          <SkeletonLine />
+          <SkeletonLine className="w-5/6" />
         </div>
       </CardShell>
     )
@@ -243,6 +255,14 @@ export const ShareCard: React.FC<ShareCardProps> = ({
       day: 'numeric' 
     })
   }
+  const totalsByPersonId = new Map(personTotals.map(total => [total.person_id, total]))
+  const itemsById = new Map(items.map(item => [item.id, item]))
+  const sharesByPersonId = new Map<string, typeof itemShares>()
+  itemShares.forEach(share => {
+    const shares = sharesByPersonId.get(share.person_id) ?? []
+    shares.push(share)
+    sharesByPersonId.set(share.person_id, shares)
+  })
 
   return (
     <div className={`w-[720px] max-w-full bg-white text-black p-6 ${className} ${isExport ? 'print:shadow-none print:border-0' : ''}`}>
@@ -264,7 +284,7 @@ export const ShareCard: React.FC<ShareCardProps> = ({
             {/* Summary Table */}
             <div className="space-y-2 mb-4">
               {people.map((person) => {
-                const totals = personTotals.find(t => t.person_id === person.id)
+                const totals = totalsByPersonId.get(person.id)
                 return (
                   <div key={person.id} className="flex items-center justify-between p-3 bg-surface/30 rounded-lg">
                     <div className="flex items-center gap-3">
@@ -300,11 +320,10 @@ export const ShareCard: React.FC<ShareCardProps> = ({
             {/* Breakdown by Person */}
             <div className="space-y-4">
               {people.map((person) => {
-                const totals = personTotals.find(t => t.person_id === person.id)
-                const personItems = itemShares
-                  .filter(share => share.person_id === person.id)
+                const totals = totalsByPersonId.get(person.id)
+                const personItems = (sharesByPersonId.get(person.id) ?? [])
                   .map(share => {
-                    const item = items.find(i => i.id === share.item_id)
+                    const item = itemsById.get(share.item_id)
                     return { ...share, item }
                   })
                   .filter(share => share.item)

@@ -129,8 +129,10 @@ export async function fetchReceiptByToken(token: string): Promise<{ receipt: Rec
           created_at: localReceiptData.created_at,
           subtotal: localReceiptData.subtotal,
           sales_tax: localReceiptData.sales_tax,
-          tip: localReceiptData.tip
-        } as Receipt,
+          tip: localReceiptData.tip,
+          discount: localReceiptData.discount ?? 0,
+          service_fee: localReceiptData.service_fee ?? 0
+        } as unknown as Receipt,
         items: localReceiptData.items || [],
         people: localReceiptData.people || [],
         shares: localReceiptData.shares || []
@@ -259,6 +261,8 @@ export function saveReceiptToLocalStorage(receiptData: {
   subtotal?: number | null;
   sales_tax?: number | null;
   tip?: number | null;
+  discount?: number | null;
+  service_fee?: number | null;
   total?: number | null;
   people?: any[];
   shares?: any[];
@@ -314,7 +318,7 @@ export async function createReceipt(payload: ReceiptCreatePayload, userId?: stri
       id: receiptId,
       token: receiptToken,
       title: payload.place || 'New Receipt',
-      place: payload.place,
+      place: payload.place ?? undefined,
       date: new Date().toISOString().split('T')[0],
       items: payload.items,
       subtotal: Math.round(cachedSubtotal * 100) / 100,
@@ -334,7 +338,7 @@ export async function createReceipt(payload: ReceiptCreatePayload, userId?: stri
     trackReceiptAccess({
       token: receiptToken,
       title: payload.place || 'New Receipt',
-      place: payload.place,
+      place: payload.place ?? undefined,
       date: new Date().toISOString().split('T')[0],
       totalAmount: payload.total ? Number(payload.total) : undefined
     })
@@ -374,6 +378,8 @@ export async function createReceipt(payload: ReceiptCreatePayload, userId?: stri
       subtotal: payload.total,
       sales_tax: payload.tax,
       tip: payload.tip,
+      discount: payload.discount ?? 0,
+      service_fee: payload.service_fee ?? 0,
       total: payload.total,
       people: payload.people || [],
       shares: [],
@@ -385,7 +391,7 @@ export async function createReceipt(payload: ReceiptCreatePayload, userId?: stri
     trackReceiptAccess({
       token: receiptToken,
       title: payload.place || 'New Receipt',
-      place: payload.place,
+      place: payload.place ?? undefined,
       date: new Date().toISOString().split('T')[0],
       totalAmount: payload.total ? Number(payload.total) : undefined,
       isLocal: true
@@ -502,7 +508,7 @@ function createLocalReceipt(parsed: ParseResult): string {
   trackReceiptAccess({
     token: receiptData.token,
     title: receiptData.title,
-    place: receiptData.place,
+    place: receiptData.place ?? undefined,
     date: receiptData.date,
     totalAmount: receiptData.total_amount,
     isLocal: true
@@ -567,6 +573,8 @@ export async function updateReceiptMetadata(
     subtotal?: number | null;
     sales_tax?: number | null;
     tip?: number | null;
+    discount?: number | null;
+    service_fee?: number | null;
   }
 ): Promise<any> {
   return retryWithBackoff(async () => {
@@ -587,7 +595,15 @@ export async function updateReceiptMetadata(
  */
 export async function updateReceiptAssignments(
   token: string,
-  people: Array<{ id?: string; name: string; avatar_url?: string | null; venmo_handle?: string | null }>,
+  people: Array<{
+    id?: string;
+    name: string;
+    avatar_url?: string | null;
+    venmo_handle?: string | null;
+    headcount?: number;
+    personal_credit?: number | null;
+    credit_note?: string | null;
+  }>,
   shares: Array<{ item_id: string; person_id: string; weight?: number }>
 ): Promise<{ people: any[]; shares: any[] }> {
   return retryWithBackoff(async () => {

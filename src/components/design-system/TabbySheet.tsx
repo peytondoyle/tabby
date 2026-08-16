@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { FocusTrap, getSpringConfig } from '../../lib/accessibility'
 
 export interface TabbySheetProps {

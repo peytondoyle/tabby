@@ -6,7 +6,7 @@ export function toMoney(n: unknown): Money {
 }
 
 // Import types first
-import type { Item, Bill, FlowItem, FlowPerson } from '@/types/domain'
+import type { Item, Bill, FlowItem } from '@/types/domain'
 
 // Re-export domain types for convenience
 export type { Item, Person, Bill, FlowItem, FlowPerson } from '@/types/domain'

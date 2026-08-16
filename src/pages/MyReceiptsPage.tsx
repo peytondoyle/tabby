@@ -54,18 +54,18 @@ export const MyReceiptsPage: React.FC = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#000',
-      color: '#fff',
+      background: 'var(--tb-inverse-bg)',
+      color: 'var(--tb-inverse-text)',
       padding: '0'
     }}>
       <HomeButton />
       {/* Header */}
       <div style={{
         padding: '20px 20px 20px 70px',
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
+        borderBottom: '1px solid var(--tb-inverse-border)',
         position: 'sticky',
         top: 0,
-        background: '#000',
+        background: 'var(--tb-inverse-bg)',
         zIndex: 10
       }}>
         <h1 style={{
@@ -83,7 +83,7 @@ export const MyReceiptsPage: React.FC = () => {
           <div style={{
             textAlign: 'center',
             padding: '40px 20px',
-            color: 'rgba(255,255,255,0.5)'
+            color: 'var(--tb-inverse-dim)'
           }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
             <div style={{ fontSize: '18px', marginBottom: '8px' }}>No receipts yet</div>
@@ -93,8 +93,8 @@ export const MyReceiptsPage: React.FC = () => {
               style={{
                 marginTop: '24px',
                 padding: '12px 24px',
-                background: '#007AFF',
-                color: '#fff',
+                background: 'var(--tb-accent)',
+                color: 'var(--tb-inverse-text)',
                 border: 'none',
                 borderRadius: '8px',
                 fontSize: '16px',
@@ -116,20 +116,20 @@ export const MyReceiptsPage: React.FC = () => {
                 key={bill.token}
                 onClick={() => navigate(`/receipt/${bill.token}/edit`)}
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'var(--tb-inverse-surface-subtle)',
+                  border: '1px solid var(--tb-inverse-border)',
                   borderRadius: '12px',
                   padding: '16px',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                  e.currentTarget.style.background = 'var(--tb-inverse-surface)';
+                  e.currentTarget.style.borderColor = 'var(--tb-inverse-border-strong)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                  e.currentTarget.style.background = 'var(--tb-inverse-surface-subtle)';
+                  e.currentTarget.style.borderColor = 'var(--tb-inverse-border)';
                 }}
               >
                 <div style={{
@@ -149,7 +149,7 @@ export const MyReceiptsPage: React.FC = () => {
                     {bill.place && bill.place !== bill.title && (
                       <div style={{
                         fontSize: '14px',
-                        color: 'rgba(255,255,255,0.6)',
+                        color: 'var(--tb-inverse-muted)',
                         marginBottom: '4px'
                       }}>
                         {bill.place}
@@ -160,7 +160,7 @@ export const MyReceiptsPage: React.FC = () => {
                     <div style={{
                       fontSize: '18px',
                       fontWeight: '600',
-                      color: '#007AFF'
+                      color: 'var(--tb-accent)'
                     }}>
                       ${bill.totalAmount.toFixed(2)}
                     </div>
@@ -175,7 +175,7 @@ export const MyReceiptsPage: React.FC = () => {
                     display: 'flex',
                     gap: '12px',
                     fontSize: '13px',
-                    color: 'rgba(255,255,255,0.5)'
+                    color: 'var(--tb-inverse-dim)'
                   }}>
                     <span>{formatDate(bill.date)}</span>
                     <span>•</span>
@@ -192,10 +192,10 @@ export const MyReceiptsPage: React.FC = () => {
                     disabled={deleting === bill.token}
                     style={{
                       padding: '6px 12px',
-                      background: 'rgba(255, 59, 48, 0.15)',
-                      border: '1px solid rgba(255, 59, 48, 0.3)',
+                      background: 'var(--tb-danger-tint)',
+                      border: '1px solid var(--tb-danger-border)',
                       borderRadius: '6px',
-                      color: '#FF3B30',
+                      color: 'var(--tb-danger)',
                       fontSize: '13px',
                       fontWeight: '500',
                       cursor: deleting === bill.token ? 'not-allowed' : 'pointer',

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { parseReceipt, parseMultipleReceipts } from '@/lib/receiptScanning'
 import type { ParseResult } from '@/lib/receiptScanning'
 import { logServer } from '@/lib/errorLogger'

@@ -1,7 +1,7 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { FoodIcon } from '../../lib/foodIcons';
 import { HomeButton } from '../HomeButton';
-import { computeTotals, type Item as ComputeItem, type Person as ComputePerson, type ItemShare as ComputeItemShare, type BillTotals } from '../../lib/computeTotals';
+import { computeTotals, parsePersonHeadcount, type Item as ComputeItem, type Person as ComputePerson, type ItemShare as ComputeItemShare, type BillTotals } from '../../lib/computeTotals';
 import './styles.css';
 
 interface Item {
@@ -21,9 +21,20 @@ interface ItemShare {
 interface Person {
   id: string;
   name: string;
+  headcount?: number;
   items: string[];
   itemShares?: ItemShare[];  // New: includes weight and calculated share amount
   total: number;
+}
+
+function getPersonHeadcount(person?: Pick<Person, 'headcount' | 'name'> | null): number {
+  if (!person) return 1;
+  if (person.headcount !== undefined && person.headcount !== null) {
+    const parsed = Number(person.headcount);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.max(1, Math.floor(parsed));
+  }
+  return parsePersonHeadcount(person.name);
 }
 
 interface ShareReceiptModalProps {
@@ -51,7 +62,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
   date,
   items,
   people,
-  subtotal,
+  subtotal: _subtotal,
   tax,
   tip,
   discount = 0,
@@ -62,20 +73,8 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
   const [currentSlide, setCurrentSlide] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  if (!isOpen) return null;
-
   // Calculate total slides: one for each person + one for full breakdown
   const totalSlides = people.length + 1;
-
-  const getPersonColor = (index: number): string => {
-    const colors = [
-      '#2C5F7D', // Deep blue
-      '#4A6741', // Forest green
-      '#6B4C7C', // Deep purple
-      '#7C4A44', // Terracotta
-    ];
-    return colors[index % colors.length];
-  };
 
   const handleShareReceipt = async () => {
     if (!cardRef.current) return;
@@ -94,9 +93,11 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
       const html2canvas = (await import('html2canvas')).default;
 
       // Generate high-quality image
+      const rootStyles = getComputedStyle(document.documentElement);
+      const exportBackground = rootStyles.getPropertyValue('--tb-white').trim();
       const canvas = await html2canvas(cardRef.current, {
         scale: 4, // Even higher DPI for sharper images
-        backgroundColor: '#ffffff',
+        backgroundColor: exportBackground,
         logging: false,
         useCORS: true,
         allowTaint: false,
@@ -108,9 +109,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         // Better rendering for backgrounds and borders
         foreignObjectRendering: false,
         // Ensure backgrounds are captured properly
-        ignoreElements: (element) => {
-          return false; // Don't ignore any elements
-        }
+        ignoreElements: () => false
       });
 
       const dataUrl = canvas.toDataURL('image/png', 1.0);
@@ -156,12 +155,15 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     if (!people || people.length === 0) return [];
 
     let billTotals = billTotalsProp;
+    const peopleById = new Map(people.map(person => [person.id, person]));
+    const itemsById = new Map(items.map(item => [item.id, item]));
 
     if (!billTotals) {
       const itemPersonCount = new Map<string, number>();
       people.forEach(person => {
+        const personWeight = getPersonHeadcount(person);
         person.items.forEach(itemId => {
-          itemPersonCount.set(itemId, (itemPersonCount.get(itemId) || 0) + 1);
+          itemPersonCount.set(itemId, (itemPersonCount.get(itemId) || 0) + personWeight);
         });
       });
 
@@ -174,7 +176,8 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         } else {
           person.items.forEach(itemId => {
             const splitCount = itemPersonCount.get(itemId) || 1;
-            shares.push({ item_id: itemId, person_id: person.id, weight: 1 / splitCount });
+            const personWeight = getPersonHeadcount(person);
+            shares.push({ item_id: itemId, person_id: person.id, weight: splitCount > 0 ? personWeight / splitCount : 1 });
           });
         }
       });
@@ -191,6 +194,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
       const normalizedPeople: ComputePerson[] = people.map(p => ({
         id: p.id,
         name: p.name,
+        headcount: p.headcount,
         is_paid: false
       }));
 
@@ -202,11 +206,11 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     }
 
     return billTotals.person_totals.map(pt => {
-      const person = people.find(p => p.id === pt.person_id);
+      const person = peopleById.get(pt.person_id);
       if (!person) return null;
 
       const personItemsWithShares = pt.items.map(itemData => {
-        const item = items.find(i => i.id === itemData.item_id);
+        const item = itemsById.get(itemData.item_id);
         return {
           item: item || { id: itemData.item_id, emoji: '🍽️', price: 0, name: 'Item' },
           shareAmount: itemData.share_amount,
@@ -228,9 +232,32 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         personTotal: pt.total
       };
     }).filter((x): x is NonNullable<typeof x> => x !== null);
-  }, [billTotalsProp, people, items, subtotal, tax, tip, discount, serviceFee]);
+  }, [billTotalsProp, people, items, tax, tip, discount, serviceFee]);
+  const personTotalsSum = Math.round(
+    peopleWithTotals.reduce((sum, personData) => sum + personData.personTotal, 0) * 100
+  ) / 100;
+  const billGrandTotal = billTotalsProp?.grand_total ?? total;
+  const unresolvedAmount = Math.round((billGrandTotal - personTotalsSum) * 100) / 100;
+  const hasUnresolvedAmount = Math.abs(unresolvedAmount) > 0.005;
+  const unresolvedLabel = unresolvedAmount > 0 ? 'Unassigned' : 'Over-assigned';
+  const unresolvedWarning = unresolvedAmount > 0
+    ? 'Assign remaining items before sharing'
+    : 'Fix duplicate assignments before sharing';
 
-  const renderPersonReceipt = (personData: typeof peopleWithTotals[0], personIndex: number) => {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const renderPersonReceipt = (personData: typeof peopleWithTotals[0]) => {
     const {
       person,
       itemsSubtotal,
@@ -261,7 +288,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
               <div key={item.id} className="modern-item-row">
                 <div className="modern-item-info">
                   <span className="modern-item-emoji">
-                    <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={16} color="#1a1a1a" />
+                    <FoodIcon itemName={item.name || item.label || 'Item'} emoji={item.emoji} size={16} color="var(--tb-ink)" />
                   </span>
                   <span className="modern-item-name">
                     {item.name || item.label || 'Item'}
@@ -333,23 +360,32 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
         {/* People List */}
         <div className="modern-people-list">
           {peopleWithTotals.length === 0 && (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '14px' }}>
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--tb-ink-dim)', fontSize: '14px' }}>
               No people added yet
             </div>
           )}
 
-          {peopleWithTotals.map((personData, personIndex) => (
+          {peopleWithTotals.map((personData) => (
             <div key={personData.person.id} className="modern-person-row">
               <span className="modern-person-name">{personData.person.name}</span>
               <span className="modern-person-total">${personData.personTotal.toFixed(2)}</span>
             </div>
           ))}
+          {hasUnresolvedAmount && (
+            <div className="modern-person-row modern-person-row--unassigned">
+              <span className="modern-person-name">{unresolvedLabel}</span>
+              <span className="modern-person-total">${Math.abs(unresolvedAmount).toFixed(2)}</span>
+            </div>
+          )}
         </div>
 
         {/* Bill Total */}
         <div className="modern-bill-total">
           <span className="modern-total-label">Bill Total</span>
-          <span className="modern-total-amount">${(billTotalsProp?.grand_total ?? total).toFixed(2)}</span>
+          <span className="modern-total-amount">${billGrandTotal.toFixed(2)}</span>
+          {hasUnresolvedAmount && (
+            <span className="modern-total-warning">{unresolvedWarning}</span>
+          )}
         </div>
 
         {/* Footer */}
@@ -378,10 +414,10 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
   return (
     <div className="share-receipt-modal">
       <HomeButton />
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h1>Share Bill</h1>
+      <div className="share-modal-overlay" onClick={onClose}>
+        <div className="share-modal-content" role="dialog" aria-modal="true" aria-labelledby="share-bill-title" onClick={(e) => e.stopPropagation()}>
+          <div className="share-modal-header">
+            <h1 id="share-bill-title">Share Bill</h1>
             <button className="close-btn" onClick={onClose}>✕</button>
           </div>
 
@@ -396,7 +432,7 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
 
             <div className="carousel-content">
               {currentSlide < peopleWithTotals.length
-                ? renderPersonReceipt(peopleWithTotals[currentSlide], currentSlide)
+                ? renderPersonReceipt(peopleWithTotals[currentSlide])
                 : renderFullBreakdown()
               }
             </div>
@@ -423,13 +459,13 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
             ))}
           </div>
 
-          <button className="share-button" onClick={handleShareReceipt}>
+          <button className="share-button" onClick={handleShareReceipt} disabled={hasUnresolvedAmount}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
               <polyline points="16,6 12,2 8,6"/>
               <line x1="12" y1="2" x2="12" y2="15"/>
             </svg>
-            Share Receipt
+            {hasUnresolvedAmount ? 'Fix split before sharing' : 'Share Receipt'}
           </button>
         </div>
       </div>

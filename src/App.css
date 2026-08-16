@@ -10,11 +10,105 @@
 
 html, body, #root {
   height: 100%;
-  background: #0C0D10;
-  color: #FFFFFF;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  background: var(--tb-bg, #FBF6EE);
+  color: var(--tb-ink, #1F1612);
+  font-family: var(--tb-font-body, 'Avenir Next', 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.route-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--tb-bg, #FBF6EE);
+  color: var(--tb-ink-muted, #6E5C50);
+  font-weight: 700;
+}
+
+.retired-app {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 25% 20%, rgba(180, 35, 42, 0.12), transparent 28%),
+    linear-gradient(135deg, #fffdf9 0%, #fbf6ee 55%, #efe2d1 100%);
+}
+
+.retired-panel {
+  width: min(100%, 560px);
+  border: 1px solid rgba(31, 22, 18, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 253, 249, 0.92);
+  box-shadow: 0 24px 80px rgba(31, 22, 18, 0.14);
+  padding: clamp(28px, 6vw, 48px);
+}
+
+.retired-kicker {
+  margin-bottom: 14px;
+  color: var(--tb-accent, #b4232a);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.retired-panel h1 {
+  margin: 0;
+  color: var(--tb-ink, #1f1612);
+  font-family: var(--tb-font-display, Georgia, serif);
+  font-size: clamp(34px, 8vw, 58px);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.retired-copy {
+  margin-top: 18px;
+  color: var(--tb-ink-muted, #6e5c50);
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+.retired-status {
+  display: grid;
+  gap: 0;
+  margin-top: 32px;
+  border-top: 1px solid rgba(31, 22, 18, 0.12);
+}
+
+.retired-status div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(31, 22, 18, 0.12);
+}
+
+.retired-status span {
+  color: var(--tb-ink-muted, #6e5c50);
+  font-size: 14px;
+}
+
+.retired-status strong {
+  color: var(--tb-ink, #1f1612);
+  font-size: 14px;
+}
+
+.tb-error-button {
+  min-height: 44px;
+  border: 1px solid var(--tb-accent, #B4232A);
+  border-radius: var(--tb-radius-md, 10px);
+  background: var(--tb-accent, #B4232A);
+  color: #fff;
+  padding: 0 16px;
+  font-weight: 700;
+}
+
+.tb-error-button--secondary {
+  background: var(--tb-surface, #FFFDF9);
+  color: var(--tb-ink, #1F1612);
 }
 
 /* Remove all default button styles */

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { isSupabaseAvailable } from '@/lib/supabaseClient'
@@ -240,20 +240,27 @@ export const MyBillsPage: React.FC = () => {
   // Mutation to create new bill via server API
   const createReceiptMutation = useMutation({
     mutationFn: async ({ title, place }: { title: string, place: string }) => {
-      // Create a ParseResult-like object for the new bill
-      const parsed = {
+      const payload = {
         place: place || title,
         date: getCurrentDate().iso,
-        items: [], // Empty items for now
-        subtotal: 0,
+        items: [{
+          id: `manual-${Date.now()}`,
+          name: 'Item',
+          price: 0,
+          icon: '🍽️',
+          quantity: 1
+        }],
+        people: [],
         tax: 0,
         tip: 0,
+        discount: 0,
+        service_fee: 0,
         total: 0
       }
 
       const response = await apiFetch('/api/receipts/create', {
         method: 'POST',
-        body: JSON.stringify({ parsed })
+        body: payload
       })
 
       // apiFetch returns the raw response data directly
@@ -265,8 +272,8 @@ export const MyBillsPage: React.FC = () => {
     },
     onSuccess: (receipt) => {
       queryClient.invalidateQueries({ queryKey: ['my-bills'] })
-              // Navigate using the receipt's editor token
-        navigate(`/receipt/${(receipt as any).editor_token}/edit`)
+      const token = (receipt as any).token || (receipt as any).editor_token || (receipt as any).id
+      navigate(`/receipt/${token}/edit`)
     }
   })
 

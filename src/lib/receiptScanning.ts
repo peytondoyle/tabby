@@ -7,6 +7,7 @@ import { logServer } from './errorLogger'
 import { normalizeFile } from './imageNormalizer'
 import { createReceipt, buildCreatePayload } from './receipts'
 import { getSmartEmoji } from './emojiUtils'
+import { normalizeReceiptLineItems } from '../../shared/receiptItemNormalization'
 
 // Note: Image normalization is now handled by Web Worker in imageNormalizer.ts
 // Old functions removed - see imageNormalizer.ts for Web Worker implementation
@@ -321,49 +322,11 @@ function processItems(
   // Step 1: Normalize and filter items. Quantity metadata comes from the server's
   // parseQuantityItems — never expand into N rows, that's what caused users to
   // see seven identical "Peking Dumpling" chips.
-  const normalizedItems = rawItems
-    .map((item, _index) => {
-      const label = String(item.label || '').trim()
-      const price = normalizeNumber(item.price)
-      const quantity = Math.max(1, Math.round(normalizeNumber(item.quantity) || 1))
-      const unitPriceRaw = normalizeNumber(item.unit_price)
-      const unit_price = unitPriceRaw > 0
-        ? unitPriceRaw
-        : (quantity > 0 ? Math.round((price / quantity) * 100) / 100 : price)
-
-      const emoji = getSmartEmoji(label)
-
-      return {
-        id: generateId(),
-        label,
-        price,
-        emoji,
-        quantity,
-        unit_price
-      }
-    })
-    .filter(item => {
-      // Filter out items with no label AND zero price
-      // Keep labeled zero-price items (e.g., complimentary "Comp Water $0.00")
-      const isEmpty = !item.label || item.label.length === 0
-      const isZeroPrice = Math.abs(item.price) < 0.01
-
-      if (isEmpty && isZeroPrice) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[process_items] Filtered out empty item: ${JSON.stringify(item)}`)
-        }
-        return false
-      }
-
-      if (isEmpty) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[process_items] Filtered out empty-label item: ${JSON.stringify(item)}`)
-        }
-        return false
-      }
-
-      return true
-    })
+  const normalizedItems = normalizeReceiptLineItems(rawItems).map(item => ({
+    id: generateId(),
+    ...item,
+    emoji: item.emoji || getSmartEmoji(item.label)
+  }))
   
   if (process.env.NODE_ENV !== 'production') console.log(`[process_items] After filtering: ${normalizedItems.length} items`)
   
@@ -479,9 +442,6 @@ export async function parseReceipt(
   let processedFile = file
 
   console.info(`[scan_start] Starting receipt parse - file: ${fileName} (${fileSize} bytes, ${fileType})`)
-
-  // Track cache key for saving later
-  let cacheKey: string | null = null
 
   try {
     // Step 1: Select file
@@ -832,46 +792,51 @@ function mergeReceiptResults(results: ParseResult[]): ParseResult {
   const place = results.find(r => r.place)?.place || null
   const date = results.find(r => r.date)?.date || null
 
-  // Collect all items, keeping the MAX count of each label+price seen in any single image
-  // This preserves legitimate duplicates (e.g., two people ordered the same beer)
-  // while still deduplicating across multi-image scans of the same receipt
+  const resultTotals = results
+    .map(r => r.total || 0)
+    .filter(total => total > 0)
+  const looksLikeDuplicateCapture = resultTotals.length === results.length &&
+    resultTotals.every(total => Math.abs(total - resultTotals[0]) <= 0.01)
 
-  // Step 1: Count occurrences per key per image
-  const perImageCounts: Map<string, number>[] = results.map(result => {
-    const counts = new Map<string, number>()
-    for (const item of result.items) {
-      const key = `${item.label.toLowerCase().trim()}-${item.price.toFixed(2)}`
-      counts.set(key, (counts.get(key) || 0) + 1)
-    }
-    return counts
-  })
-
-  // Step 2: Find max count for each key across all images
-  const maxCounts = new Map<string, number>()
-  for (const counts of perImageCounts) {
-    for (const [key, count] of counts) {
-      maxCounts.set(key, Math.max(maxCounts.get(key) || 0, count))
-    }
-  }
-
-  // Step 3: Collect items up to the max count per key
-  const usedCounts = new Map<string, number>()
   const items: ParseResult['items'] = []
 
-  // Use first image's items first to preserve ordering
-  for (const result of results) {
-    for (const item of result.items) {
-      const key = `${item.label.toLowerCase().trim()}-${item.price.toFixed(2)}`
-      const used = usedCounts.get(key) || 0
-      const max = maxCounts.get(key) || 0
+  if (looksLikeDuplicateCapture) {
+    // Same full receipt captured more than once: keep max occurrence per line key.
+    const perImageCounts: Map<string, number>[] = results.map(result => {
+      const counts = new Map<string, number>()
+      for (const item of result.items) {
+        const key = `${item.label.toLowerCase().trim()}-${item.price.toFixed(2)}`
+        counts.set(key, (counts.get(key) || 0) + 1)
+      }
+      return counts
+    })
 
-      if (used < max) {
-        items.push(item)
-        usedCounts.set(key, used + 1)
+    const maxCounts = new Map<string, number>()
+    for (const counts of perImageCounts) {
+      for (const [key, count] of counts) {
+        maxCounts.set(key, Math.max(maxCounts.get(key) || 0, count))
       }
     }
+
+    const usedCounts = new Map<string, number>()
+    for (const result of results) {
+      for (const item of result.items) {
+        const key = `${item.label.toLowerCase().trim()}-${item.price.toFixed(2)}`
+        const used = usedCounts.get(key) || 0
+        const max = maxCounts.get(key) || 0
+
+        if (used < max) {
+          items.push(item)
+          usedCounts.set(key, used + 1)
+        }
+      }
+    }
+  } else {
+    // Different pages/images: preserve every line. Collapsing by label+price
+    // undercounts real repeated items like "Beer $6.00" across pages.
+    items.push(...results.flatMap(result => result.items))
   }
-  console.info(`[multi_scan] Merged ${items.length} unique items from ${results.reduce((sum, r) => sum + r.items.length, 0)} total`)
+  console.info(`[multi_scan] Merged ${items.length} items from ${results.reduce((sum, r) => sum + r.items.length, 0)} total`)
 
   // For totals: prefer the result that has the most complete data
   // or use the last result (often the payment summary)
